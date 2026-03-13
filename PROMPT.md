@@ -43,6 +43,7 @@ For every piece of information found, apply the **"Can the agent discover this b
 - Route tables (read annotations/decorators)
 - Service registrations (read config files)
 - Code style rules enforced by linters/formatters
+- Linter/quality tool configuration details (levels, excludes, baselines, suppressed identifiers — read the config files directly: `phpstan.neon`, `.php-cs-fixer.php`, `eslint.config.*`, etc.)
 - Function signatures and API surfaces
 - Dependency lists (read package manager files)
 - README content duplicated into agent context

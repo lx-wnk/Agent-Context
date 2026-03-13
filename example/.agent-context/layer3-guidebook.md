@@ -27,9 +27,9 @@ Heavy reference docs in `.agent-context/skills/`. Load when you need full detail
 | File | Content |
 |------|---------|
 | `architecture.md` | Domain overview, plugin patterns, non-obvious details |
-| `dal-conventions.md` | DAL gotchas, translation chain, version-aware writes |
+| `dal-conventions.md` | DAL quick facts stub → skill `dal-reference.md` |
 | `admin-conventions.md` | Vue patterns, state management, Meteor usage |
 | `storefront-conventions.md` | Twig security, theme inheritance, JS plugin system |
-| `infrastructure.md` | Quick facts stub (Docker, CI commands) |
+| `infrastructure.md` | Docker, CI, build quick facts stub → skill `infrastructure.md` |
 | `decisions.md` | Architecture decisions and rationale |
 | `lessons.md` | Gotchas, known bugs, hard-won knowledge |

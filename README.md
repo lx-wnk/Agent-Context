@@ -65,11 +65,13 @@ example/
     layer3-guidebook.md                # Task routing, skill index
     memory/
       architecture.md                  # Non-obvious architectural details
-      dal-conventions.md               # DAL quick facts (stub)
+      dal-conventions.md               # DAL quick facts (stub → skill)
       decisions.md                     # Architecture decisions
+      infrastructure.md                # Docker, CI, build quick facts (stub → skill)
       lessons.md                       # Gotchas and hard-won knowledge
     skills/
       dal-reference.md                 # Full DAL reference (on-demand)
+      infrastructure.md                # Full commands & CI reference (on-demand)
 ```
 
 ## Key Principles
