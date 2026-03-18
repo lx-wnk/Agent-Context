@@ -9,6 +9,10 @@ Before multi-step tasks: outline approach, identify affected files, check for ex
 Run `composer run check` before committing. This triggers PHPStan, PHP-CS-Fixer, and PHPUnit.
 For frontend: `npm run lint && npm run test` in the relevant bundle.
 
+## Skills Installation
+
+If `.agents/skills/` is missing or empty, restore external skills from `skills-lock.json` before starting work.
+
 ## Self-Improvement
 
 When you discover gotchas, update `.agent-context/memory/lessons.md`.

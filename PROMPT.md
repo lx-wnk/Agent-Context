@@ -19,6 +19,7 @@ Scan the project for existing agent/documentation files. Read ALL of these that 
 - `Makefile`, `package.json`, `composer.json`, `docker-compose.yml` / `compose.yaml`
 - `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Jenkinsfile`
 - `.env.example`, `.editorconfig`
+- `skills-lock.json`, `.agents/skills/`
 
 List what you found and summarize the total content size (approximate line count).
 
@@ -36,6 +37,7 @@ For every piece of information found, apply the **"Can the agent discover this b
 - Security constraints and forbidden patterns
 - Business-specific terminology or domain knowledge
 - Pre-commit/pre-merge workflows
+- External skill dependencies and their sources (`skills-lock.json`)
 
 ### REMOVE (discoverable from code):
 - Directory trees and file structure listings
@@ -119,6 +121,16 @@ triggers:
 
 Skills are loaded ONLY when trigger keywords match the current task. This is the key to keeping baseline context small.
 
+### Skills Lock Integration
+
+If `skills-lock.json` exists (managed by [skills.sh](https://skills.sh)):
+
+- Add `.agents/skills/` to `.gitignore` (installed files, not tracked)
+- Keep `skills-lock.json` committed (declarative dependency list)
+- Add a "Skills Installation" step to `layer0-agent-workflow.md`: restore skills from lock file before first task
+- Reference external skills in `layer3-guidebook.md` with a note that `.agents/skills/` is gitignored
+- Add a Quick Rule to `AGENTS.md`: "If `.agents/skills/` is missing, install from `skills-lock.json` before starting work"
+
 ### Entry Points
 
 **CLAUDE.md** (if it exists, replace content):
@@ -154,6 +166,7 @@ For each source file found in Phase 1:
 - Update any references to moved content
 - Update user memory (`MEMORY.md`) to point to new architecture
 - Verify `.agent-context/` is NOT in `.gitignore`
+- If `skills-lock.json` exists: add `.agents/skills/` to `.gitignore`, keep `skills-lock.json` tracked
 
 ## Phase 6: Verification
 
@@ -164,6 +177,7 @@ Run these checks:
 4. Grep for key project-specific terms in new files to verify no content was lost
 5. `cat CLAUDE.md` — should be 2-3 lines (bootstrap pointer)
 6. No duplicated content across files
+7. If `skills-lock.json` exists: verify `.agents/skills/` is gitignored and `skills-lock.json` is NOT gitignored
 
 ## Phase 7: Summary
 

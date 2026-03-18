@@ -1,5 +1,9 @@
 # Layer 3 — Guidebook (Load by Task)
 
+## External Skills
+
+External skills live in `.agents/skills/` (gitignored). Install from `skills-lock.json` if missing.
+
 ## Skills (On-Demand, Full Reference)
 
 Heavy reference docs in `.agent-context/skills/`. Load when you need full details.

@@ -25,6 +25,7 @@ Skills in `.agent-context/skills/` — full reference docs, load on-demand (see 
 3. **Typed DTOs:** `readonly class` structs instead of associative arrays for return values
 4. **Conventional Commits:** `<type>(scope): description`
 5. **Testing:** PHPUnit with `IntegrationTestBehaviour` trait for integration tests
+6. **Skills:** If `.agents/skills/` is missing, install from `skills-lock.json` before starting work
 
 ## Compaction Preservation
 
