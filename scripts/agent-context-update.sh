@@ -6,7 +6,7 @@ set -euo pipefail
 REPO="lx-wnk/Agent-Context"
 BASE_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 CONTEXT_DIR="$BASE_DIR/.agent-context"
-VERSION_FILE="$CONTEXT_DIR/.version"
+VERSION_FILE="$CONTEXT_DIR/.agent-context-version"
 PLUGINS_FILE="$CONTEXT_DIR/plugins.json"
 SETTINGS_FILE="$BASE_DIR/.claude/settings.json"
 

@@ -46,8 +46,8 @@ plugins.json                      →──    .agent-context/plugins.json (over
 templates/*                       →──    AGENTS.md, layer1-3, memory/ (project-owned)
 ```
 
-**Overwritable** files are updated on every release. **Project-owned** files are created once and never overwritten.
-The installed version is tracked in `.agent-context/.version` — written by the agent from the release tag.
+**Overwritable** files are updated on every release. **Project-owned** files are created once and never overwritten. The
+installed version is tracked in `.agent-context/.agent-context-version` — written by the agent from the release tag.
 
 ### Layer System
 
@@ -85,15 +85,15 @@ You paste [`PROMPT.md`](PROMPT.md) into any AI coding agent. The agent:
 1. Downloads the latest release from the GitHub Releases API
 2. Copies **shared files** from `context/` → `.agent-context/` (overwritable)
 3. Creates **project-owned files** from `templates/` → `AGENTS.md`, layers 1-3, memory stubs (never overwritten)
-4. Writes the release version to `.agent-context/.version`
+4. Writes the release version to `.agent-context/.agent-context-version`
 5. Discovers your tech stack and fills in the TODO placeholders
 
 ### Every Session (automatic, Claude Code)
 
-A **SessionStart hook** in `.claude/settings.json` runs `.agent-context/scripts/agent-context-update.sh` before the agent
-starts. The script:
+A **SessionStart hook** in `.claude/settings.json` runs `.agent-context/scripts/agent-context-update.sh` before the
+agent starts. The script:
 
-1. Reads `.agent-context/.version` (local) and fetches the latest release tag from the GitHub API (remote)
+1. Reads `.agent-context/.agent-context-version` (local) and fetches the latest release tag from the GitHub API (remote)
 2. **If versions differ:** downloads the tarball, overwrites shared files (including the script itself), writes the new
    version
 3. **If versions match or API fails:** continues silently — never blocks the session
@@ -144,7 +144,7 @@ your-project/
     ├── layer1-bootstrap.md                ← Project identity, Docker, domains
     ├── layer2-project-core.md             ← Dev principles + critical rules
     ├── layer3-guidebook.md                ← Task routing, skills, memory
-    ├── .version                           ← Installed version (written by hook)
+    ├── .agent-context-version              ← Installed version (written by hook)
     ├── plugins.json                       ← Plugin configuration
     ├── scripts/agent-context-update.sh           ← Auto-update hook script (shared)
     ├── skills/                            ← Skills (on-demand reference)
@@ -202,10 +202,10 @@ trigger keywords match. This achieves near-zero baseline cost for heavy document
 
 ## Updates
 
-After creating a [GitHub Release](https://github.com/lx-wnk/Agent-Context/releases), projects update automatically:
-on the next agent session, `agent-startup.md` checks the Releases API, detects the version difference, downloads the
-release, and overwrites the 🔒 shared files. Project-owned files are never touched. If the API is unreachable, the
-agent continues silently.
+After creating a [GitHub Release](https://github.com/lx-wnk/Agent-Context/releases), projects update automatically: on
+the next agent session, `agent-startup.md` checks the Releases API, detects the version difference, downloads the
+release, and overwrites the 🔒 shared files. Project-owned files are never touched. If the API is unreachable, the agent
+continues silently.
 
 ## Research & References
 

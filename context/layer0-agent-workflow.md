@@ -1,8 +1,7 @@
 # Layer 0 — Agent Workflow
 
-> **⚠ SHARED FILE — DO NOT ADD PROJECT-SPECIFIC CONTENT.**
-> This file is auto-updated and will be overwritten. Project-specific workflow rules belong in
-> `layer2-project-core.md`, task routing belongs in `layer3-guidebook.md`.
+> **⚠ SHARED FILE — DO NOT ADD PROJECT-SPECIFIC CONTENT.** This file is auto-updated and will be overwritten.
+> Project-specific workflow rules belong in `layer2-project-core.md`, task routing belongs in `layer3-guidebook.md`.
 
 ## Skill Lookup
 

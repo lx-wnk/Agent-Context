@@ -12,7 +12,7 @@ AGENTS.md
   layer0-agent-workflow.md    ← shared (auto-updated)
   base-principles.md          ← shared (auto-updated)
   plugins.json                ← shared (auto-updated)
-  .version                    ← written by agent
+  .agent-context-version                    ← written by agent
   layer1-bootstrap.md         ← project-owned
   layer2-project-core.md      ← project-owned
   layer3-guidebook.md         ← project-owned
@@ -54,10 +54,10 @@ These are created once by the installer and then owned by the project. Auto-upda
 ### `AGENTS.md` — Entry Point (~35 lines)
 
 Identifies the project as Shopware 6.7 with PHP 8.2+, Symfony 7, MySQL 8.0+, and a custom DAL (no Doctrine ORM).
-Describes the modular monolith structure (`src/Core/{Framework,System,Content,Checkout}`, plugins in
-`custom/plugins/`). References `@.agent-context/agent-startup.md` for auto-updates. Lists 5 quick rules: always run
-`composer run check` before committing, DAL over Doctrine, typed DTOs with `readonly class`, Conventional Commits, and
-PHPUnit with `IntegrationTestBehaviour`. Includes compaction preservation hints for long sessions.
+Describes the modular monolith structure (`src/Core/{Framework,System,Content,Checkout}`, plugins in `custom/plugins/`).
+References `@.agent-context/agent-startup.md` for auto-updates. Lists 5 quick rules: always run `composer run check`
+before committing, DAL over Doctrine, typed DTOs with `readonly class`, Conventional Commits, and PHPUnit with
+`IntegrationTestBehaviour`. Includes compaction preservation hints for long sessions.
 
 ### `layer1-bootstrap.md` — Tech Stack & Domains (~25 lines)
 
@@ -113,16 +113,16 @@ Elasticsearch 9200, Admin 8080).
 ### `memory/lessons.md`
 
 Four hard-won gotchas: (1) Translation fallback — system-default language must have a translation row or fields appear
-empty. (2) Entity indexer ordering — indexers run in registration order, dependencies require correct sequence. (3) Admin
-hot reload — requires full build script, watcher alone doesn't suffice. (4) Migration patterns — `update()` for additive
-changes (always runs), `updateDestructive()` for breaking changes (requires explicit flag).
+empty. (2) Entity indexer ordering — indexers run in registration order, dependencies require correct sequence. (3)
+Admin hot reload — requires full build script, watcher alone doesn't suffice. (4) Migration patterns — `update()` for
+additive changes (always runs), `updateDestructive()` for breaking changes (requires explicit flag).
 
 ---
 
 ## Skills (Full Reference, loaded on-demand)
 
-Heavy documentation that the agent loads only when the task matches. This is where the "stubs + skills" pattern pays
-off — ~100 lines of DAL reference costs nothing when you're fixing a CSS bug.
+Heavy documentation that the agent loads only when the task matches. This is where the "stubs + skills" pattern pays off
+— ~100 lines of DAL reference costs nothing when you're fixing a CSS bug.
 
 ### `skills/dal-reference.md` (~80 lines)
 

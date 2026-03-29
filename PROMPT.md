@@ -29,7 +29,7 @@ AGENTS.md                                PROJECT — customize freely
   layer0-agent-workflow.md               🔒 SHARED — do NOT modify (auto-updated)
   base-principles.md                     🔒 SHARED — do NOT modify (auto-updated)
   plugins.json                           🔒 SHARED — do NOT modify (auto-updated)
-  .version                               🔒 SHARED — written by auto-update
+  .agent-context-version                  🔒 SHARED — written by auto-update
   scripts/agent-context-update.sh               🔒 SHARED — auto-update hook script
   layer1-bootstrap.md                    PROJECT — customize freely
   layer2-project-core.md                 PROJECT — customize freely
@@ -47,13 +47,14 @@ Put project-specific workflow rules in `layer2-project-core.md`, task routing in
 
 For shared files, fetch the latest release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest`,
 download the archive from `tarball_url`, and copy files from `context/` into `.agent-context/`. Also copy `plugins.json`
-and `scripts/agent-context-update.sh` (make executable). Write the release version (from `tag_name`, without `v` prefix) to
-`.agent-context/.version`.
+and `scripts/agent-context-update.sh` (make executable). Write the release version (from `tag_name`, without `v` prefix)
+to `.agent-context/.agent-context-version`.
 
 For project-owned files, use the templates from `templates/` in the archive — or create them manually with TODO
 placeholders. If a project-owned file already exists, do NOT overwrite it.
 
-Copy `scripts/agent-context-update.sh` from the archive to `.agent-context/scripts/agent-context-update.sh` and make it executable.
+Copy `scripts/agent-context-update.sh` from the archive to `.agent-context/scripts/agent-context-update.sh` and make it
+executable.
 
 **Claude Code hook setup:** Edit `.claude/settings.json` (create with `{}` if missing). The `hooks.SessionStart` field
 is an **array** — other hooks may already exist. **Append** our entry to the array, do NOT replace it. Skip if an entry
@@ -75,7 +76,16 @@ Example with multiple hooks coexisting:
   "hooks": {
     "SessionStart": [
       { "hooks": [{ "type": "command", "command": "bash .other/hook.sh" }] },
-      { "hooks": [{ "type": "command", "command": "bash .agent-context/scripts/agent-context-update.sh", "timeout": 30, "statusMessage": "Checking agent-context updates..." }] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .agent-context/scripts/agent-context-update.sh",
+            "timeout": 30,
+            "statusMessage": "Checking agent-context updates..."
+          }
+        ]
+      }
     ]
   }
 }
@@ -145,9 +155,9 @@ For existing documentation found in Phase 2, route surviving content:
 
 Each fact in exactly ONE place. No duplicates.
 
-**Important:** Do NOT create memory files for general programming principles (KISS, YAGNI, DRY, SOLID, Clean Code).
-LLMs already know these — adding them wastes context budget and reduces performance. Only store knowledge that is
-**specific to this project** and **not discoverable from the code**.
+**Important:** Do NOT create memory files for general programming principles (KISS, YAGNI, DRY, SOLID, Clean Code). LLMs
+already know these — adding them wastes context budget and reduces performance. Only store knowledge that is **specific
+to this project** and **not discoverable from the code**.
 
 ## Phase 5: Project Skills Discovery
 
