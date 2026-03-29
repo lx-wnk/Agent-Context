@@ -55,24 +55,27 @@ placeholders. If a project-owned file already exists, do NOT overwrite it.
 
 Copy `scripts/session-start.sh` from the archive to `.agent-context/scripts/session-start.sh` and make it executable.
 
-**Claude Code hook setup:** If `.claude/settings.json` exists, **merge** the `hooks.SessionStart` entry into it — do NOT
-overwrite existing hooks, permissions, or other settings. If it doesn't exist, copy the template as-is. The hook must
-contain:
+**Claude Code hook setup:** Edit `.claude/settings.json` (create with `{}` if missing). The `hooks.SessionStart` field
+is an **array** — other hooks may already exist. **Append** our entry to the array, do NOT replace it. Skip if an entry
+with `session-start.sh` already exists.
+
+```json
+{
+  "type": "command",
+  "command": "bash .agent-context/scripts/session-start.sh",
+  "timeout": 30,
+  "statusMessage": "Checking agent-context updates..."
+}
+```
+
+Example with multiple hooks coexisting:
 
 ```json
 {
   "hooks": {
     "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .agent-context/scripts/session-start.sh",
-            "timeout": 30,
-            "statusMessage": "Checking agent-context updates..."
-          }
-        ]
-      }
+      { "hooks": [{ "type": "command", "command": "bash .other/hook.sh" }] },
+      { "hooks": [{ "type": "command", "command": "bash .agent-context/scripts/session-start.sh", "timeout": 30, "statusMessage": "Checking agent-context updates..." }] }
     ]
   }
 }
