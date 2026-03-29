@@ -1,200 +1,171 @@
 # Agent Context Architecture — Setup Prompt
 
-> **Usage:** Copy this entire file as a prompt to any AI coding agent (Claude Code, Cursor, Gemini CLI, Copilot, Codex, etc.) in a project that needs context architecture setup. The agent will analyze existing documentation, apply quality filters, and create the layered `.agent-context/` structure.
+> **Usage:** Paste this entire file as a prompt into any AI coding agent (Claude Code, Cursor, Gemini CLI, Copilot,
+> Codex, etc.) to set up the agent-context architecture in your project.
 
 ---
 
 ## Your Task
 
-Analyze this project and create a layered `.agent-context/` context architecture. This architecture provides AI agents with the right information at the right time — minimizing baseline context while keeping full reference accessible on-demand.
+Set up the layered `.agent-context/` context architecture in this project. This gives AI agents the right information at
+the right time — minimal baseline context, full reference on-demand.
 
-## Phase 1: Discovery
+Follow each phase in order.
 
-Scan the project for existing agent/documentation files. Read ALL of these that exist:
-
-- `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.windsurfrules`, `GEMINI.md`, `COPILOT.md`
-- `.claude/rules/*.md`, `.cursor/rules/*.md`
-- `README.md`, `CONTRIBUTING.md`, `docs/`
-- `.claude/projects/*/memory/*.md` (user memory files)
-- `Makefile`, `package.json`, `composer.json`, `docker-compose.yml` / `compose.yaml`
-- `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Jenkinsfile`
-- `.env.example`, `.editorconfig`
-- `skills-lock.json`, `.agents/skills/`
-
-List what you found and summarize the total content size (approximate line count).
-
-## Phase 2: Content Classification
-
-For every piece of information found, apply the **"Can the agent discover this by reading the code?"** filter (ETH Zurich, 2026):
-
-### KEEP (not discoverable from code):
-- Gotchas, quirks, and hard-won lessons learned
-- Conventions that no linter enforces (e.g., "no autowiring", "structs over arrays")
-- Non-obvious architectural decisions and their rationale
-- External system references (API endpoints, IDs, tokens, URLs)
-- Docker/infra port mappings and networking conventions
-- CI pipeline structure and custom build steps
-- Security constraints and forbidden patterns
-- Business-specific terminology or domain knowledge
-- Pre-commit/pre-merge workflows
-- External skill dependencies and their sources (`skills-lock.json`)
-
-### REMOVE (discoverable from code):
-- Directory trees and file structure listings
-- Entity/model field listings (read the source files)
-- Route tables (read annotations/decorators)
-- Service registrations (read config files)
-- Code style rules enforced by linters/formatters
-- Linter/quality tool configuration details (levels, excludes, baselines, suppressed identifiers — read the config files directly: `phpstan.neon`, `.php-cs-fixer.php`, `eslint.config.*`, etc.)
-- Function signatures and API surfaces
-- Dependency lists (read package manager files)
-- README content duplicated into agent context
-
-**Principle:** Every line in context files represents friction the agent cannot resolve alone. If possible, fix the friction in the code instead of documenting it.
-
-## Phase 3: Architecture Creation
+## Phase 1: Setup Structure
 
 Create this directory structure:
 
 ```
+AGENTS.md                              ← Agent entry point
+.claude/CLAUDE.md                      ← Claude Code integration
+.github/copilot-instructions.md        ← GitHub Copilot integration
+.junie/guidelines.md                   ← Junie integration
 .agent-context/
-  layer0-agent-workflow.md      # Universal agent patterns
-  layer1-bootstrap.md           # Project identity & tech stack
-  layer2-project-core.md        # Dev principles & conventions
-  layer3-guidebook.md           # Task → file routing table
-  memory/                       # Lightweight stubs with quick facts
-    <domain-files>.md           # One per domain, only non-discoverable content
-  skills/                       # Full reference docs, loaded on-demand
-    <reference-files>.md        # Heavy docs with YAML trigger frontmatter
+  agent-startup.md                     ← Auto-update + plugin config (shared)
+  layer0-agent-workflow.md             ← Agent workflow rules (shared)
+  base-principles.md                   ← Dev principles (shared)
+  layer1-bootstrap.md                  ← Project identity, Docker, domains
+  layer2-project-core.md               ← Dev principles + critical rules
+  layer3-guidebook.md                  ← Task routing, skills, memory
+  memory/
+    decisions.md                       ← Architectural decisions
+    lessons.md                         ← Hard-won lessons
+    todo.md                            ← Current task plan
 ```
 
-### Layer Files
+For the shared files (`agent-startup.md`, `layer0-agent-workflow.md`, `base-principles.md`), fetch the latest release
+from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest`, download the archive from `tarball_url`, and
+copy the files from `context/` into `.agent-context/`. Also copy `plugins.json` into `.agent-context/`. Write the release
+version (from `tag_name`, without `v` prefix) to `.agent-context/.version`.
 
-**layer0-agent-workflow.md** (~20-30 lines)
-- Plan-first approach
-- Verification commands (build, test, lint)
-- Memory update rules
-- Routing table: how to classify and store new user learnings
+For project-owned files (`AGENTS.md`, layers 1-3, memory stubs, agent integrations), use the templates from `templates/`
+in the archive — or create them manually with TODO placeholders.
 
-**layer1-bootstrap.md** (~15-25 lines)
-- Tech stack (language, framework, version)
-- Infrastructure summary (Docker, cloud, DB)
-- Project structure overview (only what's NOT obvious from directory names)
-- Plugin/package/module table with dependencies (if applicable)
+## Phase 2: Discovery
 
-**layer2-project-core.md** (~25-40 lines)
-- Development principles (only those not enforced by tooling)
-- Code conventions that linters DON'T catch
-- Testing strategy and patterns
-- Commit convention
-- Any "always apply" rules
+Auto-discover as much as possible before asking the user:
 
-**layer3-guidebook.md** (~25-40 lines)
-- Task-to-file routing table: for each common task type, list which memory files and skills to load
-- Memory file index with one-line descriptions
-- Skills index with trigger keywords
+- **Existing docs**: `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.windsurfrules`, `README.md`, `CONTRIBUTING.md`,
+  `.claude/rules/*.md`, `.cursor/rules/*.md`, `skills-lock.json`
+- **Project name**: From `package.json`, `composer.json`, repo name, or directory name
+- **Tech stack**: `package.json`, `composer.json`, `go.mod`, `Cargo.toml`, `requirements.txt`
+- **Docker**: `docker-compose.yml` / `compose.yaml` for container names, ports, exec patterns
+- **Domains**: `.env`, `.env.example` for `APP_URL`, `BASE_URL`, `SHOP_URL`
+- **CI**: `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`
+- **Testing**: `phpunit.xml`, `vitest.config.*`, `cypress.config.*`, `jest.config.*`
+- **Commit convention**: `git log --oneline -20`
 
-### Memory Files (Stubs)
+Only ask the user for values that cannot be auto-detected.
 
-Each memory file should be **under 15 lines** containing:
-1. Title
-2. Pointer to skill file if a full reference exists
-3. 3-5 quick facts that are most frequently needed (IDs, commands, URLs)
+## Phase 3: Content Classification
 
-Only create memory files for domains that have non-discoverable content.
+For every piece of existing documentation, apply the **"Can the agent discover this by reading the code?"** filter:
 
-### Skills (Full Reference)
+### KEEP (not discoverable):
 
-For content blocks over ~30 lines, create a skill file with YAML frontmatter:
+- Gotchas, quirks, hard-won lessons
+- Conventions no linter enforces
+- Non-obvious architectural decisions + rationale
+- External system references (API endpoints, IDs, URLs)
+- Docker/infra networking conventions
+- CI pipeline structure, custom build steps
+- Security constraints, forbidden patterns
+- Business terminology, domain knowledge
 
-```yaml
----
-name: <skill-name>
-description: <one-line summary for trigger matching>
-triggers:
-  - <keyword1>
-  - <keyword2>
----
+### REMOVE (discoverable from code):
 
-# Full reference content here
-```
+- Directory trees, file structure
+- Entity/model field listings
+- Route tables, service registrations
+- Linter/formatter config details
+- Function signatures, API surfaces
+- Dependency lists
+- README content duplicated into agent context
 
-Skills are loaded ONLY when trigger keywords match the current task. This is the key to keeping baseline context small.
+**Principle:** Every line in context files = friction the agent can't resolve alone.
 
-### Skills Lock Integration
+## Phase 4: Fill Layers & Migrate Content
 
-If `skills-lock.json` exists (managed by [skills.sh](https://skills.sh)):
+Replace `TODO` placeholders with discovered + user-provided information:
 
-- Add `.agents/skills/` to `.gitignore` (installed files, not tracked)
-- Keep `skills-lock.json` committed (declarative dependency list)
-- Add a "Skills Installation" step to `layer0-agent-workflow.md`: restore skills from lock file before first task
-- Reference external skills in `layer3-guidebook.md` with a note that `.agents/skills/` is gitignored
-- Add a Quick Rule to `AGENTS.md`: "If `.agents/skills/` is missing, install from `skills-lock.json` before starting work"
+- **`AGENTS.md`**: Project name, tech stack, Docker container, 3-5 quick rules
+- **`layer1-bootstrap.md`**: Identity, Docker exec pattern, domains, excluded dirs
+- **`layer2-project-core.md`**: Non-linter conventions, critical rules, testing strategy, commit convention
+- **`layer3-guidebook.md`**: Task-routing table, skills index, memory file index
 
-### Entry Points
+For existing documentation found in Phase 2, route surviving content:
 
-**CLAUDE.md** (if it exists, replace content):
-```markdown
-# <Project Name>
-All project instructions live in [AGENTS.md](AGENTS.md). Read and follow that file.
-```
+| Scope                       | Target                   |
+| --------------------------- | ------------------------ |
+| General dev philosophy      | `layer2-project-core.md` |
+| Domain-specific convention  | `memory/<domain>.md`     |
+| Heavy reference (>30 lines) | `skills/<reference>.md`  |
+| Gotcha / lesson             | `memory/lessons.md`      |
+| Architecture decision       | `memory/decisions.md`    |
 
-**AGENTS.md** (create or update, ~30-40 lines):
-- One-line project identity
-- Context architecture table (layers + always-load flags)
-- 3-5 "Quick Rules" that apply to EVERY task
-- Compaction preservation instructions
+Each fact in exactly ONE place. No duplicates.
 
-## Phase 4: Content Migration
+## Phase 5: Project Skills Discovery
 
-For each source file found in Phase 1:
-1. Classify each section using the Phase 2 filter
-2. Route surviving content to the narrowest fitting target:
-   - General dev philosophy → `layer2-project-core.md`
-   - Domain-specific convention → `memory/<domain>.md`
-   - Heavy reference (>30 lines) → `skills/<reference>.md`
-   - Gotcha / hard-won lesson → `memory/lessons.md`
-   - Architecture decision → `memory/decisions.md`
-3. Eliminate all duplicates — each fact lives in exactly ONE place
-4. Convert vague rules to actionable instructions
+Analyze the project for recurring patterns that benefit from dedicated skills:
 
-**Routing priority:** Domain-specific > project-wide > global. Narrower scope = less unnecessary context loading.
+- Custom build/deploy scripts, CI workflows
+- Testing patterns specific to this project
+- Domain-specific business logic patterns
+- Common code generation tasks
 
-## Phase 5: Cleanup
+For each pattern, create a skill:
 
-- Delete or empty old source files (`.claude/rules/*.md`, etc.)
-- Update any references to moved content
-- Update user memory (`MEMORY.md`) to point to new architecture
+- **Claude Code:** `.claude/skills/<skill-name>/SKILL.md` with YAML frontmatter
+- **Other agents:** `.agent-context/skills/<skill-name>.md` with YAML trigger frontmatter
+
+If `skills-lock.json` exists: add `.agents/skills/` to `.gitignore`, keep `skills-lock.json` committed.
+
+## Phase 6: Configure Plugins (Claude Code only)
+
+If `.agent-context/plugins.json` exists:
+
+1. Read the plugin list (flat JSON array)
+2. Read `.claude/settings.json` (create with `{}` if missing)
+3. For each plugin, set `enabledPlugins.<plugin-id>: true`
+4. Only add missing entries — never remove existing ones
+
+## Phase 7: Cleanup & Verification
+
+**Cleanup:**
+
+- Delete or empty migrated source files (`.claude/rules/*.md`, etc.)
 - Verify `.agent-context/` is NOT in `.gitignore`
-- If `skills-lock.json` exists: add `.agents/skills/` to `.gitignore`, keep `skills-lock.json` tracked
 
-## Phase 6: Verification
+**Verification:**
 
-Run these checks:
-1. `wc -l AGENTS.md` — should be under 45 lines
-2. `wc -l .agent-context/layer*.md` — each under 40 lines
-3. `wc -l .agent-context/memory/*.md` — stubs under 15 lines each
-4. Grep for key project-specific terms in new files to verify no content was lost
-5. `cat CLAUDE.md` — should be 2-3 lines (bootstrap pointer)
+1. `AGENTS.md` exists with identity and layer references
+2. No `TODO` placeholders remain (except intentional ones)
+3. `wc -l AGENTS.md` < 45 lines
+4. `wc -l .agent-context/layer*.md` — each < 40 lines
+5. `wc -l .agent-context/memory/*.md` — stubs < 15 lines each
 6. No duplicated content across files
-7. If `skills-lock.json` exists: verify `.agents/skills/` is gitignored and `skills-lock.json` is NOT gitignored
+7. Agent integrations point to `@AGENTS.md`
 
-## Phase 7: Summary
+**Summary:**
 
-Present a before/after comparison:
+| Metric                 | Before | After |
+| ---------------------- | ------ | ----- |
+| Always-loaded lines    | X      | Y     |
+| On-demand lines        | 0      | Z     |
+| Number of source files | X      | —     |
+| Number of target files | —      | Y     |
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Always-loaded lines | X | Y |
-| On-demand lines | 0 | Z |
-| Number of source files | X | — |
-| Number of target files | — | Y |
+Inform the user to restart their agent session for the new configuration to take effect.
 
 ---
 
 ## Constraints
 
-- **Agent-agnostic:** No tool-specific instructions in any file. Works with any AI coding assistant.
-- **No over-engineering:** Skip skills if total content is under ~200 lines. Skip memory stubs if a domain has less than ~30 lines of content.
-- **Preserve all non-discoverable knowledge:** Nothing gets deleted — it gets routed, filtered, or promoted to code.
-- **Respect existing conventions:** If the project already has strong documentation patterns, adapt the architecture to fit, don't force a complete rewrite.
+- **Agent-agnostic:** Works with any AI coding assistant
+- **Non-destructive:** Never overwrite project-owned files that already have content
+- **Ask, don't guess:** If information cannot be auto-detected, ask the user
+- **One fact, one place:** No duplication across files
+- **No over-engineering:** Skip skills if total content < ~200 lines, skip memory stubs if domain < ~30 lines
+- **Preserve knowledge:** Nothing gets deleted — it gets routed, filtered, or promoted to code

@@ -1,0 +1,13 @@
+{
+  "name": "agent-context",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Layered, agent-agnostic context architecture for AI coding agents.",
+  "scripts": {
+    "prettier:fix": "prettier --write .",
+    "prettier": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1"
+  }
+}
