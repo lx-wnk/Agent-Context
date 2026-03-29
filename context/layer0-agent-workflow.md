@@ -1,7 +1,8 @@
 # Layer 0 — Agent Workflow
 
-> Non-obvious workflow rules. Standard agent behavior (planning, verification, testing) is omitted — agents already do
-> this. Only include what agents would get WRONG without explicit instruction.
+> **⚠ SHARED FILE — DO NOT ADD PROJECT-SPECIFIC CONTENT.**
+> This file is auto-updated and will be overwritten. Project-specific workflow rules belong in
+> `layer2-project-core.md`, task routing belongs in `layer3-guidebook.md`.
 
 ## Skill Lookup
 

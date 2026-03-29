@@ -14,33 +14,41 @@ Follow each phase in order.
 
 ## Phase 1: Setup Structure
 
-Create this directory structure:
+Create this directory structure. Pay close attention to the **ownership** column — it determines what you may customize:
 
 ```
-AGENTS.md                              ← Agent entry point
-.claude/CLAUDE.md                      ← Claude Code integration
-.github/copilot-instructions.md        ← GitHub Copilot integration
-.junie/guidelines.md                   ← Junie integration
+File                                     Ownership
+─────────────────────────────────────    ──────────────────────────────────────
+AGENTS.md                                PROJECT — customize freely
+.claude/CLAUDE.md                        PROJECT — bootstrap pointer
+.github/copilot-instructions.md          PROJECT — bootstrap pointer
+.junie/guidelines.md                     PROJECT — bootstrap pointer
 .agent-context/
-  agent-startup.md                     ← Auto-update + plugin config (shared)
-  layer0-agent-workflow.md             ← Agent workflow rules (shared)
-  base-principles.md                   ← Dev principles (shared)
-  layer1-bootstrap.md                  ← Project identity, Docker, domains
-  layer2-project-core.md               ← Dev principles + critical rules
-  layer3-guidebook.md                  ← Task routing, skills, memory
-  memory/
-    decisions.md                       ← Architectural decisions
-    lessons.md                         ← Hard-won lessons
-    todo.md                            ← Current task plan
+  agent-startup.md                       🔒 SHARED — do NOT modify (auto-updated)
+  layer0-agent-workflow.md               🔒 SHARED — do NOT modify (auto-updated)
+  base-principles.md                     🔒 SHARED — do NOT modify (auto-updated)
+  plugins.json                           🔒 SHARED — do NOT modify (auto-updated)
+  .version                               🔒 SHARED — written by auto-update
+  layer1-bootstrap.md                    PROJECT — customize freely
+  layer2-project-core.md                 PROJECT — customize freely
+  layer3-guidebook.md                    PROJECT — customize freely
+  memory/                                PROJECT — customize freely
+    decisions.md
+    lessons.md
+    todo.md
 ```
 
-For the shared files (`agent-startup.md`, `layer0-agent-workflow.md`, `base-principles.md`), fetch the latest release
-from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest`, download the archive from `tarball_url`, and
-copy the files from `context/` into `.agent-context/`. Also copy `plugins.json` into `.agent-context/`. Write the release
-version (from `tag_name`, without `v` prefix) to `.agent-context/.version`.
+**🔒 SHARED files** are overwritten on every auto-update. Never add project-specific content to them — it will be lost.
+Put project-specific workflow rules in `layer2-project-core.md`, task routing in `layer3-guidebook.md`.
 
-For project-owned files (`AGENTS.md`, layers 1-3, memory stubs, agent integrations), use the templates from `templates/`
-in the archive — or create them manually with TODO placeholders.
+**PROJECT files** are created once from templates and never overwritten. All project customization goes here.
+
+For shared files, fetch the latest release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest`,
+download the archive from `tarball_url`, and copy files from `context/` into `.agent-context/`. Also copy `plugins.json`.
+Write the release version (from `tag_name`, without `v` prefix) to `.agent-context/.version`.
+
+For project-owned files, use the templates from `templates/` in the archive — or create them manually with TODO
+placeholders. If a project-owned file already exists, do NOT overwrite it.
 
 ## Phase 2: Discovery
 
@@ -105,6 +113,10 @@ For existing documentation found in Phase 2, route surviving content:
 | Architecture decision       | `memory/decisions.md`    |
 
 Each fact in exactly ONE place. No duplicates.
+
+**Important:** Do NOT create memory files for general programming principles (KISS, YAGNI, DRY, SOLID, Clean Code).
+LLMs already know these — adding them wastes context budget and reduces performance. Only store knowledge that is
+**specific to this project** and **not discoverable from the code**.
 
 ## Phase 5: Project Skills Discovery
 

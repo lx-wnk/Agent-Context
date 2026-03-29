@@ -1,6 +1,8 @@
 # Agent Startup — Shared Configuration
 
-> This file is shared and auto-updated. Do not modify — it will be overwritten on the next update.
+> **⚠ SHARED FILE — DO NOT ADD PROJECT-SPECIFIC CONTENT.**
+> This file is auto-updated and will be overwritten. Project-specific rules belong in `layer1-bootstrap.md` or
+> `layer2-project-core.md`.
 
 ## Auto-Update Check
 

@@ -1,7 +1,10 @@
 # Base Development Principles
 
-> Only rules that agents don't follow by default. Standard practices (KISS, YAGNI, DRY, SOLID, Clean Code) are omitted —
-> every modern LLM already applies them.
+> **⚠ SHARED FILE — DO NOT ADD PROJECT-SPECIFIC CONTENT.**
+> This file is auto-updated and will be overwritten. Project-specific principles belong in `layer2-project-core.md`.
+>
+> Standard practices (KISS, YAGNI, DRY, SOLID, Clean Code) are intentionally omitted — every modern LLM already applies
+> them. Adding them wastes context budget and reduces performance (ETH Zurich, 2026).
 
 ## Implementation Rules
 
