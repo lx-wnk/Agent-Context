@@ -32,11 +32,11 @@ if [[ -n "$latest_json" ]] && command -v jq &>/dev/null; then
       [[ -f "$tmp_dir/context/base-principles.md" ]]      && cp "$tmp_dir/context/base-principles.md"      "$CONTEXT_DIR/base-principles.md"
       [[ -f "$tmp_dir/plugins.json" ]]                    && cp "$tmp_dir/plugins.json"                    "$CONTEXT_DIR/plugins.json"
 
-      # Copy session-start script itself (self-update)
-      if [[ -f "$tmp_dir/scripts/session-start.sh" ]]; then
+      # Self-update this script
+      if [[ -f "$tmp_dir/scripts/agent-context-update.sh" ]]; then
         mkdir -p "$CONTEXT_DIR/scripts"
-        cp "$tmp_dir/scripts/session-start.sh" "$CONTEXT_DIR/scripts/session-start.sh"
-        chmod +x "$CONTEXT_DIR/scripts/session-start.sh"
+        cp "$tmp_dir/scripts/agent-context-update.sh" "$CONTEXT_DIR/scripts/agent-context-update.sh"
+        chmod +x "$CONTEXT_DIR/scripts/agent-context-update.sh"
       fi
 
       echo "$latest_version" > "$VERSION_FILE"

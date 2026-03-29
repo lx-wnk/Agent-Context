@@ -90,7 +90,7 @@ You paste [`PROMPT.md`](PROMPT.md) into any AI coding agent. The agent:
 
 ### Every Session (automatic, Claude Code)
 
-A **SessionStart hook** in `.claude/settings.json` runs `.agent-context/scripts/session-start.sh` before the agent
+A **SessionStart hook** in `.claude/settings.json` runs `.agent-context/scripts/agent-context-update.sh` before the agent
 starts. The script:
 
 1. Reads `.agent-context/.version` (local) and fetches the latest release tag from the GitHub API (remote)
@@ -146,7 +146,7 @@ your-project/
     ├── layer3-guidebook.md                ← Task routing, skills, memory
     ├── .version                           ← Installed version (written by hook)
     ├── plugins.json                       ← Plugin configuration
-    ├── scripts/session-start.sh           ← Auto-update hook script (shared)
+    ├── scripts/agent-context-update.sh           ← Auto-update hook script (shared)
     ├── skills/                            ← Skills (on-demand reference)
     └── memory/
         ├── decisions.md                   ← Architectural decisions
