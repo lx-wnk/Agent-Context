@@ -88,25 +88,26 @@ You paste [`PROMPT.md`](PROMPT.md) into any AI coding agent. The agent:
 4. Writes the release version to `.agent-context/.version`
 5. Discovers your tech stack and fills in the TODO placeholders
 
-### Every Session (automatic)
+### Every Session (automatic, Claude Code)
 
-The `AGENTS.md` template includes `@.agent-context/agent-startup.md`. When an agent reads this on session start, it:
+A **SessionStart hook** in `.claude/settings.json` runs `.agent-context/scripts/session-start.sh` before the agent
+starts. The script:
 
-1. Reads `.agent-context/.version` (local version)
-2. Fetches the latest release tag from the GitHub API (remote version)
-3. **If versions differ:** downloads the new release, overwrites shared files (including `agent-startup.md` itself),
-   writes the new version
-4. **If versions match or API fails:** continues silently — never blocks the session
-5. Ensures plugins from `plugins.json` are enabled (Claude Code only)
+1. Reads `.agent-context/.version` (local) and fetches the latest release tag from the GitHub API (remote)
+2. **If versions differ:** downloads the tarball, overwrites shared files (including the script itself), writes the new
+   version
+3. **If versions match or API fails:** continues silently — never blocks the session
+4. Syncs plugins from `plugins.json` into `.claude/settings.json`
 
-This makes `agent-startup.md` a **self-updating bootloader** — it keeps the shared context current without manual
-intervention. Project-owned files (your conventions, rules, memory) are never touched.
+This is **deterministic** — no LLM interpretation involved, runs in ~1-2 seconds, costs zero tokens.
+
+For non-Claude-Code agents, `agent-startup.md` contains fallback instructions for manual version checking.
 
 ### What the agent sees at runtime
 
 ```
 AGENTS.md                               ← Agent reads this first
-  @.agent-context/agent-startup.md      ← Auto-update check + plugin config
+  @.agent-context/agent-startup.md      ← Update info (hook already ran)
   @.agent-context/layer0-agent-workflow  ← Memory routing, skill lookup
   @.agent-context/layer1-bootstrap      ← Tech stack, Docker, domains
   @.agent-context/layer2-project-core   ← Your conventions + critical rules
@@ -133,6 +134,7 @@ write files.
 your-project/
 ├── AGENTS.md                              ← Agent entry point
 ├── .claude/CLAUDE.md                      ← Claude Code integration
+├── .claude/settings.json                  ← SessionStart hook (merged, not overwritten)
 ├── .github/copilot-instructions.md        ← GitHub Copilot integration
 ├── .junie/guidelines.md                   ← Junie integration
 └── .agent-context/
@@ -142,8 +144,9 @@ your-project/
     ├── layer1-bootstrap.md                ← Project identity, Docker, domains
     ├── layer2-project-core.md             ← Dev principles + critical rules
     ├── layer3-guidebook.md                ← Task routing, skills, memory
-    ├── .version                           ← Installed version (written by agent)
+    ├── .version                           ← Installed version (written by hook)
     ├── plugins.json                       ← Plugin configuration
+    ├── scripts/session-start.sh           ← Auto-update hook script (shared)
     ├── skills/                            ← Skills (on-demand reference)
     └── memory/
         ├── decisions.md                   ← Architectural decisions
@@ -156,6 +159,7 @@ your-project/
 ```
 agent-context/
 ├── context/           # Shared agent context (copied to .agent-context/)
+├── scripts/           # Hook scripts (copied to .agent-context/scripts/)
 ├── templates/         # Project setup templates (copied once, never overwritten)
 ├── plugins.json       # Base plugin set for Claude Code
 ├── example.md         # Annotated example (Shopware 6 project)

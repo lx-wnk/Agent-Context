@@ -21,6 +21,7 @@ File                                     Ownership
 ─────────────────────────────────────    ──────────────────────────────────────
 AGENTS.md                                PROJECT — customize freely
 .claude/CLAUDE.md                        PROJECT — bootstrap pointer
+.claude/settings.json                    PROJECT — hook config (merge, don't overwrite)
 .github/copilot-instructions.md          PROJECT — bootstrap pointer
 .junie/guidelines.md                     PROJECT — bootstrap pointer
 .agent-context/
@@ -29,6 +30,7 @@ AGENTS.md                                PROJECT — customize freely
   base-principles.md                     🔒 SHARED — do NOT modify (auto-updated)
   plugins.json                           🔒 SHARED — do NOT modify (auto-updated)
   .version                               🔒 SHARED — written by auto-update
+  scripts/session-start.sh               🔒 SHARED — auto-update hook script
   layer1-bootstrap.md                    PROJECT — customize freely
   layer2-project-core.md                 PROJECT — customize freely
   layer3-guidebook.md                    PROJECT — customize freely
@@ -44,11 +46,37 @@ Put project-specific workflow rules in `layer2-project-core.md`, task routing in
 **PROJECT files** are created once from templates and never overwritten. All project customization goes here.
 
 For shared files, fetch the latest release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest`,
-download the archive from `tarball_url`, and copy files from `context/` into `.agent-context/`. Also copy `plugins.json`.
-Write the release version (from `tag_name`, without `v` prefix) to `.agent-context/.version`.
+download the archive from `tarball_url`, and copy files from `context/` into `.agent-context/`. Also copy `plugins.json`
+and `scripts/session-start.sh` (make executable). Write the release version (from `tag_name`, without `v` prefix) to
+`.agent-context/.version`.
 
 For project-owned files, use the templates from `templates/` in the archive — or create them manually with TODO
 placeholders. If a project-owned file already exists, do NOT overwrite it.
+
+Copy `scripts/session-start.sh` from the archive to `.agent-context/scripts/session-start.sh` and make it executable.
+
+**Claude Code hook setup:** If `.claude/settings.json` exists, **merge** the `hooks.SessionStart` entry into it — do NOT
+overwrite existing hooks, permissions, or other settings. If it doesn't exist, copy the template as-is. The hook must
+contain:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .agent-context/scripts/session-start.sh",
+            "timeout": 30,
+            "statusMessage": "Checking agent-context updates..."
+          }
+        ]
+      }
+    ]
+  }
+}
+```
 
 ## Phase 2: Discovery
 
@@ -134,16 +162,7 @@ For each pattern, create a skill:
 
 If `skills-lock.json` exists: add `.agents/skills/` to `.gitignore`, keep `skills-lock.json` committed.
 
-## Phase 6: Configure Plugins (Claude Code only)
-
-If `.agent-context/plugins.json` exists:
-
-1. Read the plugin list (flat JSON array)
-2. Read `.claude/settings.json` (create with `{}` if missing)
-3. For each plugin, set `enabledPlugins.<plugin-id>: true`
-4. Only add missing entries — never remove existing ones
-
-## Phase 7: Cleanup & Verification
+## Phase 6: Cleanup & Verification
 
 **Cleanup:**
 

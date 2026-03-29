@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .agent-context/scripts/session-start.sh",
+            "timeout": 30,
+            "statusMessage": "Checking agent-context updates..."
+          }
+        ]
+      }
+    ]
+  }
+}
