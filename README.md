@@ -196,6 +196,13 @@ A PHP convention loaded during a CSS fix is wasted context.
 Memory files are lightweight stubs (~10 lines) with quick facts. Full reference lives in skills, loaded only when
 trigger keywords match. This achieves near-zero baseline cost for heavy documentation.
 
+## Updates
+
+After creating a [GitHub Release](https://github.com/lx-wnk/Agent-Context/releases), projects update automatically:
+on the next agent session, `agent-startup.md` checks the Releases API, detects the version difference, downloads the
+release, and overwrites the 🔒 shared files. Project-owned files are never touched. If the API is unreachable, the
+agent continues silently.
+
 ## Research & References
 
 - [ETH Zurich: Evaluating AGENTS.md (arxiv 2602.11988)](https://arxiv.org/abs/2602.11988) — Empirical evaluation of
