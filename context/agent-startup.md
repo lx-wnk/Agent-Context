@@ -9,8 +9,9 @@
 Before starting any task, check if the agent-context needs updating:
 
 1. Read `.agent-context/.version` — if missing, treat as `0.0.0`
-2. Fetch `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest`
-   - Extract `tag_name` (e.g., `v1.3.0`), remove the `v` prefix
+2. Fetch `https://api.github.com/repos/lx-wnk/Agent-Context/releases` (returns all releases, including prereleases)
+   - Take the first entry (most recent release)
+   - Extract `tag_name`, strip leading `v` if present
 3. Compare versions
 4. **If they differ:**
    - Download the archive from `tarball_url`
