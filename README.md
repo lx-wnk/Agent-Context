@@ -80,7 +80,7 @@ the agent.
 
 ### Initial Setup (one-time)
 
-You paste [`PROMPT.md`](PROMPT.md) into any AI coding agent. The agent:
+You paste [`SETUP-PROMPT.md`](SETUP-PROMPT.md) into any AI coding agent. The agent:
 
 1. Downloads the latest release from the GitHub Releases API
 2. Copies **shared files** from `context/` → `.agent-context/` (overwritable)
@@ -120,7 +120,7 @@ Total baseline: ~60-80 lines. Heavy reference (skills, memory) is loaded only wh
 
 ### Quick Start
 
-1. Copy the contents of [`PROMPT.md`](PROMPT.md) as a prompt into any AI coding agent
+1. Copy the contents of [`SETUP-PROMPT.md`](SETUP-PROMPT.md) as a prompt into any AI coding agent
 2. The agent analyzes existing documentation, applies quality filters, discovers your tech stack, and creates the
    architecture
 3. Restart your agent session — the new configuration takes effect on the next start
@@ -163,7 +163,7 @@ agent-context/
 ├── templates/         # Project setup templates (copied once, never overwritten)
 ├── plugins.json       # Base plugin set for Claude Code
 ├── example.md         # Annotated example (Shopware 6 project)
-├── PROMPT.md          # Setup prompt (paste into any agent)
+├── SETUP-PROMPT.md          # Setup prompt (paste into any agent)
 └── README.md
 ```
 
