@@ -14,23 +14,21 @@ Follow each phase in order.
 
 ## Phase 1: Setup Structure
 
-Create this directory structure. Pay close attention to the **ownership** column — it determines what you may customize:
+Create the shared directory structure and **only your own agent integration** — do not create files for other agents.
+
+### Shared structure (all agents)
 
 ```
 File                                     Ownership
 ─────────────────────────────────────    ──────────────────────────────────────
-AGENTS.md                                PROJECT — customize freely
-.claude/CLAUDE.md                        PROJECT — bootstrap pointer
-.claude/settings.json                    PROJECT — hook config (merge, don't overwrite)
-.github/copilot-instructions.md          PROJECT — bootstrap pointer
-.junie/guidelines.md                     PROJECT — bootstrap pointer
+AGENTS.md                                PROJECT — customize freely (all agents read this)
 .agent-context/
   agent-startup.md                       🔒 SHARED — do NOT modify (auto-updated)
   layer0-agent-workflow.md               🔒 SHARED — do NOT modify (auto-updated)
   base-principles.md                     🔒 SHARED — do NOT modify (auto-updated)
   plugins.json                           🔒 SHARED — do NOT modify (auto-updated)
-  .agent-context-version                  🔒 SHARED — written by auto-update
-  scripts/agent-context-update.sh               🔒 SHARED — auto-update hook script
+  .agent-context-version                 🔒 SHARED — written by auto-update
+  scripts/agent-context-update.sh        🔒 SHARED — auto-update hook script
   layer1-bootstrap.md                    PROJECT — customize freely
   layer2-project-core.md                 PROJECT — customize freely
   layer3-guidebook.md                    PROJECT — customize freely
@@ -40,25 +38,40 @@ AGENTS.md                                PROJECT — customize freely
     todo.md
 ```
 
+### Agent-specific integration (only set up YOUR OWN)
+
+Each agent creates **only** its own integration file — a bootstrap pointer to `AGENTS.md`:
+
+| Agent          | Integration file                  | Content      |
+| -------------- | --------------------------------- | ------------ |
+| Claude Code    | `.claude/CLAUDE.md`               | `@AGENTS.md` |
+| GitHub Copilot | `.github/copilot-instructions.md` | `@AGENTS.md` |
+| Junie          | `.junie/guidelines.md`            | `@AGENTS.md` |
+| Cursor         | `.cursorrules`                    | `@AGENTS.md` |
+| Windsurf       | `.windsurfrules`                  | `@AGENTS.md` |
+
+### Ownership rules
+
 **🔒 SHARED files** are overwritten on every auto-update. Never add project-specific content to them — it will be lost.
 Put project-specific workflow rules in `layer2-project-core.md`, task routing in `layer3-guidebook.md`.
 
 **PROJECT files** are created once from templates and never overwritten. All project customization goes here.
 
-For shared files, fetch the latest release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest`,
-download the archive from `tarball_url`, and copy files from `context/` into `.agent-context/`. Also copy `plugins.json`
-and `scripts/agent-context-update.sh` (make executable). Write the release version (from `tag_name`, without `v` prefix)
-to `.agent-context/.agent-context-version`.
+### Fetching shared files
+
+Fetch the latest release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest`, download the archive
+from `tarball_url`, and copy files from `context/` into `.agent-context/`. Also copy `plugins.json` and
+`scripts/agent-context-update.sh` (make executable). Write the release version (from `tag_name`, without `v` prefix) to
+`.agent-context/.agent-context-version`.
 
 For project-owned files, use the templates from `templates/` in the archive — or create them manually with TODO
 placeholders. If a project-owned file already exists, do NOT overwrite it.
 
-Copy `scripts/agent-context-update.sh` from the archive to `.agent-context/scripts/agent-context-update.sh` and make it
-executable.
+### Claude Code: SessionStart hook
 
-**Claude Code hook setup:** Edit `.claude/settings.json` (create with `{}` if missing). The `hooks.SessionStart` field
-is an **array** — other hooks may already exist. **Append** our entry to the array, do NOT replace it. Skip if an entry
-with `agent-context-update.sh` already exists.
+If you are Claude Code, set up the auto-update hook. Edit `.claude/settings.json` (create with `{}` if missing). The
+`hooks.SessionStart` field is an **array** — other hooks may already exist. **Append** our entry, do NOT replace
+existing hooks. Skip if an entry with `agent-context-update.sh` already exists.
 
 ```json
 {
