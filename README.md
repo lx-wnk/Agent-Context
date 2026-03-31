@@ -126,6 +126,14 @@ Claude analyzes existing documentation, applies quality filters, discovers your 
 and sets up the auto-update hook. Restart your session afterwards — the new configuration takes effect on the next
 start.
 
+**Fire-and-forget (Claude Code):** Run this one-liner from your project root if you don't want to confirm each tool
+usage interactively — `--allowedTools` pre-approves all required tools so the setup runs unattended:
+
+```bash
+claude -p "Fetch https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/.prompts/setup-prompt.md and follow its instructions exactly." \
+    --allowedTools "Edit,Write,Read,Bash,Glob,Grep,WebFetch,WebSearch,Agent"
+```
+
 ### What Gets Created
 
 ```
