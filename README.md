@@ -78,7 +78,7 @@ a minimal bootstrap pointer to `AGENTS.md`.
 
 ### Initial Setup (one-time)
 
-Paste [`.prompts/SETUP-PROMPT.md`](.prompts/SETUP-PROMPT.md) into Claude Code. It:
+Paste [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) into Claude Code. It:
 
 1. Downloads the latest release from the GitHub Releases API
 2. Copies **shared files** from `context/` → `.agent-context/` (overwritable)
@@ -117,10 +117,10 @@ Total baseline: ~60-80 lines. Heavy reference (skills, memory) is loaded only wh
 Run this in your project directory:
 
 ```bash
-claude -p "Fetch https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/.prompts/SETUP-PROMPT.md and follow its instructions exactly."
+claude -p "Fetch https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/.prompts/setup-prompt.md and follow its instructions exactly."
 ```
 
-Or paste the contents of [`.prompts/SETUP-PROMPT.md`](.prompts/SETUP-PROMPT.md) manually into a Claude Code session.
+Or paste the contents of [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) manually into a Claude Code session.
 
 Claude analyzes existing documentation, applies quality filters, discovers your tech stack, creates the architecture,
 and sets up the auto-update hook. Restart your session afterwards — the new configuration takes effect on the next
