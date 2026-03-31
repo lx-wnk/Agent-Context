@@ -1,18 +1,21 @@
 # Agent Context Architecture
 
-A reusable prompt for setting up layered, agent-agnostic context architecture in any software project. Reduces baseline
-context by 5-7x while keeping full reference accessible on-demand.
+A project-based setup and memory-handling system for Claude Code. Optimized for structuring project knowledge so that
+Claude always has the right context at the right time — without bloating the context window.
+
+Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides a layered architecture with progressive
+disclosure: a minimal baseline (~60-80 lines) is always loaded, while detailed reference (skills, memory files) is
+pulled in on-demand based on the task at hand. Auto-updates keep shared infrastructure current across all your projects.
 
 ## The Problem
 
-AI coding agents (Claude Code, Cursor, Gemini CLI, Copilot, Codex) load project instructions into their context window
-every conversation. Most projects dump everything into a single file (`CLAUDE.md`, `.cursorrules`), resulting in:
+Claude Code loads project instructions into its context window every conversation. Most projects dump everything into a
+single `CLAUDE.md`, resulting in:
 
 - **Context bloat:** 500-1000+ lines loaded for every task, even a one-line CSS fix
 - **Duplication:** Same information in `CLAUDE.md`, `README.md`, `.claude/rules/`, and memory files
-- **Noise:** Entity schemas, route tables, and file trees that agents can discover by reading the code
-- **Vendor lock-in:** Tool-specific files that don't work across agents
-
+- **Noise:** Entity schemas, route tables, and file trees that Claude can discover by reading the code
+- **No structure:** Flat files with no way to load context progressively based on the task
 ## The Solution
 
 A layered architecture with progressive disclosure:
@@ -31,8 +34,8 @@ AGENTS.md                          (~35 lines — identity, quick rules)
 
 **Baseline:** ~60-80 lines (AGENTS.md + layers 0-2). Full reference: loaded only when trigger keywords match.
 
-Auto-updates are built in: on every session start, the agent checks for new releases via the GitHub Releases API and
-updates shared files automatically. Project-owned files are never overwritten.
+Auto-updates are built in: on every session start, a SessionStart agent hook checks for new releases via the GitHub
+Releases API and updates shared files automatically. Project-owned files are never overwritten.
 
 ## Architecture
 
@@ -42,6 +45,7 @@ agent-context Repo (source)              Project (committed files)
 context/agent-startup.md          →──    .agent-context/agent-startup.md (overwritable)
 context/layer0-agent-workflow.md  →──    .agent-context/layer0-agent-workflow.md (overwritable)
 context/base-principles.md        →──    .agent-context/base-principles.md (overwritable)
+.prompts/update-prompt.md          →──    .agent-context/update-prompt.md (overwritable)
 plugins.json                      →──    .agent-context/plugins.json (overwritable)
 templates/*                       →──    AGENTS.md, layer1-3, memory/ (project-owned)
 ```
@@ -59,28 +63,22 @@ installed version is tracked in `.agent-context/.agent-context-version` — writ
 | 2     | `.agent-context/layer2-project-core.md`   | Dev rules + `@` ref to base       | Project          |
 | 3     | `.agent-context/layer3-guidebook.md`      | Task routing, skills, memory      | Project          |
 
-## Why `.agent-context/` instead of `.claude/`?
+## Why `.agent-context/` instead of `.claude/rules/`?
 
-|                     | `.claude/rules/`                    | `.agent-context/`                    |
-| ------------------- | ----------------------------------- | ------------------------------------ |
-| **Works with**      | Claude Code only                    | Any AI agent                         |
-| **Loading**         | Always loaded (all files)           | Layer-based, on-demand               |
-| **Path globs**      | Yes (Claude Code native)            | No (agent reads guidebook)           |
-| **Discoverability** | Hidden directory convention         | Explicit, self-documenting           |
-| **Skills**          | `.claude/skills/` (Claude-specific) | `.agent-context/skills/` (universal) |
+|                     | `.claude/rules/`            | `.agent-context/`              |
+| ------------------- | --------------------------- | ------------------------------ |
+| **Loading**         | Always loaded (all files)   | Layer-based, on-demand         |
+| **Path globs**      | Yes (Claude Code native)    | No (agent reads guidebook)     |
+| **Discoverability** | Hidden directory convention | Explicit, self-documenting     |
 
-`.claude/rules/` is a Claude Code feature — other agents ignore it. `.agent-context/` is a plain directory any agent can
-read. The guidebook pattern (layer 3) replaces path-based auto-loading with task-based routing that works regardless of
-the agent.
-
-**Compatibility:** You can keep a minimal `CLAUDE.md` as a bootstrap pointer to `AGENTS.md`. Similarly for
-`.cursorrules` or other tool-specific files.
+The guidebook pattern (layer 3) replaces path-based auto-loading with task-based routing. `.claude/CLAUDE.md` serves as
+a minimal bootstrap pointer to `AGENTS.md`.
 
 ## How It Works
 
 ### Initial Setup (one-time)
 
-You paste [`SETUP-PROMPT.md`](SETUP-PROMPT.md) into any AI coding agent. The agent:
+Paste [`.prompts/SETUP-PROMPT.md`](.prompts/SETUP-PROMPT.md) into Claude Code. It:
 
 1. Downloads the latest release from the GitHub Releases API
 2. Copies **shared files** from `context/` → `.agent-context/` (overwritable)
@@ -88,20 +86,16 @@ You paste [`SETUP-PROMPT.md`](SETUP-PROMPT.md) into any AI coding agent. The age
 4. Writes the release version to `.agent-context/.agent-context-version`
 5. Discovers your tech stack and fills in the TODO placeholders
 
-### Every Session (automatic, Claude Code)
+### Every Session (automatic)
 
-A **SessionStart hook** in `.claude/settings.json` runs `.agent-context/scripts/agent-context-update.sh` before the
-agent starts. The script:
+A **SessionStart agent hook** in `.claude/settings.json` spawns a subagent that reads
+`.agent-context/update-prompt.md` and performs the update:
 
 1. Reads `.agent-context/.agent-context-version` (local) and fetches the latest release tag from the GitHub API (remote)
-2. **If versions differ:** downloads the tarball, overwrites shared files (including the script itself), writes the new
-   version
+2. **If versions differ:** downloads the tarball, overwrites shared files (including the update prompt itself), writes
+   the new version
 3. **If versions match or API fails:** continues silently — never blocks the session
 4. Syncs plugins from `plugins.json` into `.claude/settings.json`
-
-This is **deterministic** — no LLM interpretation involved, runs in ~1-2 seconds, costs zero tokens.
-
-For non-Claude-Code agents, `agent-startup.md` contains fallback instructions for manual version checking.
 
 ### What the agent sees at runtime
 
@@ -120,33 +114,35 @@ Total baseline: ~60-80 lines. Heavy reference (skills, memory) is loaded only wh
 
 ### Quick Start
 
-1. Copy the contents of [`SETUP-PROMPT.md`](SETUP-PROMPT.md) as a prompt into any AI coding agent
-2. The agent analyzes existing documentation, applies quality filters, discovers your tech stack, and creates the
-   architecture
-3. Restart your agent session — the new configuration takes effect on the next start
+Run this in your project directory:
 
-The prompt works with Claude Code, Cursor, Gemini CLI, GitHub Copilot, Codex, and any other agent that can read and
-write files.
+```bash
+claude -p "Fetch https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/.prompts/SETUP-PROMPT.md and follow its instructions exactly."
+```
+
+Or paste the contents of [`.prompts/SETUP-PROMPT.md`](.prompts/SETUP-PROMPT.md) manually into a Claude Code session.
+
+Claude analyzes existing documentation, applies quality filters, discovers your tech stack, creates the architecture,
+and sets up the auto-update hook. Restart your session afterwards — the new configuration takes effect on the next
+start.
 
 ### What Gets Created
 
 ```
 your-project/
-├── AGENTS.md                              ← Agent entry point
-├── .claude/CLAUDE.md                      ← Claude Code integration
-├── .claude/settings.json                  ← SessionStart hook (merged, not overwritten)
-├── .github/copilot-instructions.md        ← GitHub Copilot integration
-├── .junie/guidelines.md                   ← Junie integration
+├── AGENTS.md                              ← Entry point
+├── .claude/CLAUDE.md                      ← Bootstrap pointer → @AGENTS.md
+├── .claude/settings.json                  ← SessionStart agent hook (merged, not overwritten)
 └── .agent-context/
-    ├── agent-startup.md                   ← Startup check, auto-update (shared)
+    ├── agent-startup.md                   ← Startup info (shared)
     ├── layer0-agent-workflow.md            ← Universal agent workflow (shared)
     ├── base-principles.md                 ← Dev principles (shared)
+    ├── update-prompt.md                   ← Auto-update agent instructions (shared)
     ├── layer1-bootstrap.md                ← Project identity, Docker, domains
     ├── layer2-project-core.md             ← Dev principles + critical rules
     ├── layer3-guidebook.md                ← Task routing, skills, memory
     ├── .agent-context-version              ← Installed version (written by hook)
-    ├── plugins.json                       ← Plugin configuration
-    ├── scripts/agent-context-update.sh           ← Auto-update hook script (shared)
+    ├── plugins.json                       ← Plugin configuration (shared)
     ├── skills/                            ← Skills (on-demand reference)
     └── memory/
         ├── decisions.md                   ← Architectural decisions
@@ -158,12 +154,11 @@ your-project/
 
 ```
 agent-context/
-├── context/           # Shared agent context (copied to .agent-context/)
-├── scripts/           # Hook scripts (copied to .agent-context/scripts/)
+├── context/           # Shared context files (copied to .agent-context/)
 ├── templates/         # Project setup templates (copied once, never overwritten)
 ├── plugins.json       # Base plugin set for Claude Code
 ├── example.md         # Annotated example (Shopware 6 project)
-├── SETUP-PROMPT.md          # Setup prompt (paste into any agent)
+├── .prompts/          # Prompt files (setup + auto-update agent instructions)
 └── README.md
 ```
 
@@ -203,9 +198,9 @@ trigger keywords match. This achieves near-zero baseline cost for heavy document
 ## Updates
 
 After creating a [GitHub Release](https://github.com/lx-wnk/Agent-Context/releases), projects update automatically: on
-the next agent session, `agent-startup.md` checks the Releases API, detects the version difference, downloads the
-release, and overwrites the 🔒 shared files. Project-owned files are never touched. If the API is unreachable, the agent
-continues silently.
+the next session start, the agent hook reads `update-prompt.md`, checks the Releases API, detects the version
+difference, downloads the release, and overwrites the 🔒 shared files. Project-owned files are never touched. If the API
+is unreachable, the agent continues silently.
 
 ## Research & References
 
