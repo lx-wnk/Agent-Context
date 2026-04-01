@@ -40,7 +40,7 @@ Releases API and updates shared files automatically. Project-owned files are nev
 ## Architecture
 
 ```
-agent-context Repo (source)              Project (committed files)
+agent-context Repo (source)              Project / User (target)
 ─────────────────────────────            ──────────────────────────
 context/agent-startup.md          →──    .agent-context/agent-startup.md (overwritable)
 context/layer0-agent-workflow.md  →──    .agent-context/layer0-agent-workflow.md (overwritable)
@@ -48,6 +48,7 @@ context/base-principles.md        →──    .agent-context/base-principles.md
 .prompts/update-prompt.md          →──    .agent-context/update-prompt.md (overwritable)
 plugins.json                      →──    .agent-context/plugins.json (overwritable)
 templates/*                       →──    AGENTS.md, layer1-3, memory/ (project-owned)
+agents/*.md                       →──    ~/.claude/agents/ or .claude/agents/ (user choice)
 ```
 
 **Overwritable** files are updated on every release. **Project-owned** files are created once and never overwritten. The
@@ -162,13 +163,51 @@ your-project/
 
 ```
 agent-context/
-├── context/           # Shared context files (copied to .agent-context/)
+├── agents/            # Reusable agent configurations (copy to ~/.claude/agents/)
+├── context/           # Shared agent context (copied to .agent-context/)
+├── scripts/           # Hook scripts (copied to .agent-context/scripts/)
 ├── templates/         # Project setup templates (copied once, never overwritten)
 ├── plugins.json       # Base plugin set for Claude Code
 ├── example.md         # Annotated example (Shopware 6 project)
 ├── .prompts/          # Prompt files (setup + auto-update agent instructions)
 └── README.md
 ```
+
+## Agents
+
+Pre-built, generalized agent configurations for Claude Code in the [`agents/`](agents/) directory. All agents use the
+`ac-` prefix (agent-context) to identify them as shared defaults. Each agent is a `.md` file with YAML frontmatter that
+defines its role, tools, and behavior.
+
+| Agent | Model | Purpose |
+| ----- | ----- | ------- |
+| `ac-review` | Opus | Comprehensive code review (quality, architecture, security) — read-only |
+| `ac-frontend` | Opus | Frontend development with optional Figma, browser, and docs MCP tools |
+| `ac-backend` | Opus | Backend development — auto-detects tech stack (PHP, Node, Python, Go, etc.) |
+| `ac-concept` | Opus | Technical concepts, estimates, and user stories |
+| `ac-chrome` | Sonnet | Chrome browser automation, screenshots, GIF recording |
+| `ac-testing` | Sonnet | Test writing, TDD workflows, coverage improvement |
+| `ac-debug` | Opus | Systematic root cause analysis with max effort |
+| `ac-docs` | Sonnet | Documentation maintenance and agent-context knowledge base |
+
+All agents respond in the user's language. MCP tools (JetBrains, Figma, Playwright, etc.) are used when available but
+not required — agents adapt to whatever tools the user has configured.
+
+### Installation
+
+Copy the agents you want to `~/.claude/agents/` (global) or `.claude/agents/` (project-specific):
+
+```bash
+# All agents globally
+cp agents/ac-*.md ~/.claude/agents/
+
+# Single agent for a specific project
+mkdir -p .claude/agents
+cp agents/ac-backend.md .claude/agents/
+```
+
+**Overriding:** Create a project-specific agent with the same `ac-` name to override the shared default, or create
+agents without the prefix for project-specific roles (e.g., `shopware-backend.md`).
 
 ## Example
 
