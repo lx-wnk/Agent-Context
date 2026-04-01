@@ -189,6 +189,9 @@ defines its role, tools, and behavior.
 | `ac-testing` | Sonnet | Test writing, TDD workflows, coverage improvement |
 | `ac-debug` | Opus | Systematic root cause analysis with max effort |
 | `ac-performance` | Opus | Performance audits, profiling, bottleneck analysis (USE/RED/Golden Signals) |
+| `ac-discovery` | Opus | Codebase mapping, architecture tracing, onboarding into unfamiliar projects |
+| `ac-analysis` | Opus | Impact analysis, dependency tracing, risk assessment, tech debt evaluation |
+| `ac-research` | Opus | Technology evaluation, best practice research, security vulnerability research |
 | `ac-docs` | Sonnet | Documentation maintenance and agent-context knowledge base |
 
 All agents respond in the user's language. MCP tools (JetBrains, Figma, Playwright, etc.) are used when available but
