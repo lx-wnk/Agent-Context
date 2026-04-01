@@ -42,6 +42,7 @@ Releases API and updates shared files automatically. Project-owned files are nev
 
 ```
 agent-context Repo (source)              Project / User (target)
+agent-context Repo (source)              Project / User (target)
 ─────────────────────────────            ──────────────────────────
 context/agent-startup.md          →──    .agent-context/agent-startup.md (overwritable)
 context/layer0-agent-workflow.md  →──    .agent-context/layer0-agent-workflow.md (overwritable)
