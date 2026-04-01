@@ -1,6 +1,6 @@
 ---
 name: ac-concept
-description: "Concept and planning specialist. Delegates here for technical concepts, effort estimates, user stories, specifications, and requirements analysis. Use when planning features, evaluating approaches, or creating structured proposals before implementation."
+description: "Concept and planning specialist. Delegates here for technical concepts, effort estimates, user stories, specifications, requirements analysis, and project planning. Use when planning features or projects, evaluating approaches, or creating structured proposals before implementation."
 tools: Read, Glob, Grep, Bash, Write, WebFetch, WebSearch
 model: opus
 maxTurns: 25
