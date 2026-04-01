@@ -188,6 +188,7 @@ defines its role, tools, and behavior.
 | `ac-chrome` | Sonnet | Chrome browser automation, screenshots, GIF recording |
 | `ac-testing` | Sonnet | Test writing, TDD workflows, coverage improvement |
 | `ac-debug` | Opus | Systematic root cause analysis with max effort |
+| `ac-performance` | Opus | Performance audits, profiling, bottleneck analysis (USE/RED/Golden Signals) |
 | `ac-docs` | Sonnet | Documentation maintenance and agent-context knowledge base |
 
 All agents respond in the user's language. MCP tools (JetBrains, Figma, Playwright, etc.) are used when available but
