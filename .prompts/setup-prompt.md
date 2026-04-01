@@ -178,7 +178,24 @@ For each pattern, create a skill in `.claude/skills/<skill-name>/SKILL.md` with 
 
 If `skills-lock.json` exists: add `.agents/skills/` to `.gitignore`, keep `skills-lock.json` committed.
 
-## Phase 6: Cleanup & Verification
+## Phase 6: Agent Installation (Claude Code only, optional)
+
+If the release archive contains an `agents/` directory with `ac-*.md` files, offer to install them. All shared agents
+use the `ac-` prefix (agent-context) and are designed to work with any project — they auto-detect tech stacks and use
+MCP tools only when available.
+
+1. List available `ac-*` agents and describe each one briefly (based on their `description` frontmatter)
+2. Ask the user which agents they want to install and where:
+   - `~/.claude/agents/` — available in all projects (global, recommended)
+   - `.claude/agents/` — available only in this project (project-specific)
+3. Copy selected agent files to the chosen location
+4. If the user wants project-specific customization: copy to `.claude/agents/` and suggest editing the system prompt to
+   match project conventions (e.g., add Shopware-specific rules to `ac-backend.md`)
+
+**Do NOT overwrite** existing agent files with the same name unless the user explicitly confirms. New agents (not yet
+present) are added without confirmation.
+
+## Phase 7: Cleanup & Verification
 
 **Cleanup:**
 
