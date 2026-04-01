@@ -39,13 +39,13 @@ effort: normal
 | `tools` | Nur tatsächlich benötigte Tools — keine Defaults |
 | `model` | `opus` / `sonnet` / `haiku` (siehe Tabelle unten) |
 | `maxTurns` | Realistisches Maximum; zu hoch = Kosten, zu niedrig = Abbruch |
-| `effort` | `low` / `normal` / `high` — beeinflusst Token-Budget |
+| `effort` | `low` / `medium` / `high` / `max` — beeinflusst Token-Budget und Reasoning-Tiefe |
 
 ### Optionale Felder
 
 | Feld | Wann sinnvoll |
 |------|--------------|
-| `memory: project` | Agent braucht persistenten Projektspeicher |
+| `memory: project` | Write-fähige Agents die `.agent-context/` aktualisieren. Nicht für Read-Only-Agents. |
 | `mcpServers` | Agent benötigt spezifische MCP-Server |
 | `initialPrompt` | Vorab-Instruktionen vor dem eigentlichen Task |
 
@@ -227,7 +227,6 @@ Nicht: "Verwende context7 für alle Framework-Fragen." — das schlägt fehl, we
 | Inkonsistente Terminologie | Verwirrung, unvorhersehbares Verhalten | Einen Begriff pro Konzept — durchgängig |
 | Aggressive Sprache ("CRITICAL: YOU MUST") | Reduzierte Ausgabequalität | Ruhige, sachliche Formulierungen |
 | Widersprüchliche Regeln | Modell wählt willkürlich | Explizite Prioritäten definieren |
-| Keine Output-Format-Definition | Inkonsistente, schwer parsbare Ausgaben | Immer ein Ausgabeformat angeben |
 
 ### Tools
 
@@ -257,12 +256,12 @@ Vor dem Commit eines neuen Agents alle Punkte prüfen:
 - [ ] `tools` auf Minimum reduziert (kein `Write`/`Edit` bei Read-Only-Agents)
 - [ ] `model` dem Task angemessen (nicht reflexartig `opus`)
 - [ ] `maxTurns` realistisch gesetzt (nicht 100 als Default)
-- [ ] `effort` gesetzt (`low`/`normal`/`high`)
+- [ ] `effort` gesetzt (`low`/`medium`/`high`/`max`)
 
 ### Prompt
 - [ ] Einzeiler-Rollenbeschreibung vorhanden
 - [ ] `Respond in the user's language.` enthalten
-- [ ] Sektionen: Role → Workflow → Output Format → Rules
+- [ ] Sektionen: Role → Core Principle (optional) → Workflow → Output Format → Rules
 - [ ] Workflow hat nummerierte Schritte mit klaren Abschlussbedingungen
 - [ ] Graceful Fallback für fehlende `.agent-context/`-Dateien
 - [ ] MCP-Tool-Referenzen mit "if available" bedingt formuliert
