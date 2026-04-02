@@ -8,18 +8,15 @@ Dieses Dokument ist die verbindliche Referenz für das Erstellen neuer Agents im
 
 ### Simplicity First
 
-Ein Agent löst genau eine klar abgrenzbare Aufgabe. Wenn die Beschreibung mehr als zwei Sätze braucht, ist der Scope
-wahrscheinlich zu breit.
+Ein Agent löst genau eine klar abgrenzbare Aufgabe. Wenn die Beschreibung mehr als zwei Sätze braucht, ist der Scope wahrscheinlich zu breit.
 
 ### Focused Scope
 
-Agents sind keine Allzweck-Assistenten. Je enger der Scope, desto präziser das Routing und desto besser die Ausgabe.
-Zwei spezialisierte Agents schlagen einen generalistischen Agent.
+Agents sind keine Allzweck-Assistenten. Je enger der Scope, desto präziser das Routing und desto besser die Ausgabe. Zwei spezialisierte Agents schlagen einen generalistischen Agent.
 
 ### Evidence Over Assumption
 
-Agents lesen zuerst Projektkontext (`.agent-context/`-Dateien, `package.json`, `composer.json` etc.), bevor sie Annahmen
-über das Tech-Stack treffen. Ohne Kontext nachfragen oder explorieren — nie raten.
+Agents lesen zuerst Projektkontext (`.agent-context/`-Dateien, `package.json`, `composer.json` etc.), bevor sie Annahmen über das Tech-Stack treffen. Ohne Kontext nachfragen oder explorieren — nie raten.
 
 ---
 
@@ -57,15 +54,12 @@ effort: medium
 
 ### Description Design
 
-Die `description` ist das wichtigste Feld für automatisches Routing. Der Text muss klar kommunizieren, _wann_ dieser
-Agent gerufen werden soll.
+Die `description` ist das wichtigste Feld für automatisches Routing. Der Text muss klar kommunizieren, _wann_ dieser Agent gerufen werden soll.
 
 **Gut:**
 
 ```yaml
-description:
-  "Backend development specialist. Delegates here for server-side code, APIs, database operations. Use when implementing
-  business logic, creating endpoints, or modifying database schemas."
+description: "Backend development specialist. Delegates here for server-side code, APIs, database operations. Use when implementing business logic, creating endpoints, or modifying database schemas."
 ```
 
 **Schlecht:**
@@ -92,8 +86,7 @@ Faustregel: Wähle das schwächste Modell, das den Task zuverlässig erfüllt.
 
 ### Tool-Minimierung
 
-Nur Tools deklarieren, die der Agent tatsächlich verwendet. Überflüssige Tools erhöhen die Angriffsfläche und verwirren
-das Modell.
+Nur Tools deklarieren, die der Agent tatsächlich verwendet. Überflüssige Tools erhöhen die Angriffsfläche und verwirren das Modell.
 
 | Agent-Typ                       | Typische Tools                                |
 | ------------------------------- | --------------------------------------------- |
@@ -102,8 +95,7 @@ das Modell.
 | Research                        | `Read, Glob, Grep, Bash, WebFetch, WebSearch` |
 | Browser-Automatisierung         | `Read, Glob, Grep, Bash, Write` + MCP-Tools   |
 
-Das `Agent`-Tool nur für Agents verwenden, die explizit Sub-Agents dispatchen (z.B. `ac-review` für parallele
-Review-Perspektiven).
+Das `Agent`-Tool nur für Agents verwenden, die explizit Sub-Agents dispatchen (z.B. `ac-review` für parallele Review-Perspektiven).
 
 ---
 
@@ -145,8 +137,7 @@ Alle Agents folgen dieser Grundstruktur:
 <Wenige, harte Regeln — nur was wirklich erzwungen werden muss>
 ```
 
-Die Reihenfolge Role → Core Principle → Workflow → Output Format → Rules ist bewährt: Das Modell versteht zuerst _wer_
-es ist, dann _wie_ es vorgeht, dann _was_ es liefern soll, dann _was nie_.
+Die Reihenfolge Role → Core Principle → Workflow → Output Format → Rules ist bewährt: Das Modell versteht zuerst _wer_ es ist, dann _wie_ es vorgeht, dann _was_ es liefern soll, dann _was nie_.
 
 ### Affirmative Formulierung
 
@@ -166,14 +157,11 @@ Positive Instruktionen sind präziser und werden besser befolgt als Verbote.
 - Don't guess what the user wants
 ```
 
-`NEVER` und `ALWAYS` in Großbuchstaben nur für harte Sicherheitsregeln reservieren (z.B. "NEVER modify production data
-directly"). Aggressive Sprache wie "CRITICAL: YOU MUST" reduziert die Qualität — Claude 4.x reagiert besser auf ruhige,
-sachliche Instruktionen.
+`NEVER` und `ALWAYS` in Großbuchstaben nur für harte Sicherheitsregeln reservieren (z.B. "NEVER modify production data directly"). Aggressive Sprache wie "CRITICAL: YOU MUST" reduziert die Qualität — Claude 4.x reagiert besser auf ruhige, sachliche Instruktionen.
 
 ### Konsistente Terminologie
 
-Innerhalb eines Agents einheitliche Begriffe verwenden. Nicht abwechselnd "task", "job", "request" und "Aufgabe" — einen
-Begriff wählen und durchhalten.
+Innerhalb eines Agents einheitliche Begriffe verwenden. Nicht abwechselnd "task", "job", "request" und "Aufgabe" — einen Begriff wählen und durchhalten.
 
 ---
 
@@ -189,8 +177,7 @@ Kontext in Schichten laden — nur was für den aktuellen Schritt gebraucht wird
 
 ### Just-in-Time Retrieval
 
-Nicht alles am Anfang laden. Spezialisierte Kontext-Dateien (z.B. `memory/architecture.md`) erst abrufen, wenn der Agent
-sie tatsächlich braucht. Das reduziert Token-Verbrauch und hält den Kontext fokussiert.
+Nicht alles am Anfang laden. Spezialisierte Kontext-Dateien (z.B. `memory/architecture.md`) erst abrufen, wenn der Agent sie tatsächlich braucht. Das reduziert Token-Verbrauch und hält den Kontext fokussiert.
 
 ### Graceful Fallback für `.agent-context/`-Dateien
 
@@ -212,8 +199,7 @@ Kein harter Fehler, wenn Dateien fehlen — alternativ explorieren.
 
 ### Stopping Conditions
 
-Jeder Workflow-Schritt sollte eine klare Abschlussbedingung haben. Agents, die nicht wissen wann sie fertig sind,
-iterieren unnötig oder brechen zu früh ab.
+Jeder Workflow-Schritt sollte eine klare Abschlussbedingung haben. Agents, die nicht wissen wann sie fertig sind, iterieren unnötig oder brechen zu früh ab.
 
 Beispiel: "Schritt gilt als abgeschlossen, wenn alle Tests grün sind und der QA-Command ohne Fehler durchläuft."
 
@@ -230,8 +216,7 @@ Fehlerbehandlung explizit beschreiben:
 MCP-Tools sind nicht in jedem Kontext verfügbar. Stets bedingt formulieren:
 
 ```markdown
-Use documentation MCP tools if available (e.g., context7) for framework lookups. Use IDE MCP tools if available (e.g.,
-JetBrains) for symbol search.
+Use documentation MCP tools if available (e.g., context7) for framework lookups. Use IDE MCP tools if available (e.g., JetBrains) for symbol search.
 ```
 
 Nicht: "Verwende context7 für alle Framework-Fragen." — das schlägt fehl, wenn der Server nicht aktiv ist.
@@ -316,21 +301,14 @@ Vor dem Commit eines neuen Agents alle Punkte prüfen:
 
 ### Anthropic
 
-- [Building Effective Agents](https://www.anthropic.com/research/building-effective-agents) — Grundlagen-Paper zu
-  Agent-Design-Prinzipien
-- [Effective Context Engineering for AI Agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
-  — Progressive Disclosure, Just-in-Time Retrieval
-- [Multi-Agent Research System](https://www.anthropic.com/engineering/multi-agent-research-system) — Parallelisierung
-  und Orchestrierung
+- [Building Effective Agents](https://www.anthropic.com/research/building-effective-agents) — Grundlagen-Paper zu Agent-Design-Prinzipien
+- [Effective Context Engineering for AI Agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) — Progressive Disclosure, Just-in-Time Retrieval
+- [Multi-Agent Research System](https://www.anthropic.com/engineering/multi-agent-research-system) — Parallelisierung und Orchestrierung
 - [Claude Code Sub-Agents Docs](https://code.claude.com/docs/en/sub-agents) — Frontmatter-Referenz, Tool-Liste
-- [Claude 4 Prompt Engineering Best Practices](https://platform.claude.com/docs/en/docs/build-with-claude/prompt-engineering/claude-4-best-practices)
-  — Affirmative Instruktionen, Tone
+- [Claude 4 Prompt Engineering Best Practices](https://platform.claude.com/docs/en/docs/build-with-claude/prompt-engineering/claude-4-best-practices) — Affirmative Instruktionen, Tone
 
 ### Community
 
-- [Writing a Good CLAUDE.md](https://www.humanlayer.dev/blog/writing-a-good-claude-md) — Strukturierung von
-  Instruktionsdokumenten
-- [Agent Instruction Patterns and Anti-Patterns](https://elements.cloud/blog/agent-instruction-patterns-and-antipatterns-how-to-build-smarter-agents/)
-  — Anti-Pattern-Katalog
-- [State of Agent Engineering](https://www.langchain.com/state-of-agent-engineering) — Überblick über aktuelle Patterns
-  und Trends
+- [Writing a Good CLAUDE.md](https://www.humanlayer.dev/blog/writing-a-good-claude-md) — Strukturierung von Instruktionsdokumenten
+- [Agent Instruction Patterns and Anti-Patterns](https://elements.cloud/blog/agent-instruction-patterns-and-antipatterns-how-to-build-smarter-agents/) — Anti-Pattern-Katalog
+- [State of Agent Engineering](https://www.langchain.com/state-of-agent-engineering) — Überblick über aktuelle Patterns und Trends
