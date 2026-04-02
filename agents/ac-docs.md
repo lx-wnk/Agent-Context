@@ -3,7 +3,7 @@ name: ac-docs
 description:
   "Documentation specialist. Delegates here for writing READMEs, API documentation, ADRs, changelogs, and maintaining
   the agent-context knowledge base. Use when documentation needs creating, updating, or auditing for completeness."
-tools: Read, Write, Glob, Grep, Bash, WebFetch
+tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch
 model: sonnet
 maxTurns: 20
 effort: medium

@@ -34,7 +34,7 @@ description: "Kurze Beschreibung. Delegates here for X, Y, Z. Use when doing A o
 tools: Read, Glob, Grep, Bash
 model: sonnet
 maxTurns: 20
-effort: normal
+effort: medium
 ---
 ```
 

@@ -4,7 +4,7 @@ description:
   "Performance analysis specialist. Delegates here for performance audits, profiling, bottleneck analysis, database
   query optimization, and Core Web Vitals. Use when response times are too slow, resources are saturated, or systematic
   performance measurement is needed."
-tools: Read, Glob, Grep, Bash, Write, WebFetch, WebSearch
+tools: Read, Glob, Grep, Bash, WebFetch, WebSearch
 model: opus
 maxTurns: 40
 effort: max

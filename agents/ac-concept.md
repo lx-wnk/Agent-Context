@@ -128,8 +128,8 @@ Create a structured concept following the output template below.
 
 ## Rules
 
-- Read code for analysis only — NEVER modify existing files
-- Write only creates new documentation files
+- Read code for analysis only — NEVER modify existing source files
+- Write only creates new documentation files (under `docs/concepts/` or equivalent)
 - Always develop at least 2 solution options
 - Effort estimates in person-days (PD), estimate realistically
 - Include buffer: +20% for unforeseen complexity
