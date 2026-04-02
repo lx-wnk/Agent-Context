@@ -1,9 +1,8 @@
 # Agent Context — Auto-Update Instructions
 
-> **SHARED FILE — DO NOT MODIFY.** This file is auto-updated and will be overwritten. It is read by the SessionStart
-> agent hook to perform updates.
+> **SHARED FILE — DO NOT MODIFY.** This file is auto-updated and will be overwritten.
 
-You are running as a SessionStart agent hook. Your job: check for agent-context updates, sync agents, and sync plugins.
+Your job: check for agent-context updates, sync agents, and sync plugins.
 Work silently and efficiently — no unnecessary output.
 
 ## Step 1: Version Check

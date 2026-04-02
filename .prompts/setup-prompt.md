@@ -25,7 +25,7 @@ File                                     Ownership
 ─────────────────────────────────────    ──────────────────────────────────────
 AGENTS.md                                PROJECT — customize freely
 .claude/CLAUDE.md                        Bootstrap pointer → @AGENTS.md
-.claude/settings.json                    SessionStart hook (merged, not overwritten)
+.claude/settings.json                    Settings file (created if missing, never overwritten)
 .agent-context/
   agent-startup.md                       🔒 SHARED — do NOT modify (auto-updated)
   layer0-agent-workflow.md               🔒 SHARED — do NOT modify (auto-updated)
@@ -59,43 +59,9 @@ Also copy `plugins.json`. Write the release version (from `tag_name`, without `v
 For project-owned files, use the templates from `templates/` in the archive — or create them manually with TODO
 placeholders. If a project-owned file already exists, do NOT overwrite it.
 
-### SessionStart hook
+### Settings file
 
-Set up the auto-update hook. Edit `.claude/settings.json` (create with `{}` if missing). The `hooks.SessionStart` field
-is an **array** — other hooks may already exist. **Append** our entry, do NOT replace existing hooks. Skip if an entry
-referencing `update-prompt.md` already exists.
-
-The hook uses `type: "agent"` — a subagent reads the update prompt and performs the update using its own tools (no
-external dependencies like `curl` or `jq` required).
-
-```json
-{
-  "type": "agent",
-  "prompt": "Read .agent-context/update-prompt.md and follow its instructions exactly. If the file does not exist, return ok:true with reason 'update-prompt.md not found, skipping'.",
-  "timeout": 60
-}
-```
-
-Example with multiple hooks coexisting:
-
-```json
-{
-  "hooks": {
-    "SessionStart": [
-      { "hooks": [{ "type": "command", "command": "bash .other/hook.sh" }] },
-      {
-        "hooks": [
-          {
-            "type": "agent",
-            "prompt": "Read .agent-context/update-prompt.md and follow its instructions exactly. If the file does not exist, return ok:true with reason 'update-prompt.md not found, skipping'.",
-            "timeout": 60
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+Ensure `.claude/settings.json` exists (create with `{}` if missing). Do NOT overwrite existing content.
 
 ## Phase 2: Discovery (Parallel Subagent Scan)
 

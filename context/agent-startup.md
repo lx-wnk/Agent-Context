@@ -5,6 +5,5 @@
 
 ## Auto-Update
 
-Updates are handled automatically by a SessionStart agent hook in `.claude/settings.json`. On every session start, a
-subagent reads `.agent-context/update-prompt.md` and performs the update: checks for new releases, updates shared files
-(including the prompt itself), and syncs plugins.
+Updates can be triggered manually by running the update prompt: read `.agent-context/update-prompt.md` and follow its
+instructions. This checks for new releases, updates shared files (including the prompt itself), and syncs plugins.

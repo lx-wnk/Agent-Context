@@ -1,15 +1,1 @@
-{
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "agent",
-            "prompt": "Read .agent-context/update-prompt.md and follow its instructions exactly. If the file does not exist, return ok:true with reason 'update-prompt.md not found, skipping'.",
-            "timeout": 60
-          }
-        ]
-      }
-    ]
-  }
-}
+{}

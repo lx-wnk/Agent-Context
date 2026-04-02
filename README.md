@@ -35,8 +35,8 @@ AGENTS.md                          (~35 lines — identity, quick rules)
 
 **Baseline:** ~60-80 lines (AGENTS.md + layers 0-2). Full reference: loaded only when trigger keywords match.
 
-Auto-updates are built in: on every session start, a SessionStart agent hook checks for new releases via the GitHub
-Releases API and updates shared files automatically. Project-owned files are never overwritten.
+Auto-updates are built in: read `.agent-context/update-prompt.md` to check for new releases via the GitHub
+Releases API and update shared files. Project-owned files are never overwritten.
 
 ## Architecture
 
@@ -90,13 +90,12 @@ Paste [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) into Claude Code. I
 
 ### Every Session (automatic)
 
-A **SessionStart agent hook** in `.claude/settings.json` spawns a subagent that reads `.agent-context/update-prompt.md`
-and performs the update:
+Updates can be triggered manually by reading `.agent-context/update-prompt.md` and following its instructions:
 
 1. Reads `.agent-context/.agent-context-version` (local) and fetches the latest release tag from the GitHub API (remote)
 2. **If versions differ:** downloads the tarball, overwrites shared files (including the update prompt itself), writes
    the new version
-3. **If versions match or API fails:** continues silently — never blocks the session
+3. **If versions match or API fails:** skips silently
 4. Syncs plugins from `plugins.json` into `.claude/settings.json`
 
 ### What the agent sees at runtime
@@ -142,7 +141,7 @@ claude -p "Fetch https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/.pr
 your-project/
 ├── AGENTS.md                              ← Entry point
 ├── .claude/CLAUDE.md                      ← Bootstrap pointer → @AGENTS.md
-├── .claude/settings.json                  ← SessionStart agent hook (merged, not overwritten)
+├── .claude/settings.json                  ← Settings file (created if missing, never overwritten)
 └── .agent-context/
     ├── agent-startup.md                   ← Startup info (shared)
     ├── layer0-agent-workflow.md            ← Universal agent workflow (shared)
