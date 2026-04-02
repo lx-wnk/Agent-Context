@@ -97,20 +97,79 @@ Example with multiple hooks coexisting:
 }
 ```
 
-## Phase 2: Discovery
+## Phase 2: Discovery (Parallel Subagent Scan)
 
-Auto-discover as much as possible before asking the user:
+Launch **6 parallel subagents** to scan the project. All subagents are **mandatory** — every one MUST execute, none may
+be skipped. Running them in parallel maximizes speed.
 
-- **Existing docs**: `CLAUDE.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `.claude/rules/*.md`, `skills-lock.json`
-- **Project name**: From `package.json`, `composer.json`, repo name, or directory name
-- **Tech stack**: `package.json`, `composer.json`, `go.mod`, `Cargo.toml`, `requirements.txt`
-- **Docker**: `docker-compose.yml` / `compose.yaml` for container names, ports, exec patterns
-- **Domains**: `.env`, `.env.example` for `APP_URL`, `BASE_URL`, `SHOP_URL`
-- **CI**: `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`
-- **Testing**: `phpunit.xml`, `vitest.config.*`, `cypress.config.*`, `jest.config.*`
-- **Commit convention**: `git log --oneline -20`
+### Subagent 1: Documentation Scanner
 
-Only ask the user for values that cannot be auto-detected.
+Scan for existing documentation files and summarize their content:
+
+- `CLAUDE.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md`
+- `.claude/rules/*.md`
+- `skills-lock.json`
+
+Output: list of files found with summary of content per file.
+
+### Subagent 2: Project Identity & Stack
+
+Determine project name and full tech stack from:
+
+- `package.json`, `composer.json`, `go.mod`, `Cargo.toml`, `requirements.txt`, `pyproject.toml`
+- Repo name or directory name as fallback
+
+Output: project name, languages, frameworks, key dependencies.
+
+### Subagent 3: Infrastructure & Docker
+
+Scan for container and infrastructure configuration:
+
+- `docker-compose.yml` / `compose.yaml` — container names, ports, exec patterns
+- `.env`, `.env.example` — `APP_URL`, `BASE_URL`, `SHOP_URL`, other domains
+
+Output: container map, port map, domain list.
+
+### Subagent 4: CI/CD & Testing
+
+Scan for CI pipelines and test configuration:
+
+- `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`
+- `phpunit.xml`, `vitest.config.*`, `cypress.config.*`, `jest.config.*`
+
+Output: CI platform, pipeline structure, test frameworks, test commands.
+
+### Subagent 5: Git Conventions
+
+Analyze repository history and conventions:
+
+- `git log --oneline -20` — commit message style
+- Branch naming patterns, conventional commit config (`.commitlintrc`, etc.)
+
+Output: commit convention, branch strategy.
+
+### Subagent 6: Skills & Plugins
+
+Check for existing skills infrastructure:
+
+- `skills-lock.json` — locked skill definitions
+- `.claude/skills/`, `.agents/skills/` — existing project skills
+
+Output: whether skills-lock exists, list of existing skills.
+
+### Merge Results
+
+Collect all subagent outputs. Document each finding with its target layer:
+
+| Finding type             | Document in                      |
+| ------------------------ | -------------------------------- |
+| Project name, stack      | `layer1-bootstrap.md`            |
+| Docker, domains          | `layer1-bootstrap.md`            |
+| Conventions, CI, testing | `layer2-project-core.md`         |
+| Skills, task routing     | `layer3-guidebook.md`            |
+| Existing doc content     | Input for Phase 3 classification |
+
+Only ask the user for values that no subagent could auto-detect.
 
 ## Phase 3: Content Classification
 
@@ -126,6 +185,8 @@ For every piece of existing documentation, apply the **"Can the agent discover t
 - CI pipeline structure, custom build steps
 - Security constraints, forbidden patterns
 - Business terminology, domain knowledge
+- Workflow rules specific to this project (plan-first thresholds, verification requirements, task tracking conventions)
+- Tool commands that aren't obvious from the codebase (e.g. `npx skills experimental_install`)
 
 ### REMOVE (discoverable from code):
 
@@ -137,7 +198,74 @@ For every piece of existing documentation, apply the **"Can the agent discover t
 - Dependency lists
 - README content duplicated into agent context
 
-**Principle:** Every line in context files = friction the agent can't resolve alone.
+**Principle:** "Every line in context files = friction the agent can't resolve alone."
+
+## Phase 3.5: Migration Audit (CRITICAL — prevents silent content loss)
+
+> This phase is the safety net. Shared files (layer0, base-principles) define a **generic** workflow. Projects often
+> have **project-specific** workflow rules that lived in the same files before migration. If you overwrite a shared file
+> or remove "general" content, you MUST verify nothing project-specific was lost.
+
+### Step 1: Build a "before" inventory
+
+Before overwriting any file, extract every distinct rule/instruction from the existing content. Create a checklist:
+
+```
+## Pre-Migration Content Inventory
+
+### From existing layer0 (will be overwritten):
+- [ ] Rule: "Enter plan mode for non-trivial tasks (3+ steps)"
+- [ ] Rule: "Write plan to memory/todo.md"
+- [ ] Rule: "Mark items complete as you go"
+- [ ] ...
+
+### From existing AGENTS.md quick rules (will be trimmed):
+- [ ] Rule 1: "Pre-commit: make review"
+- [ ] Rule 2: "Docker: all PHP in bo__shop"
+- [ ] ...
+
+### From sections being removed as "general knowledge":
+- [ ] "Unit tests for all new implementations"
+- [ ] "npx skills experimental_install when skills-lock.json exists"
+- [ ] ...
+```
+
+### Step 2: Classify each item
+
+For each item, determine:
+
+| Classification                                               | Action                                                                           |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| **Covered by new shared files** (base-principles.md, layer0) | Mark as ✓ migrated — verify by reading the shared file and confirming it's there |
+| **General LLM knowledge** (KISS, YAGNI, DRY, SOLID)          | Mark as ✓ removed intentionally                                                  |
+| **Project-specific, NOT in shared files**                    | ⚠️ Must be relocated to a PROJECT-owned file                                     |
+
+### Step 3: Relocate orphaned content
+
+Any item classified as "project-specific, NOT in shared files" must be placed in the appropriate project-owned file:
+
+| Content type                                             | Target                                                  |
+| -------------------------------------------------------- | ------------------------------------------------------- |
+| Workflow rules (plan-first, verification, task tracking) | `layer2-project-core.md` → new "Workflow Rules" section |
+| Tool commands (`npx skills`, custom scripts)             | `layer2-project-core.md` or `memory/commands.md`        |
+| Testing requirements (unit test policy)                  | `layer2-project-core.md`                                |
+| Domain conventions                                       | `memory/<domain>.md`                                    |
+
+### Step 4: Verify zero loss
+
+After all relocations, go through the checklist and confirm every item has a ✓. If any item is unchecked, it's a gap —
+fix it before proceeding.
+
+**Common traps to watch for:**
+
+- The new shared `layer0` is much shorter than the old one — it only covers Skill Lookup, Memory Rules, and
+  Self-Improvement. Old layer0 content like Plan-First, Subagent Strategy, Task Management, Verification must move to
+  `layer2-project-core.md`
+- `base-principles.md` says "present concrete options" but your project might have said "present up to 5 options" — keep
+  the project-specific detail
+- External skill installation commands (`npx skills experimental_install`) are project-specific, not covered by the
+  shared layer0's "Skill Lookup" section
+- "Unit tests for all new implementations" is a project policy, not general LLM knowledge
 
 ## Phase 4: Fill Layers & Migrate Content
 
@@ -145,7 +273,8 @@ Replace `TODO` placeholders with discovered + user-provided information:
 
 - **`AGENTS.md`**: Project name, tech stack, Docker container, 3-5 quick rules
 - **`layer1-bootstrap.md`**: Identity, Docker exec pattern, domains, excluded dirs
-- **`layer2-project-core.md`**: Non-linter conventions, critical rules, testing strategy, commit convention
+- **`layer2-project-core.md`**: Non-linter conventions, critical rules, testing strategy, commit convention, **workflow
+  rules rescued from Phase 3.5**
 - **`layer3-guidebook.md`**: Task-routing table, skills index, memory file index
 
 For existing documentation found in Phase 2, route surviving content:
@@ -175,7 +304,11 @@ Analyze the project for recurring patterns that benefit from dedicated skills:
 
 For each pattern, create a skill in `.claude/skills/<skill-name>/SKILL.md` with YAML frontmatter.
 
-If `skills-lock.json` exists: add `.agents/skills/` to `.gitignore`, keep `skills-lock.json` committed.
+If `skills-lock.json` exists in the project root:
+
+1. Run `npx skills experimental_install` to install locked skills — this is **mandatory**, not optional
+2. Add `.agents/skills/` to `.gitignore`
+3. Keep `skills-lock.json` committed
 
 ## Phase 6: Agent Installation (Claude Code only, optional)
 
@@ -210,6 +343,7 @@ present) are added without confirmation.
 5. `wc -l .agent-context/memory/*.md` — stubs < 15 lines each
 6. No duplicated content across files
 7. `.claude/CLAUDE.md` points to `@AGENTS.md`
+8. **Migration audit checklist from Phase 3.5 is 100% checked off**
 
 **Summary:**
 
@@ -219,6 +353,7 @@ present) are added without confirmation.
 | On-demand lines        | 0      | Z     |
 | Number of source files | X      | —     |
 | Number of target files | —      | Y     |
+| Migration audit items  | N      | N ✓   |
 
 Inform the user to restart their agent session for the new configuration to take effect.
 
@@ -231,3 +366,5 @@ Inform the user to restart their agent session for the new configuration to take
 - **One fact, one place:** No duplication across files
 - **No over-engineering:** Skip skills if total content < ~200 lines, skip memory stubs if domain < ~30 lines
 - **Preserve knowledge:** Nothing gets deleted — it gets routed, filtered, or promoted to code
+- **Audit before overwrite:** Always run Phase 3.5 before overwriting shared files in existing projects — the new shared
+  files are generic and will silently drop project-specific workflow rules
