@@ -16,6 +16,7 @@ single `CLAUDE.md`, resulting in:
 - **Duplication:** Same information in `CLAUDE.md`, `README.md`, `.claude/rules/`, and memory files
 - **Noise:** Entity schemas, route tables, and file trees that Claude can discover by reading the code
 - **No structure:** Flat files with no way to load context progressively based on the task
+
 ## The Solution
 
 A layered architecture with progressive disclosure:
@@ -66,11 +67,11 @@ installed version is tracked in `.agent-context/.agent-context-version` — writ
 
 ## Why `.agent-context/` instead of `.claude/rules/`?
 
-|                     | `.claude/rules/`            | `.agent-context/`              |
-| ------------------- | --------------------------- | ------------------------------ |
-| **Loading**         | Always loaded (all files)   | Layer-based, on-demand         |
-| **Path globs**      | Yes (Claude Code native)    | No (agent reads guidebook)     |
-| **Discoverability** | Hidden directory convention | Explicit, self-documenting     |
+|                     | `.claude/rules/`            | `.agent-context/`          |
+| ------------------- | --------------------------- | -------------------------- |
+| **Loading**         | Always loaded (all files)   | Layer-based, on-demand     |
+| **Path globs**      | Yes (Claude Code native)    | No (agent reads guidebook) |
+| **Discoverability** | Hidden directory convention | Explicit, self-documenting |
 
 The guidebook pattern (layer 3) replaces path-based auto-loading with task-based routing. `.claude/CLAUDE.md` serves as
 a minimal bootstrap pointer to `AGENTS.md`.
@@ -89,8 +90,8 @@ Paste [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) into Claude Code. I
 
 ### Every Session (automatic)
 
-A **SessionStart agent hook** in `.claude/settings.json` spawns a subagent that reads
-`.agent-context/update-prompt.md` and performs the update:
+A **SessionStart agent hook** in `.claude/settings.json` spawns a subagent that reads `.agent-context/update-prompt.md`
+and performs the update:
 
 1. Reads `.agent-context/.agent-context-version` (local) and fetches the latest release tag from the GitHub API (remote)
 2. **If versions differ:** downloads the tarball, overwrites shared files (including the update prompt itself), writes
@@ -179,20 +180,20 @@ Pre-built, generalized agent configurations for Claude Code in the [`agents/`](a
 `ac-` prefix (agent-context) to identify them as shared defaults. Each agent is a `.md` file with YAML frontmatter that
 defines its role, tools, and behavior.
 
-| Agent | Model | Purpose |
-| ----- | ----- | ------- |
-| `ac-review` | Opus | Comprehensive code review (quality, architecture, security) — read-only |
-| `ac-frontend` | Opus | Frontend development with optional Figma, browser, and docs MCP tools |
-| `ac-backend` | Opus | Backend development — auto-detects tech stack (PHP, Node, Python, Go, etc.) |
-| `ac-concept` | Opus | Technical concepts, estimates, and user stories |
-| `ac-chrome` | Sonnet | Chrome browser automation, screenshots, GIF recording |
-| `ac-testing` | Sonnet | Test writing, TDD workflows, coverage improvement |
-| `ac-debug` | Opus | Systematic root cause analysis with max effort |
-| `ac-performance` | Opus | Performance audits, profiling, bottleneck analysis (USE/RED/Golden Signals) |
-| `ac-discovery` | Opus | Codebase mapping, architecture tracing, onboarding into unfamiliar projects |
-| `ac-analysis` | Opus | Impact analysis, dependency tracing, risk assessment, tech debt evaluation |
-| `ac-research` | Opus | Technology evaluation, best practice research, security vulnerability research |
-| `ac-docs` | Sonnet | Documentation maintenance and agent-context knowledge base |
+| Agent            | Model  | Purpose                                                                        |
+| ---------------- | ------ | ------------------------------------------------------------------------------ |
+| `ac-review`      | Opus   | Comprehensive code review (quality, architecture, security) — read-only        |
+| `ac-frontend`    | Opus   | Frontend development with optional Figma, browser, and docs MCP tools          |
+| `ac-backend`     | Opus   | Backend development — auto-detects tech stack (PHP, Node, Python, Go, etc.)    |
+| `ac-concept`     | Opus   | Technical concepts, estimates, and user stories                                |
+| `ac-chrome`      | Sonnet | Chrome browser automation, screenshots, GIF recording                          |
+| `ac-testing`     | Sonnet | Test writing, TDD workflows, coverage improvement                              |
+| `ac-debug`       | Opus   | Systematic root cause analysis with max effort                                 |
+| `ac-performance` | Opus   | Performance audits, profiling, bottleneck analysis (USE/RED/Golden Signals)    |
+| `ac-discovery`   | Opus   | Codebase mapping, architecture tracing, onboarding into unfamiliar projects    |
+| `ac-analysis`    | Opus   | Impact analysis, dependency tracing, risk assessment, tech debt evaluation     |
+| `ac-research`    | Opus   | Technology evaluation, best practice research, security vulnerability research |
+| `ac-docs`        | Sonnet | Documentation maintenance and agent-context knowledge base                     |
 
 All agents respond in the user's language. MCP tools (JetBrains, Figma, Playwright, etc.) are used when available but
 not required — agents adapt to whatever tools the user has configured.

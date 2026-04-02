@@ -52,18 +52,18 @@ Put project-specific workflow rules in `layer2-project-core.md`, task routing in
 ### Fetching shared files
 
 Fetch the latest release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest`, download the archive
-from `tarball_url`, and copy shared files into `.agent-context/`: files from `context/` and
-`.prompts/update-prompt.md`. Also copy `plugins.json`. Write the release version (from `tag_name`, without `v` prefix)
-to `.agent-context/.agent-context-version`.
+from `tarball_url`, and copy shared files into `.agent-context/`: files from `context/` and `.prompts/update-prompt.md`.
+Also copy `plugins.json`. Write the release version (from `tag_name`, without `v` prefix) to
+`.agent-context/.agent-context-version`.
 
 For project-owned files, use the templates from `templates/` in the archive — or create them manually with TODO
 placeholders. If a project-owned file already exists, do NOT overwrite it.
 
 ### SessionStart hook
 
-Set up the auto-update hook. Edit `.claude/settings.json` (create with `{}` if missing). The
-`hooks.SessionStart` field is an **array** — other hooks may already exist. **Append** our entry, do NOT replace
-existing hooks. Skip if an entry referencing `update-prompt.md` already exists.
+Set up the auto-update hook. Edit `.claude/settings.json` (create with `{}` if missing). The `hooks.SessionStart` field
+is an **array** — other hooks may already exist. **Append** our entry, do NOT replace existing hooks. Skip if an entry
+referencing `update-prompt.md` already exists.
 
 The hook uses `type: "agent"` — a subagent reads the update prompt and performs the update using its own tools (no
 external dependencies like `curl` or `jq` required).
@@ -99,7 +99,8 @@ Example with multiple hooks coexisting:
 
 ## Phase 2: Discovery (Parallel Subagent Scan)
 
-Launch **6 parallel subagents** to scan the project. All subagents are **mandatory** — every one MUST execute, none may be skipped. Running them in parallel maximizes speed.
+Launch **6 parallel subagents** to scan the project. All subagents are **mandatory** — every one MUST execute, none may
+be skipped. Running them in parallel maximizes speed.
 
 ### Subagent 1: Documentation Scanner
 
@@ -160,13 +161,13 @@ Output: whether skills-lock exists, list of existing skills.
 
 Collect all subagent outputs. Document each finding with its target layer:
 
-| Finding type | Document in |
-| --- | --- |
-| Project name, stack | `layer1-bootstrap.md` |
-| Docker, domains | `layer1-bootstrap.md` |
-| Conventions, CI, testing | `layer2-project-core.md` |
-| Skills, task routing | `layer3-guidebook.md` |
-| Existing doc content | Input for Phase 3 classification |
+| Finding type             | Document in                      |
+| ------------------------ | -------------------------------- |
+| Project name, stack      | `layer1-bootstrap.md`            |
+| Docker, domains          | `layer1-bootstrap.md`            |
+| Conventions, CI, testing | `layer2-project-core.md`         |
+| Skills, task routing     | `layer3-guidebook.md`            |
+| Existing doc content     | Input for Phase 3 classification |
 
 Only ask the user for values that no subagent could auto-detect.
 
@@ -201,7 +202,9 @@ For every piece of existing documentation, apply the **"Can the agent discover t
 
 ## Phase 3.5: Migration Audit (CRITICAL — prevents silent content loss)
 
-> This phase is the safety net. Shared files (layer0, base-principles) define a **generic** workflow. Projects often have **project-specific** workflow rules that lived in the same files before migration. If you overwrite a shared file or remove "general" content, you MUST verify nothing project-specific was lost.
+> This phase is the safety net. Shared files (layer0, base-principles) define a **generic** workflow. Projects often
+> have **project-specific** workflow rules that lived in the same files before migration. If you overwrite a shared file
+> or remove "general" content, you MUST verify nothing project-specific was lost.
 
 ### Step 1: Build a "before" inventory
 
@@ -231,31 +234,37 @@ Before overwriting any file, extract every distinct rule/instruction from the ex
 
 For each item, determine:
 
-| Classification | Action |
-|---|---|
+| Classification                                               | Action                                                                           |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------- |
 | **Covered by new shared files** (base-principles.md, layer0) | Mark as ✓ migrated — verify by reading the shared file and confirming it's there |
-| **General LLM knowledge** (KISS, YAGNI, DRY, SOLID) | Mark as ✓ removed intentionally |
-| **Project-specific, NOT in shared files** | ⚠️ Must be relocated to a PROJECT-owned file |
+| **General LLM knowledge** (KISS, YAGNI, DRY, SOLID)          | Mark as ✓ removed intentionally                                                  |
+| **Project-specific, NOT in shared files**                    | ⚠️ Must be relocated to a PROJECT-owned file                                     |
 
 ### Step 3: Relocate orphaned content
 
 Any item classified as "project-specific, NOT in shared files" must be placed in the appropriate project-owned file:
 
-| Content type | Target |
-|---|---|
+| Content type                                             | Target                                                  |
+| -------------------------------------------------------- | ------------------------------------------------------- |
 | Workflow rules (plan-first, verification, task tracking) | `layer2-project-core.md` → new "Workflow Rules" section |
-| Tool commands (`npx skills`, custom scripts) | `layer2-project-core.md` or `memory/commands.md` |
-| Testing requirements (unit test policy) | `layer2-project-core.md` |
-| Domain conventions | `memory/<domain>.md` |
+| Tool commands (`npx skills`, custom scripts)             | `layer2-project-core.md` or `memory/commands.md`        |
+| Testing requirements (unit test policy)                  | `layer2-project-core.md`                                |
+| Domain conventions                                       | `memory/<domain>.md`                                    |
 
 ### Step 4: Verify zero loss
 
-After all relocations, go through the checklist and confirm every item has a ✓. If any item is unchecked, it's a gap — fix it before proceeding.
+After all relocations, go through the checklist and confirm every item has a ✓. If any item is unchecked, it's a gap —
+fix it before proceeding.
 
 **Common traps to watch for:**
-- The new shared `layer0` is much shorter than the old one — it only covers Skill Lookup, Memory Rules, and Self-Improvement. Old layer0 content like Plan-First, Subagent Strategy, Task Management, Verification must move to `layer2-project-core.md`
-- `base-principles.md` says "present concrete options" but your project might have said "present up to 5 options" — keep the project-specific detail
-- External skill installation commands (`npx skills experimental_install`) are project-specific, not covered by the shared layer0's "Skill Lookup" section
+
+- The new shared `layer0` is much shorter than the old one — it only covers Skill Lookup, Memory Rules, and
+  Self-Improvement. Old layer0 content like Plan-First, Subagent Strategy, Task Management, Verification must move to
+  `layer2-project-core.md`
+- `base-principles.md` says "present concrete options" but your project might have said "present up to 5 options" — keep
+  the project-specific detail
+- External skill installation commands (`npx skills experimental_install`) are project-specific, not covered by the
+  shared layer0's "Skill Lookup" section
 - "Unit tests for all new implementations" is a project policy, not general LLM knowledge
 
 ## Phase 4: Fill Layers & Migrate Content
@@ -264,7 +273,8 @@ Replace `TODO` placeholders with discovered + user-provided information:
 
 - **`AGENTS.md`**: Project name, tech stack, Docker container, 3-5 quick rules
 - **`layer1-bootstrap.md`**: Identity, Docker exec pattern, domains, excluded dirs
-- **`layer2-project-core.md`**: Non-linter conventions, critical rules, testing strategy, commit convention, **workflow rules rescued from Phase 3.5**
+- **`layer2-project-core.md`**: Non-linter conventions, critical rules, testing strategy, commit convention, **workflow
+  rules rescued from Phase 3.5**
 - **`layer3-guidebook.md`**: Task-routing table, skills index, memory file index
 
 For existing documentation found in Phase 2, route surviving content:
@@ -356,4 +366,5 @@ Inform the user to restart their agent session for the new configuration to take
 - **One fact, one place:** No duplication across files
 - **No over-engineering:** Skip skills if total content < ~200 lines, skip memory stubs if domain < ~30 lines
 - **Preserve knowledge:** Nothing gets deleted — it gets routed, filtered, or promoted to code
-- **Audit before overwrite:** Always run Phase 3.5 before overwriting shared files in existing projects — the new shared files are generic and will silently drop project-specific workflow rules
+- **Audit before overwrite:** Always run Phase 3.5 before overwriting shared files in existing projects — the new shared
+  files are generic and will silently drop project-specific workflow rules
