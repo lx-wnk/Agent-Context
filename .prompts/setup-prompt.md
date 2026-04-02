@@ -322,7 +322,11 @@ MCP tools only when available.
    - `.claude/agents/` — available only in this project (project-specific)
 3. Copy selected agent files to the chosen location
 4. If the user wants project-specific customization: copy to `.claude/agents/` and suggest editing the system prompt to
-   match project conventions (e.g., add Shopware-specific rules to `ac-backend.md`)
+   match project conventions (e.g., add Shopware-specific rules to `ac-backend.md`). Follow the patterns documented in
+   `docs/best-practices-agent-creation.md` — especially: descriptions with "Use when..." triggers, minimal tool lists,
+   and the Role → Core Principle → Workflow → Output Format → Rules section order.
+5. For creating entirely new project-specific agents, reference `docs/best-practices-agent-creation.md` for the full
+   checklist (frontmatter design, prompt structure, anti-patterns).
 
 **Do NOT overwrite** existing agent files with the same name unless the user explicitly confirms. New agents (not yet
 present) are added without confirmation.
