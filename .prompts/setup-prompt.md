@@ -9,8 +9,8 @@
 ## Your Task
 
 Set up the layered `.agent-context/` context architecture in this project. This gives Claude Code the right information
-at the right time — minimal baseline context (~60-80 lines always loaded), full reference on-demand via memory files and
-skills.
+at the right time — structured baseline context (~150-200 lines always loaded), full reference on-demand via memory files
+and skills.
 
 Follow each phase in order.
 
@@ -317,7 +317,7 @@ present) are added without confirmation.
 1. `AGENTS.md` exists with identity and layer references
 2. No `TODO` placeholders remain (except intentional ones)
 3. `wc -l AGENTS.md` < 45 lines
-4. `wc -l .agent-context/layer*.md` — each < 40 lines
+4. `wc -l .agent-context/layer*.md` — each < 50 lines
 5. `wc -l .agent-context/memory/*.md` — stubs < 15 lines each
 6. No duplicated content across files
 7. `.claude/CLAUDE.md` points to `@AGENTS.md`

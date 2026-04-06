@@ -4,10 +4,10 @@
 
 ## Before You Start Any Task
 
-1. Read `memory/user.md` — understand who you're working with
-2. Read `memory/preferences.md` — respect stated preferences
-3. Read `memory/lessons.md` — avoid repeating past mistakes
-4. Read `memory/todo.md` — check if there's an active task plan
+1. Read `memory/lessons.md` — avoid repeating past mistakes
+2. Read `memory/todo.md` — check if there's an active task plan
+
+Skip files that are empty or contain only comments.
 
 ## Load By Task Type
 
@@ -22,27 +22,18 @@
 
 ## Skills Index
 
-### Shared Skills
-
 @.agent-context/skills/index.md
 
-### Project Skills
-
-| Skill | Triggers | Content |
-| ----- | -------- | ------- |
-
-<!-- TODO: Project-specific skills -->
+<!-- TODO: Add project-specific skills to skills/index.md -->
 
 ## Memory Files
 
-| File                    | Purpose                     | Load          |
-| ----------------------- | --------------------------- | ------------- |
-| `memory/user.md`        | Primary user profile        | Session start |
-| `memory/preferences.md` | Agent behavior preferences  | Session start |
-| `memory/lessons.md`     | Hard-won lessons            | Session start |
-| `memory/todo.md`        | Current task plan           | Session start |
-| `decisions.json`        | Architectural decisions     | On-demand     |
-| `memory/people.md`      | Team members & stakeholders | On-demand     |
+| File                | Purpose                 | Load          |
+| ------------------- | ----------------------- | ------------- |
+| `memory/lessons.md` | Hard-won lessons        | Session start |
+| `memory/todo.md`    | Current task plan       | Session start |
+| `decisions.json`    | Architectural decisions | On-demand     |
+| `memory/people.md`  | Team & stakeholders     | On-demand     |
 
 ## After You Finish
 

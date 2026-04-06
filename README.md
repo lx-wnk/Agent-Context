@@ -4,7 +4,7 @@ A project-based setup and memory-handling system for Claude Code. Optimized for 
 Claude always has the right context at the right time — without bloating the context window.
 
 Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides a layered architecture with progressive
-disclosure: a minimal baseline (~60-80 lines) is always loaded, while detailed reference (skills, memory files) is
+disclosure: a structured baseline (~150-200 lines) is always loaded, while detailed reference (skills, memory files) is
 pulled in on-demand based on the task at hand. Auto-updates keep shared infrastructure current across all your projects.
 
 ## The Problem
@@ -25,15 +25,15 @@ A layered architecture with progressive disclosure:
 CLAUDE.md                          (3 lines — bootstrap pointer)
 AGENTS.md                          (~35 lines — identity, quick rules)
 .agent-context/
-  layer0-agent-workflow.md         (~25 lines — universal agent patterns)
-  layer1-bootstrap.md              (~20 lines — tech stack, project identity)
-  layer2-project-core.md           (~35 lines — dev principles, conventions)
-  layer3-guidebook.md              (~30 lines — task → file routing table)
+  layer0-agent-workflow.md         (~35 lines — universal agent patterns)
+  layer1-bootstrap.md              (~25 lines — tech stack, project identity)
+  layer2-project-core.md           (~25 lines — dev principles, conventions)
+  layer3-guidebook.md              (~45 lines — task → file routing table)
   memory/                          (stubs, ~10 lines each)
   skills/                          (full reference, loaded on-demand)
 ```
 
-**Baseline:** ~60-80 lines (AGENTS.md + layers 0-2). Full reference: loaded only when trigger keywords match.
+**Baseline:** ~150-200 lines (AGENTS.md + all layers). Full reference (skills, memory): loaded only when trigger keywords match.
 
 Auto-updates are built in: read `.agent-context/update-prompt.md` to check for new releases via the GitHub
 Releases API and update shared files. Project-owned files are never overwritten.
@@ -109,7 +109,7 @@ AGENTS.md                               ← Agent reads this first
   @.agent-context/layer3-guidebook      ← Task routing → memory/skills on-demand
 ```
 
-Total baseline: ~60-80 lines. Heavy reference (skills, memory) is loaded only when the task matches.
+Total baseline: ~150-200 lines. Heavy reference (skills, memory) is loaded only when the task matches.
 
 ## Installation
 
