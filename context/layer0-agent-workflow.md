@@ -34,3 +34,11 @@
 - User states a preference → update `memory/preferences.md`
 - New personal or team info emerges → update `memory/user.md` or `memory/people.md`
 - Review lessons + preferences at session start for relevant context
+
+### Lesson Graduation
+
+When a lesson has proven itself (applied 3+ times, never questioned), suggest promoting it:
+
+- Project-wide convention → move to `layer2-project-core.md`
+- Domain-specific pattern → keep in `memory/<domain>.md`
+- Remove the original entry from `memory/lessons.md` after promotion
