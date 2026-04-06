@@ -39,7 +39,10 @@ AGENTS.md                                PROJECT — customize freely
   memory/                                PROJECT — customize freely
     decisions.md
     lessons.md
+    people.md
+    preferences.md
     todo.md
+    user.md
 ```
 
 ### Ownership rules
@@ -245,13 +248,15 @@ Replace `TODO` placeholders with discovered + user-provided information:
 
 For existing documentation found in Phase 2, route surviving content:
 
-| Scope                       | Target                   |
-| --------------------------- | ------------------------ |
-| General dev philosophy      | `layer2-project-core.md` |
-| Domain-specific convention  | `memory/<domain>.md`     |
-| Heavy reference (>30 lines) | `skills/<reference>.md`  |
-| Gotcha / lesson             | `memory/lessons.md`      |
-| Architecture decision       | `memory/decisions.md`    |
+| Scope                       | Target                                 |
+| --------------------------- | -------------------------------------- |
+| General dev philosophy      | `layer2-project-core.md`               |
+| Domain-specific convention  | `memory/<domain>.md`                   |
+| Heavy reference (>30 lines) | `skills/<reference>.md`                |
+| Gotcha / lesson             | `memory/lessons.md`                    |
+| User/team info              | `memory/user.md` or `memory/people.md` |
+| Agent behavior preference   | `memory/preferences.md`                |
+| Architecture decision       | `memory/decisions.md`                  |
 
 Each fact in exactly ONE place. No duplicates.
 

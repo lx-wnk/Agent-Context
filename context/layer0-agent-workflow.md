@@ -23,8 +23,13 @@
 | Heavy reference (>30 lines) | `skills/<reference>.md`  |
 | Gotcha / hard-won lesson    | `memory/lessons.md`      |
 | Architecture decision       | `memory/decisions.md`    |
+| User profile detail         | `memory/user.md`         |
+| Agent behavior preference   | `memory/preferences.md`  |
+| Team member / stakeholder   | `memory/people.md`       |
 
 ## Self-Improvement Loop
 
 - After ANY correction from the user → update `memory/lessons.md` with the pattern
-- Review lessons at session start for relevant context
+- User states a preference → update `memory/preferences.md`
+- New personal or team info emerges → update `memory/user.md` or `memory/people.md`
+- Review lessons + preferences at session start for relevant context

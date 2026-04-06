@@ -4,8 +4,10 @@
 
 ## Before You Start Any Task
 
-1. Read `memory/lessons.md` — avoid repeating past mistakes
-2. Read `memory/todo.md` — check if there's an active task plan
+1. Read `memory/user.md` — understand who you're working with
+2. Read `memory/preferences.md` — respect stated preferences
+3. Read `memory/lessons.md` — avoid repeating past mistakes
+4. Read `memory/todo.md` — check if there's an active task plan
 
 ## Load By Task Type
 
@@ -29,16 +31,20 @@
 
 ## Memory Files
 
-| File                  | Purpose                 |
-| --------------------- | ----------------------- |
-| `memory/decisions.md` | Architectural decisions |
-| `memory/lessons.md`   | Hard-won lessons        |
-| `memory/todo.md`      | Current task plan       |
-
-<!-- TODO: Project-specific memory files -->
+| File                    | Purpose                     | Load          |
+| ----------------------- | --------------------------- | ------------- |
+| `memory/user.md`        | Primary user profile        | Session start |
+| `memory/preferences.md` | Agent behavior preferences  | Session start |
+| `memory/lessons.md`     | Hard-won lessons            | Session start |
+| `memory/todo.md`        | Current task plan           | Session start |
+| `memory/decisions.md`   | Architectural decisions     | On-demand     |
+| `memory/people.md`      | Team members & stakeholders | On-demand     |
 
 ## After You Finish
 
 1. New decision? → `memory/decisions.md`
 2. User correction? → `memory/lessons.md`
 3. Task complete? → Update `memory/todo.md`
+4. Learned about user? → `memory/user.md`
+5. Learned about team? → `memory/people.md`
+6. User stated preference? → `memory/preferences.md`
