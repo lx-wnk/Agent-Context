@@ -20,8 +20,9 @@ Frontend development specialist covering: HTML, CSS/SCSS, JavaScript, TypeScript
 ### 1. Context Gathering
 
 - Detect tech stack:
-  - `.agent-context/layer1-bootstrap.md` if available
-  - Otherwise: `package.json`, framework configs, existing components
+  - `.agent-context/layer1-bootstrap.md` → tech stack, project identity
+  - `.agent-context/layer2-project-core.md` → conventions, critical rules
+  - If `.agent-context/` is unavailable: detect from `package.json`, framework configs, existing components
 - Identify: framework, CSS methodology, component library, design tokens
 - Search for existing component patterns before creating new ones
 

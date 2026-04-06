@@ -11,10 +11,13 @@
 
 ## Load By Task Type
 
-| Working on... | Read first |
-| ------------- | ---------- |
+| Working on...               | Read first                                 |
+| --------------------------- | ------------------------------------------ | --- |
+| <!-- e.g., Cart / checkout  | `memory/cart.md`, `skills/payment-flow.md` | --> |
+| <!-- e.g., API endpoints    | `memory/api.md`, `decisions.json`          | --> |
+| <!-- e.g., Frontend styling | `memory/design-tokens.md`                  | --> |
 
-<!-- TODO: Task-routing table -->
+<!-- TODO: Add your project's task-routing rules above -->
 
 ## Skills Index
 

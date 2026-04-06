@@ -16,10 +16,10 @@ AGENTS.md
   layer1-bootstrap.md         ← project-owned
   layer2-project-core.md      ← project-owned
   layer3-guidebook.md         ← project-owned
+  decisions.json                ← structured decisions (JSON)
   memory/
     architecture.md
     dal-conventions.md
-    decisions.md
     infrastructure.md
     lessons.md
   skills/
@@ -98,7 +98,7 @@ Quick facts about DAL usage, pointing to `skills/dal-reference.md` for the full 
 EntityDefinition and EntityRepository (never raw SQL), translation fallback mechanism, version-aware writes with
 `context.createVersionContext()`, EntityWrittenEvent timing, and entity indexer registration order.
 
-### `memory/decisions.md`
+### `decisions.json`
 
 Three key architectural decisions with rationale: (1) Custom DAL over Doctrine — e-commerce needs optimized read paths
 with pre-computed aggregations that don't fit Doctrine's unit-of-work. (2) Domain-first module organization — business

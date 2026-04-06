@@ -44,7 +44,7 @@ Use available skills when present (e.g., `pr-review-toolkit:review-pr`, `code-re
 
 - Do changes respect existing module boundaries?
 - Are new dependencies justified?
-- Check `memory/decisions.md` for established patterns if available
+- Check `decisions.json` for established patterns if available
 - Look for circular dependencies or layer violations
 
 ### 4. Convention Compliance

@@ -152,9 +152,9 @@ your-project/
     ├── layer3-guidebook.md                ← Task routing, skills, memory
     ├── .agent-context-version              ← Installed version (written by hook)
     ├── plugins.json                       ← Plugin configuration (shared)
+    ├── decisions.json                     ← Architectural decisions (structured)
     ├── skills/                            ← Skills (on-demand reference)
     └── memory/
-        ├── decisions.md                   ← Architectural decisions
         ├── lessons.md                     ← Hard-won lessons
         └── todo.md                        ← Current task plan
 ```
@@ -264,6 +264,8 @@ is unreachable, the agent continues silently.
 - [AGENTS.md specification](https://agents.md/) — Open standard for agent instructions
 - [Claude Code: Best Practices](https://code.claude.com/docs/en/best-practices)
 - [Claude Code: Skills](https://code.claude.com/docs/en/skills)
+- [Agent Creation Best Practices](docs/best-practices-agent-creation.md) — Comprehensive guide for creating custom agent
+  configurations (German)
 
 ## License
 

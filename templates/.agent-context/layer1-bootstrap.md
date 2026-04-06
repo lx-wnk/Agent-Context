@@ -20,4 +20,8 @@
 
 ## Excluded Directories
 
-<!-- TODO: e.g., .env, node_modules, vendor, var, public -->
+<!-- TODO: One entry per line, glob patterns supported. Example: -->
+<!-- - `node_modules/` -->
+<!-- - `vendor/` -->
+<!-- - `var/cache/` -->
+<!-- - `public/build/` -->

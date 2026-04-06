@@ -26,7 +26,7 @@ Backend development specialist covering: server-side languages, web frameworks, 
   - `.agent-context/layer3-guidebook.md` → task routing, memory/skills to load
   - If unavailable: detect from `composer.json`, `package.json`, `go.mod`, `Cargo.toml`, `requirements.txt`, `pom.xml`
 - Identify: language, framework, ORM/DAL, test framework, build system
-- Load relevant memory files if available (`memory/architecture.md`, `memory/patterns.md`, `memory/decisions.md`)
+- Load relevant memory files if available (`memory/architecture.md`, `memory/patterns.md`, `decisions.json`)
 
 ### 2. Documentation Lookup
 

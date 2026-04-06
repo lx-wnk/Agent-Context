@@ -17,13 +17,14 @@ Work silently and efficiently — no unnecessary output.
 1. Download the tarball from `tarball_url` and extract it to a temp directory
 2. Copy these files from the extracted archive into `.agent-context/`:
 
-| Source (in archive)                | Destination                               |
-| ---------------------------------- | ----------------------------------------- |
-| `context/agent-startup.md`         | `.agent-context/agent-startup.md`         |
-| `context/layer0-agent-workflow.md` | `.agent-context/layer0-agent-workflow.md` |
-| `context/base-principles.md`       | `.agent-context/base-principles.md`       |
-| `.prompts/update-prompt.md`        | `.agent-context/update-prompt.md`         |
-| `plugins.json`                     | `.agent-context/plugins.json`             |
+| Source (in archive)                  | Destination                                |
+| ------------------------------------ | ------------------------------------------ |
+| `context/agent-startup.md`           | `.agent-context/agent-startup.md`          |
+| `context/layer0-agent-workflow.md`   | `.agent-context/layer0-agent-workflow.md`  |
+| `context/base-principles.md`         | `.agent-context/base-principles.md`        |
+| `.prompts/update-prompt.md`          | `.agent-context/update-prompt.md`          |
+| `plugins.json`                       | `.agent-context/plugins.json`              |
+| `.prompts/decision-review-prompt.md` | `.agent-context/decision-review-prompt.md` |
 
 3. Write the new version to `.agent-context/.agent-context-version`
 4. Clean up the temp directory
@@ -50,8 +51,14 @@ agents already exist — do NOT install agents into a location that has none.
 3. For each plugin not already in `enabledPlugins`: add it with value `true`
 4. Never remove existing plugins
 
+## Error Handling
+
+- **Network failure** (API unreachable, tarball download fails): Skip update, keep existing files, return `ok: true`
+- **Corrupted/incomplete archive**: Do NOT overwrite existing files with partial content. Skip update, return `ok: true`
+- **File write failure**: Log which file failed, continue with remaining files
+- Updates are best-effort — never block session start
+
 ## Response
 
 Return `ok: true` with a brief reason summarizing what happened (e.g. "Updated 0.1.1 → 0.1.2, synced 3 agents, synced 2
-plugins" or "Already up to date"). If anything fails, still return `ok: true` — updates are best-effort and must never
-block session start.
+plugins" or "Already up to date"). Always return `ok: true` — even on failure.
