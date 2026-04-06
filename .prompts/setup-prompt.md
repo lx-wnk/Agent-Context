@@ -33,11 +33,14 @@ AGENTS.md                                PROJECT — customize freely
   update-prompt.md                       🔒 SHARED — do NOT modify (auto-updated)
   plugins.json                           🔒 SHARED — do NOT modify (auto-updated)
   .agent-context-version                 🔒 SHARED — written by auto-update
+  decisions.json                         PROJECT — structured decisions (auto-reviewed)
   layer1-bootstrap.md                    PROJECT — customize freely
   layer2-project-core.md                 PROJECT — customize freely
   layer3-guidebook.md                    PROJECT — customize freely
+  skills/
+    index.md                             PROJECT — skill registry
   memory/                                PROJECT — customize freely
-    decisions.md
+    decisions.md                         Legacy stub (migrated to decisions.json)
     lessons.md
     people.md
     preferences.md
@@ -256,7 +259,7 @@ For existing documentation found in Phase 2, route surviving content:
 | Gotcha / lesson             | `memory/lessons.md`                    |
 | User/team info              | `memory/user.md` or `memory/people.md` |
 | Agent behavior preference   | `memory/preferences.md`                |
-| Architecture decision       | `memory/decisions.md`                  |
+| Architecture decision       | `decisions.json`                       |
 
 Each fact in exactly ONE place. No duplicates.
 

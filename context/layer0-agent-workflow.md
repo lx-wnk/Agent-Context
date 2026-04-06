@@ -22,7 +22,7 @@
 | Domain-specific fact        | `memory/<domain>.md`     |
 | Heavy reference (>30 lines) | `skills/<reference>.md`  |
 | Gotcha / hard-won lesson    | `memory/lessons.md`      |
-| Architecture decision       | `memory/decisions.md`    |
+| Architecture decision       | `decisions.json`         |
 | User profile detail         | `memory/user.md`         |
 | Agent behavior preference   | `memory/preferences.md`  |
 | Team member / stakeholder   | `memory/people.md`       |

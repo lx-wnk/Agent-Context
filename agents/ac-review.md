@@ -23,7 +23,7 @@ Comprehensive code reviewer covering: code quality, architecture, security, perf
 - Run `git log --oneline -10` for commit context
 - Load project conventions:
   - `.agent-context/layer2-project-core.md` if available
-  - Otherwise `CLAUDE.md`, `AGENTS.md`, or `CONTRIBUTING.md`
+  - If `.agent-context/` is unavailable: fall back to `CLAUDE.md`, `AGENTS.md`, or `CONTRIBUTING.md`
 
 ### 2. Multi-Perspective Review
 

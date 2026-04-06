@@ -153,10 +153,15 @@ your-project/
     ├── .agent-context-version              ← Installed version (written by hook)
     ├── plugins.json                       ← Plugin configuration (shared)
     ├── decisions.json                     ← Architectural decisions (structured)
-    ├── skills/                            ← Skills (on-demand reference)
+    ├── skills/
+    │   └── index.md                       ← Skill registry (on-demand)
     └── memory/
+        ├── decisions.md                   ← Legacy stub (migrated to decisions.json)
         ├── lessons.md                     ← Hard-won lessons
-        └── todo.md                        ← Current task plan
+        ├── people.md                      ← Team members & stakeholders
+        ├── preferences.md                 ← Agent behavior preferences
+        ├── todo.md                        ← Current task plan
+        └── user.md                        ← Primary user profile
 ```
 
 ## Repository Structure

@@ -38,7 +38,7 @@ Valid weights: `low`, `medium`, `high`, `critical`. The `reviewDate` determines 
 
 ## Step 2: Migration (One-Time)
 
-If `.agent-context/memory/decisions.md` exists and contains content beyond the stub comment (`<!-- Add decisions as they are made -->`):
+If `.agent-context/memory/decisions.md` exists and contains content beyond stub comments (lines starting with `<!--`):
 
 1. Parse each decision entry from the markdown
 2. Add each as a new entry to the JSON array with `weight: "medium"` and `reviewDate` set to today + 30 days

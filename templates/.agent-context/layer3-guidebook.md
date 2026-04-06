@@ -11,13 +11,14 @@
 
 ## Load By Task Type
 
-| Working on...               | Read first                                 |
-| --------------------------- | ------------------------------------------ | --- |
-| <!-- e.g., Cart / checkout  | `memory/cart.md`, `skills/payment-flow.md` | --> |
-| <!-- e.g., API endpoints    | `memory/api.md`, `decisions.json`          | --> |
-| <!-- e.g., Frontend styling | `memory/design-tokens.md`                  | --> |
+| Working on... | Read first |
+| ------------- | ---------- |
 
-<!-- TODO: Add your project's task-routing rules above -->
+<!-- TODO: Add your project's task-routing rules. Examples:
+| Cart / checkout  | `memory/cart.md`, `skills/payment-flow.md` |
+| API endpoints    | `memory/api.md`, `decisions.json`          |
+| Frontend styling | `memory/design-tokens.md`                  |
+-->
 
 ## Skills Index
 
@@ -40,12 +41,12 @@
 | `memory/preferences.md` | Agent behavior preferences  | Session start |
 | `memory/lessons.md`     | Hard-won lessons            | Session start |
 | `memory/todo.md`        | Current task plan           | Session start |
-| `memory/decisions.md`   | Architectural decisions     | On-demand     |
+| `decisions.json`        | Architectural decisions     | On-demand     |
 | `memory/people.md`      | Team members & stakeholders | On-demand     |
 
 ## After You Finish
 
-1. New decision? → `memory/decisions.md`
+1. New decision? → `decisions.json`
 2. User correction? → `memory/lessons.md`
 3. Task complete? → Update `memory/todo.md`
 4. Learned about user? → `memory/user.md`
