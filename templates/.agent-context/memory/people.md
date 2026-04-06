@@ -1,4 +1,4 @@
 # Team & Stakeholders
 
-<!-- Add people as they come up. Format: -->
-<!-- - **Name** — Role, relevant context (e.g., "owns payment integration") -->
+<!-- Format: - **Name** — Role, relevant context (YYYY-MM-DD) -->
+<!-- The date helps identify stale entries when team members change roles. -->

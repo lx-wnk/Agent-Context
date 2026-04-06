@@ -10,6 +10,7 @@
 ## Memory Update Rules
 
 - Store non-discoverable learnings (gotchas, external IDs, decisions) in `.agent-context/memory/`
+- Every memory entry MUST include a date `(YYYY-MM-DD)` — enables staleness tracking
 - Memory stubs: max 15 lines, one per domain
 - Heavy references (>30 lines): create a skill in `.agent-context/skills/` with YAML trigger frontmatter
 - Each fact lives in exactly ONE place. No duplicates across files.

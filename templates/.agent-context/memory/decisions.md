@@ -1,5 +1,4 @@
 # Architectural Decisions
 
-<!-- Add decisions as they are made. Format: -->
-<!-- - **[scope]** Decision — reasoning (YYYY-MM-DD) -->
-<!-- Decisions are periodically reviewed via decision-review-prompt and may graduate to lessons.md -->
+<!-- Decisions are tracked in decisions.json (structured format with review dates). -->
+<!-- This file is kept for backwards compatibility. New decisions go to decisions.json. -->
