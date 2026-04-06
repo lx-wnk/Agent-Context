@@ -25,6 +25,7 @@ Work silently and efficiently — no unnecessary output.
 | `.prompts/update-prompt.md`          | `.agent-context/update-prompt.md`          |
 | `plugins.json`                       | `.agent-context/plugins.json`              |
 | `.prompts/decision-review-prompt.md` | `.agent-context/decision-review-prompt.md` |
+| `.prompts/memory-review-prompt.md`   | `.agent-context/memory-review-prompt.md`   |
 
 3. Write the new version to `.agent-context/.agent-context-version`
 4. Clean up the temp directory
