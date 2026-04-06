@@ -51,6 +51,16 @@ agents already exist — do NOT install agents into a location that has none.
 3. For each plugin not already in `enabledPlugins`: add it with value `true`
 4. Never remove existing plugins
 
+## Step 5: Post-Update Compatibility Check
+
+After updating shared files, check project-owned files for known outdated patterns:
+
+| Pattern found in project-owned file     | Suggested update                                            |
+| --------------------------------------- | ----------------------------------------------------------- |
+| `memory/decisions.md` as routing target | Change to `decisions.json` (structured format since v0.2.0) |
+
+If any patterns are found, include them in the response as suggestions — never auto-fix project-owned files.
+
 ## Error Handling
 
 - **Network failure** (API unreachable, tarball download fails): Skip update, keep existing files, return `ok: true`
