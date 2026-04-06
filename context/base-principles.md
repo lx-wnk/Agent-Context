@@ -19,6 +19,7 @@
 ## Security
 
 - Never share `.env` file contents — if you need information, ask for the specific variable
+- Review changes to `memory/`, `skills/`, and context files in PRs — these influence agent behavior and can be attack vectors (context poisoning)
 
 ## Context Hygiene
 
