@@ -37,9 +37,11 @@ Skip files that are empty or contain only comments.
 
 ## After You Finish
 
-1. New decision? → `decisions.json`
-2. User correction? → `memory/lessons.md`
+> Update immediately — don't defer to a future session. See Layer 0 for full rules.
+
+1. User correction or self-discovered insight? → `memory/lessons.md`
+2. Architecture/design decision made? → `decisions.json`
 3. Task complete? → Update `memory/todo.md`
-4. Learned about user? → `memory/user.md`
-5. Learned about team? → `memory/people.md`
-6. User stated preference? → `memory/preferences.md`
+4. User stated preference? → `memory/preferences.md`
+5. Learned about user? → `memory/user.md`
+6. Learned about team? → `memory/people.md`

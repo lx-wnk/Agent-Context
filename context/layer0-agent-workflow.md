@@ -30,10 +30,20 @@
 
 ## Self-Improvement Loop
 
-- After ANY correction from the user → update `memory/lessons.md` with the pattern
-- User states a preference → update `memory/preferences.md`
-- New personal or team info emerges → update `memory/user.md` or `memory/people.md`
-- Review lessons + preferences at session start for relevant context
+> **MUST — Core agent responsibility.** Keeping memory current is not optional. Update the relevant file **immediately within the same session**, not "later".
+
+### Triggers
+
+- **User correction** → update `memory/lessons.md` with the pattern and what went wrong
+- **User preference** → update `memory/preferences.md`
+- **Self-discovered insight** (unexpected behavior, gotcha found during debugging, undocumented API quirk) → update `memory/lessons.md`
+- **Architecture or design decision** made or confirmed → update `decisions.json`
+- **New personal or team info** emerges → update `memory/user.md` or `memory/people.md`
+
+### Session Routine
+
+- **Session start**: read `memory/lessons.md` + `memory/preferences.md` for relevant context
+- **Session end**: review whether any of the triggers above fired but were missed
 
 ### Lesson Graduation
 
