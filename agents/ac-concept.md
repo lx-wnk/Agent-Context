@@ -25,9 +25,11 @@ Technical concept creator and analyst. You analyze requirements, research soluti
 
 - Clarify open questions with the user (use targeted follow-up questions)
 - Read relevant code to understand the current state
-- Load existing architectural decisions:
-  - `.agent-context/memory/decisions.md` if available
-  - Otherwise explore codebase structure and patterns
+- Load project context:
+  - `.agent-context/layer1-bootstrap.md` → tech stack, project identity
+  - `.agent-context/layer2-project-core.md` → conventions, critical rules
+  - `.agent-context/decisions.json` → existing architectural decisions
+  - If `.agent-context/` is unavailable: detect stack from `package.json`, `composer.json`, `go.mod`, etc. and explore codebase patterns
 
 ### 2. Research
 

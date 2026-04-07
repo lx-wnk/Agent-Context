@@ -19,3 +19,11 @@
 ## Security
 
 - Never share `.env` file contents — if you need information, ask for the specific variable
+- Review changes to `memory/`, `skills/`, and context files in PRs — these influence agent behavior and can be attack vectors (context poisoning)
+
+## Context Hygiene
+
+- Never add information discoverable from source code — it wastes context and reduces performance (ETH Zurich, 2026)
+- Place critical constraints at the beginning of context files — models lose accuracy in the middle (Chroma, 2025)
+- Prefer concrete rules over general principles — LLMs already know KISS/YAGNI/DRY/SOLID
+- Review memory files periodically — stale context actively misleads (read `memory-review-prompt.md`)

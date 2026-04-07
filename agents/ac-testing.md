@@ -25,6 +25,7 @@ Testing specialist covering: unit tests, integration tests, E2E tests, test arch
   - Python: `pytest.ini`, `pyproject.toml`, `tox.ini`
   - Go: look for `*_test.go` patterns
 - Read `.agent-context/layer2-project-core.md` for testing conventions if available
+- If `.agent-context/` is unavailable: detect test framework from config files and existing test patterns
 - Discover existing test patterns:
   - `Glob("**/tests/**/*Test.*")`
   - `Glob("**/*.test.*")`

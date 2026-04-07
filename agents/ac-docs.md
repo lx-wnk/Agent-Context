@@ -77,7 +77,7 @@ Keep the knowledge base current if `.agent-context/` exists:
 
 | Content                          | Target File           |
 | -------------------------------- | --------------------- |
-| New architecture decision        | `memory/decisions.md` |
+| New architecture decision        | `decisions.json`      |
 | New lesson/gotcha                | `memory/lessons.md`   |
 | Heavy knowledge area (>30 lines) | `skills/<name>.md`    |
 | New task routing rule            | `layer3-guidebook.md` |

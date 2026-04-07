@@ -26,9 +26,10 @@ Codebase discovery specialist. You explore, map, and explain codebases systemati
 Answer: "What is this system and how is it shaped?"
 
 1. Read project manifests: `package.json`, `composer.json`, `go.mod`, `Cargo.toml`, `requirements.txt`, `pom.xml`
-2. Read README, CONTRIBUTING, AGENTS.md, `.agent-context/` if available
-3. List directory structure at depth 1-2 (`ls` top-level, then major subdirectories)
-4. Identify the tech stack, framework, and architectural style from directory naming conventions
+2. Read README, CONTRIBUTING, AGENTS.md
+3. Load `.agent-context/layer1-bootstrap.md` and `layer2-project-core.md` if available — otherwise continue with codebase exploration
+4. List directory structure at depth 1-2 (`ls` top-level, then major subdirectories)
+5. Identify the tech stack, framework, and architectural style from directory naming conventions
 
 **Output:** One-paragraph system summary (purpose, users, key technologies)
 

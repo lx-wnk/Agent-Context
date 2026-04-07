@@ -10,6 +10,7 @@
 ## Memory Update Rules
 
 - Store non-discoverable learnings (gotchas, external IDs, decisions) in `.agent-context/memory/`
+- Every memory entry MUST include a date `(YYYY-MM-DD)` — enables staleness tracking
 - Memory stubs: max 15 lines, one per domain
 - Heavy references (>30 lines): create a skill in `.agent-context/skills/` with YAML trigger frontmatter
 - Each fact lives in exactly ONE place. No duplicates across files.
@@ -22,9 +23,32 @@
 | Domain-specific fact        | `memory/<domain>.md`     |
 | Heavy reference (>30 lines) | `skills/<reference>.md`  |
 | Gotcha / hard-won lesson    | `memory/lessons.md`      |
-| Architecture decision       | `memory/decisions.md`    |
+| Architecture decision       | `decisions.json`         |
+| User profile detail         | `memory/user.md`         |
+| Agent behavior preference   | `memory/preferences.md`  |
+| Team member / stakeholder   | `memory/people.md`       |
 
 ## Self-Improvement Loop
 
-- After ANY correction from the user → update `memory/lessons.md` with the pattern
-- Review lessons at session start for relevant context
+> **MUST — Core agent responsibility.** Keeping memory current is not optional. Update the relevant file **immediately within the same session**, not "later".
+
+### Triggers
+
+- **User correction** → update `memory/lessons.md` with the pattern and what went wrong
+- **User preference** → update `memory/preferences.md`
+- **Self-discovered insight** (unexpected behavior, gotcha found during debugging, undocumented API quirk) → update `memory/lessons.md`
+- **Architecture or design decision** made or confirmed → update `decisions.json`
+- **New personal or team info** emerges → update `memory/user.md` or `memory/people.md`
+
+### Session Routine
+
+- **Session start**: read `memory/lessons.md` + `memory/preferences.md` for relevant context
+- **Session end**: review whether any of the triggers above fired but were missed
+
+### Lesson Graduation
+
+When a lesson has proven itself (applied 3+ times, never questioned), suggest promoting it:
+
+- Project-wide convention → move to `layer2-project-core.md`
+- Domain-specific pattern → keep in `memory/<domain>.md`
+- Remove the original entry from `memory/lessons.md` after promotion
