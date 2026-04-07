@@ -33,6 +33,7 @@ AGENTS.md                                PROJECT — customize freely
   update-prompt.md                       🔒 SHARED — do NOT modify (auto-updated)
   plugins.json                           🔒 SHARED — do NOT modify (auto-updated)
   .agent-context-version                 🔒 SHARED — written by auto-update
+  .agent-context-pin                     PROJECT — optional version pin (prevents auto-update past this version)
   decisions.json                         PROJECT — structured decisions (auto-reviewed)
   layer1-bootstrap.md                    PROJECT — customize freely
   layer2-project-core.md                 PROJECT — customize freely
@@ -58,12 +59,23 @@ Put project-specific workflow rules in `layer2-project-core.md`, task routing in
 
 **PROJECT files** are created once from templates and never overwritten. All project customization goes here.
 
+### Version selection
+
+Before fetching, let the user choose which release to install:
+
+1. Fetch the release list from `https://api.github.com/repos/lx-wnk/Agent-Context/releases` (exclude pre-releases)
+2. Present the available versions to the user, marking the latest
+3. Ask the user which version to install — default is `latest`
+4. If the user picks a specific version, fetch that release from
+   `https://api.github.com/repos/lx-wnk/Agent-Context/releases/tags/v<version>`
+5. If the user picks a specific version (not latest): write the version to `.agent-context/.agent-context-pin` — this
+   prevents auto-update from upgrading past this version (see update-prompt.md)
+
 ### Fetching shared files
 
-Fetch the latest release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest`, download the archive
-from `tarball_url`, and copy shared files into `.agent-context/`: files from `context/` (including
-`memory-review-prompt.md`) and `.prompts/update-prompt.md`. Also copy `plugins.json`. Write the release version (from
-`tag_name`, without `v` prefix) to `.agent-context/.agent-context-version`.
+Using the selected release, download the archive from `tarball_url`, and copy shared files into `.agent-context/`: files
+from `context/` (including `memory-review-prompt.md`) and `.prompts/update-prompt.md`. Also copy `plugins.json`. Write
+the release version (from `tag_name`, without `v` prefix) to `.agent-context/.agent-context-version`.
 
 For project-owned files, use the templates from `templates/` in the archive — or create them manually with TODO
 placeholders. If a project-owned file already exists, do NOT overwrite it.

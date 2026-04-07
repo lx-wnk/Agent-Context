@@ -8,9 +8,13 @@ Work silently and efficiently — no unnecessary output.
 ## Step 1: Version Check
 
 1. Read `.agent-context/.agent-context-version` (default `0.0.0` if missing)
-2. Fetch `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest` and extract `tag_name` (strip `v` prefix)
-   as latest version, and `tarball_url`
-3. If versions match or the fetch fails → skip to Step 4
+2. Check if `.agent-context/.agent-context-pin` exists:
+   - **Pin exists**: read the pinned version. If current version already matches the pin → skip to Step 4. Otherwise fetch
+     the pinned release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/tags/v<pinned-version>` and use
+     its `tarball_url`
+   - **No pin**: fetch `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest` and extract `tag_name` (strip
+     `v` prefix) as target version, and `tarball_url`
+3. If current version matches target version or the fetch fails → skip to Step 4
 
 ## Step 2: Update Shared Files
 
@@ -72,4 +76,5 @@ If any patterns are found, include them in the response as suggestions — never
 ## Response
 
 Return `ok: true` with a brief reason summarizing what happened (e.g. "Updated 0.1.1 → 0.1.2, synced 3 agents, synced 2
-plugins" or "Already up to date"). Always return `ok: true` — even on failure.
+plugins" or "Already up to date" or "Pinned to 0.1.5 — skipping newer versions"). Always return `ok: true` — even on
+failure.
