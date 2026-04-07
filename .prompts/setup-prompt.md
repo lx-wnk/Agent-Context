@@ -49,6 +49,7 @@ AGENTS.md                                PROJECT — customize freely
     todo.md
     user.md
   memory-review-prompt.md               🔒 SHARED — do NOT modify (auto-updated)
+  decision-review-prompt.md              🔒 SHARED — do NOT modify (auto-updated)
 ```
 
 ### Ownership rules
@@ -63,16 +64,19 @@ Put project-specific workflow rules in `layer2-project-core.md`, task routing in
 Before fetching, let the user choose which release to install:
 
 1. Fetch the release list from `https://api.github.com/repos/lx-wnk/Agent-Context/releases` (exclude pre-releases)
-2. Present the available versions to the user, marking the latest
-3. Ask the user which version to install — default is `latest`
-4. If the user picks a specific version, fetch that release from
+2. If the fetch fails or returns no releases (or only pre-releases), abort setup with an informative message
+3. Present the available versions to the user, marking the latest
+4. Ask the user which version to install — default is `latest`
+5. If the user picks a specific version, fetch that release from
    `https://api.github.com/repos/lx-wnk/Agent-Context/releases/tags/v<version>`
 
 ### Fetching shared files
 
 Using the selected release, download the archive from `tarball_url`, and copy shared files into `.agent-context/`: files
-from `context/` (including `memory-review-prompt.md`) and `.prompts/update-prompt.md`. Also copy `plugins.json`. Write
-the release version (from `tag_name`, without `v` prefix) to `.agent-context/.agent-context-version`.
+from `context/` and `.prompts/update-prompt.md`. Also copy `plugins.json`. Write the release version (from `tag_name`,
+without `v` prefix) to `.agent-context/.agent-context-version`.
+
+This includes `memory-review-prompt.md` and `decision-review-prompt.md` (from `.prompts/`).
 
 For project-owned files, use the templates from `templates/` in the archive — or create them manually with TODO
 placeholders. If a project-owned file already exists, do NOT overwrite it.

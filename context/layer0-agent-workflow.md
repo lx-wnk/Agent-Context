@@ -26,17 +26,17 @@ When a `memory/<domain>.md` stub exceeds 15 lines, expand it into a directory:
 
 ## Routing New Knowledge
 
-| Type                        | Target                   |
-| --------------------------- | ------------------------ |
-| Project-wide convention     | `layer2-project-core.md` |
-| Domain-specific fact        | `memory/<domain>.md`     |
-| Heavy reference (>30 lines) | `skills/<reference>.md`  |
-| Gotcha / hard-won lesson    | `memory/lessons.md`      |
-| Architecture decision       | `decisions.json`         |
-| User profile detail         | `memory/user.md`         |
-| Agent behavior preference   | `memory/preferences.md`  |
-| Team member / stakeholder   | `memory/people.md`       |
-| Significant session event   | `memory/log.md` (append) |
+| Type                        | Target                                                       |
+| --------------------------- | ------------------------------------------------------------ |
+| Project-wide convention     | `layer2-project-core.md`                                     |
+| Domain-specific fact        | `memory/<domain>.md`                                         |
+| Heavy reference (>30 lines) | `skills/<reference>.md`                                      |
+| Gotcha / hard-won lesson    | `memory/lessons.md` (include `conf:med` tag for new entries) |
+| Architecture decision       | `decisions.json`                                             |
+| User profile detail         | `memory/user.md`                                             |
+| Agent behavior preference   | `memory/preferences.md`                                      |
+| Team member / stakeholder   | `memory/people.md`                                           |
+| Significant session event   | `memory/log.md` (append)                                     |
 
 ## Self-Improvement Loop
 

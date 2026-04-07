@@ -2,6 +2,7 @@
 
 <!-- Update when adding or removing memory files. -->
 <!-- Agents: read this before deciding which memory file to open. -->
+<!-- All paths are relative to this directory (memory/). -->
 
 | File             | Purpose                          | When to load  |
 | ---------------- | -------------------------------- | ------------- |
