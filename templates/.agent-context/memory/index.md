@@ -14,3 +14,9 @@
 | `decisions.md`   | Legacy stub → see decisions.json | Rarely        |
 
 <!-- TODO: Add project-specific memory files as you create them -->
+
+<!-- Domain Expansion: When a stub exceeds 15 lines, it becomes a directory. -->
+<!-- Update this table — mark expanded domains with (dir) and list sub-files. Example: -->
+<!-- | `cart/` (dir)    | Cart domain (expanded)         | On-demand     | -->
+<!--   ├ `pricing.md`  | Pricing rules, discounts       |               | -->
+<!--   └ `checkout.md` | Checkout flow, payment gotchas |               | -->

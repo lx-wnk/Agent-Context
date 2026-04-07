@@ -19,6 +19,11 @@ Skip files that are empty or contain only comments.
 | Cart / checkout  | `memory/cart.md`, `skills/payment-flow.md` |
 | API endpoints    | `memory/api.md`, `decisions.json`          |
 | Frontend styling | `memory/design-tokens.md`                  |
+
+Note: When a domain stub grows beyond 15 lines, it expands into a directory.
+e.g., `memory/cart.md` becomes `memory/cart/` with sub-files.
+The original `memory/cart.md` stays as an index pointing to sub-files.
+See Layer 0 → Domain Expansion for rules.
 -->
 
 ## Skills Index

@@ -15,6 +15,15 @@
 - Heavy references (>30 lines): create a skill in `.agent-context/skills/` with YAML trigger frontmatter
 - Each fact lives in exactly ONE place. No duplicates across files.
 
+### Domain Expansion
+
+When a `memory/<domain>.md` stub exceeds 15 lines, expand it into a directory:
+
+1. Create `memory/<domain>/` with topical sub-files (e.g., `memory/cart/pricing.md`, `memory/cart/checkout-flow.md`)
+2. Replace the original `memory/<domain>.md` content with an index that lists sub-files and their purpose
+3. Each sub-file follows the same rules: date required, max 30 lines — beyond that, graduate to a skill
+4. Update `memory/index.md` to reflect the expansion
+
 ## Routing New Knowledge
 
 | Type                        | Target                   |
@@ -52,5 +61,5 @@
 When a lesson has proven itself (applied 3+ times, never questioned), suggest promoting it:
 
 - Project-wide convention → move to `layer2-project-core.md`
-- Domain-specific pattern → keep in `memory/<domain>.md`
+- Domain-specific pattern → keep in `memory/<domain>.md` (or sub-file if domain is expanded)
 - Remove the original entry from `memory/lessons.md` after promotion
