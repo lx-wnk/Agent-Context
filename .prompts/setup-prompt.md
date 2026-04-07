@@ -41,11 +41,14 @@ AGENTS.md                                PROJECT — customize freely
     index.md                             PROJECT — skill registry
   memory/                                PROJECT — customize freely
     decisions.md                         Legacy stub (migrated to decisions.json)
+    index.md                             Memory file catalog
     lessons.md
+    log.md                               Append-only activity log
     people.md
     preferences.md
     todo.md
     user.md
+  memory-review-prompt.md               🔒 SHARED — do NOT modify (auto-updated)
 ```
 
 ### Ownership rules
@@ -58,9 +61,9 @@ Put project-specific workflow rules in `layer2-project-core.md`, task routing in
 ### Fetching shared files
 
 Fetch the latest release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest`, download the archive
-from `tarball_url`, and copy shared files into `.agent-context/`: files from `context/` and `.prompts/update-prompt.md`.
-Also copy `plugins.json`. Write the release version (from `tag_name`, without `v` prefix) to
-`.agent-context/.agent-context-version`.
+from `tarball_url`, and copy shared files into `.agent-context/`: files from `context/` (including
+`memory-review-prompt.md`) and `.prompts/update-prompt.md`. Also copy `plugins.json`. Write the release version (from
+`tag_name`, without `v` prefix) to `.agent-context/.agent-context-version`.
 
 For project-owned files, use the templates from `templates/` in the archive — or create them manually with TODO
 placeholders. If a project-owned file already exists, do NOT overwrite it.
@@ -322,6 +325,8 @@ present) are added without confirmation.
 6. No duplicated content across files
 7. `.claude/CLAUDE.md` points to `@AGENTS.md`
 8. **Migration audit checklist from Phase 3.5 is 100% checked off**
+9. `memory/log.md` and `memory/index.md` exist
+10. `memory-review-prompt.md` exists in `.agent-context/`
 
 **Summary:**
 

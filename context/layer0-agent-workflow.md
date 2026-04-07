@@ -27,6 +27,7 @@
 | User profile detail         | `memory/user.md`         |
 | Agent behavior preference   | `memory/preferences.md`  |
 | Team member / stakeholder   | `memory/people.md`       |
+| Significant session event   | `memory/log.md` (append) |
 
 ## Self-Improvement Loop
 
@@ -43,7 +44,8 @@
 ### Session Routine
 
 - **Session start**: read `memory/lessons.md` + `memory/preferences.md` for relevant context
-- **Session end**: review whether any of the triggers above fired but were missed
+- **Session end**: review whether any of the triggers above fired but were missed; if a significant decision or discovery occurred, append a one-line entry to `memory/log.md`
+- **After 3+ memory updates**: scan for contradictions with existing entries before closing
 
 ### Lesson Graduation
 

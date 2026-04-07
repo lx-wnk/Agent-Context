@@ -6,6 +6,7 @@
 
 1. Read `memory/lessons.md` — avoid repeating past mistakes
 2. Read `memory/todo.md` — check if there's an active task plan
+3. If you're unsure which memory files exist or are relevant: read `memory/index.md`
 
 Skip files that are empty or contain only comments.
 
@@ -28,12 +29,14 @@ Skip files that are empty or contain only comments.
 
 ## Memory Files
 
-| File                | Purpose                 | Load          |
-| ------------------- | ----------------------- | ------------- |
-| `memory/lessons.md` | Hard-won lessons        | Session start |
-| `memory/todo.md`    | Current task plan       | Session start |
-| `decisions.json`    | Architectural decisions | On-demand     |
-| `memory/people.md`  | Team & stakeholders     | On-demand     |
+| File                | Purpose                    | Load           |
+| ------------------- | -------------------------- | -------------- |
+| `memory/lessons.md` | Hard-won lessons           | Session start  |
+| `memory/todo.md`    | Current task plan          | Session start  |
+| `memory/index.md`   | Memory file catalog        | When uncertain |
+| `memory/log.md`     | Chronological activity log | On-demand      |
+| `decisions.json`    | Architectural decisions    | On-demand      |
+| `memory/people.md`  | Team & stakeholders        | On-demand      |
 
 ## After You Finish
 
@@ -45,3 +48,4 @@ Skip files that are empty or contain only comments.
 4. User stated preference? → `memory/preferences.md`
 5. Learned about user? → `memory/user.md`
 6. Learned about team? → `memory/people.md`
+7. Significant decision or event this session? → append to `memory/log.md`
