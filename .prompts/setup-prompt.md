@@ -32,8 +32,7 @@ AGENTS.md                                PROJECT — customize freely
   base-principles.md                     🔒 SHARED — do NOT modify (auto-updated)
   update-prompt.md                       🔒 SHARED — do NOT modify (auto-updated)
   plugins.json                           🔒 SHARED — do NOT modify (auto-updated)
-  .agent-context-version                 🔒 SHARED — written by auto-update
-  .agent-context-pin                     PROJECT — optional version pin (prevents auto-update past this version)
+  .agent-context-version                 🔒 SHARED — written by setup/update
   decisions.json                         PROJECT — structured decisions (auto-reviewed)
   layer1-bootstrap.md                    PROJECT — customize freely
   layer2-project-core.md                 PROJECT — customize freely
@@ -68,8 +67,6 @@ Before fetching, let the user choose which release to install:
 3. Ask the user which version to install — default is `latest`
 4. If the user picks a specific version, fetch that release from
    `https://api.github.com/repos/lx-wnk/Agent-Context/releases/tags/v<version>`
-5. If the user picks a specific version (not latest): write the version to `.agent-context/.agent-context-pin` — this
-   prevents auto-update from upgrading past this version (see update-prompt.md)
 
 ### Fetching shared files
 
