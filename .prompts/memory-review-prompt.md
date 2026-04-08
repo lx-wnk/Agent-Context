@@ -14,7 +14,7 @@ Work silently and efficiently — only output the final summary.
 
 ## Step 1: Inventory
 
-1. List all files in `.agent-context/memory/`
+1. List all files in `.agent-context/memory/` (including sub-files in expanded domain directories like `memory/<domain>/`)
 2. For each file, count non-comment lines and extract all entries with dates
 3. Determine today's date
 

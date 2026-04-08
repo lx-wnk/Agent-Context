@@ -390,12 +390,12 @@ present) are added without confirmation.
 2. No `TODO` placeholders remain (except intentional ones)
 3. `wc -l AGENTS.md` < 45 lines
 4. `wc -l .agent-context/layer*.md` — each < 50 lines
-5. `wc -l .agent-context/memory/*.md` — stubs < 15 lines each
+5. `wc -l .agent-context/memory/*.md` — domain stubs < 15 lines each (excludes `index.md`, `log.md`)
 6. No duplicated content across files
 7. `.claude/CLAUDE.md` points to `@AGENTS.md`
 8. **Migration audit checklist from Phase S3.5 is 100% checked off**
-9. `memory/log.md` and `memory/index.md` exist
-10. `memory-review-prompt.md` exists in `.agent-context/`
+9. `.agent-context/memory/log.md` and `.agent-context/memory/index.md` exist
+10. `.agent-context/memory-review-prompt.md` exists
 
 **Summary:**
 

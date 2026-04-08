@@ -17,7 +17,7 @@
 
 ### Domain Expansion
 
-When a `memory/<domain>.md` stub exceeds 15 lines, expand it into a directory:
+When a `memory/<domain>.md` stub reaches 15 lines, expand it into a directory:
 
 1. Create `memory/<domain>/` with topical sub-files (e.g., `memory/cart/pricing.md`, `memory/cart/checkout-flow.md`)
 2. Replace the original `memory/<domain>.md` content with an index that lists sub-files and their purpose
@@ -52,7 +52,7 @@ When a `memory/<domain>.md` stub exceeds 15 lines, expand it into a directory:
 
 ### Session Routine
 
-- **Session start**: read `memory/lessons.md` + `memory/preferences.md` for relevant context
+- **Session start**: read `memory/lessons.md` + `memory/preferences.md` + `memory/todo.md` for relevant context and the active task plan
 - **Session end**: review whether any of the triggers above fired but were missed; if a significant decision or discovery occurred, append a one-line entry to `memory/log.md`
 - **After 3+ memory updates**: scan for contradictions with existing entries before closing
 
