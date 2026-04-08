@@ -63,10 +63,10 @@ Put project-specific workflow rules in `layer2-project-core.md`, task routing in
 
 Before fetching, let the user choose which release to install:
 
-1. Fetch the release list from `https://api.github.com/repos/lx-wnk/Agent-Context/releases` (exclude pre-releases)
-2. If the fetch fails or returns no releases (or only pre-releases), abort setup with an informative message
-3. Present the available versions to the user, marking the latest
-4. Ask the user which version to install — default is `latest`
+1. Fetch the release list from `https://api.github.com/repos/lx-wnk/Agent-Context/releases`
+2. If the fetch fails or returns no releases, abort setup with an informative message
+3. Present the available versions to the user, marking the latest stable release and labelling pre-releases as `(pre-release)`
+4. Ask the user which version to install — default is `latest stable`
 5. If the user picks a specific version, fetch that release from
    `https://api.github.com/repos/lx-wnk/Agent-Context/releases/tags/v<version>`
 

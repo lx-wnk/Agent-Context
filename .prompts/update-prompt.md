@@ -8,10 +8,11 @@ Work silently and efficiently — no unnecessary output.
 ## Step 1: Version Check
 
 1. Read `.agent-context/.agent-context-version` (default `0.0.0` if missing)
-2. Fetch the release list from `https://api.github.com/repos/lx-wnk/Agent-Context/releases` (exclude pre-releases)
-3. If the current version already matches the latest release → inform the user and skip to Step 4
-4. If newer versions are available: present the available versions to the user (mark which is current, which is latest)
-   and ask whether to update — and to which version. Default: latest
+2. Fetch the release list from `https://api.github.com/repos/lx-wnk/Agent-Context/releases`
+3. If the current version already matches the latest stable release → inform the user and skip to Step 4
+4. If newer versions are available: present the available versions to the user (mark which is current, which is latest
+   stable, and label pre-releases as `(pre-release)`) and ask whether to update — and to which version. Default: latest
+   stable
 5. If the user declines or the fetch fails → skip to Step 4
 6. Fetch the selected release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/tags/v<version>` and use
    its `tarball_url`
