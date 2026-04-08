@@ -35,8 +35,8 @@ AGENTS.md                          (~35 lines — identity, quick rules)
 
 **Baseline:** ~150-200 lines (AGENTS.md + all layers). Full reference (skills, memory): loaded only when trigger keywords match.
 
-Auto-updates are built in: read `.agent-context/update-prompt.md` to check for new releases via the GitHub
-Releases API and update shared files. Project-owned files are never overwritten.
+Auto-updates are built in: the agent fetches the setup prompt from remote, which auto-detects UPDATE mode, checks for new
+releases via the GitHub Releases API, and updates shared files. Project-owned files are never overwritten.
 
 ## Architecture
 
@@ -46,7 +46,6 @@ agent-context Repo (source)              Project / User (target)
 context/agent-startup.md          →──    .agent-context/agent-startup.md (overwritable)
 context/layer0-agent-workflow.md  →──    .agent-context/layer0-agent-workflow.md (overwritable)
 context/base-principles.md        →──    .agent-context/base-principles.md (overwritable)
-.prompts/update-prompt.md          →──    .agent-context/update-prompt.md (overwritable)
 plugins.json                      →──    .agent-context/plugins.json (overwritable)
 templates/*                       →──    AGENTS.md, layer1-3, memory/ (project-owned)
 agents/*.md                       →──    ~/.claude/agents/ or .claude/agents/ (user choice)
@@ -90,7 +89,7 @@ Paste [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) into Claude Code. I
 
 ### Every Session (automatic)
 
-Updates can be triggered manually by reading `.agent-context/update-prompt.md` and following its instructions:
+Updates can be triggered manually by fetching the setup prompt from remote and following its instructions:
 
 1. Reads `.agent-context/.agent-context-version` (local) and fetches the latest release tag from the GitHub API (remote)
 2. **If versions differ:** downloads the tarball, overwrites shared files (including the update prompt itself), writes
@@ -146,7 +145,6 @@ your-project/
     ├── agent-startup.md                   ← Startup info (shared)
     ├── layer0-agent-workflow.md            ← Universal agent workflow (shared)
     ├── base-principles.md                 ← Dev principles (shared)
-    ├── update-prompt.md                   ← Auto-update agent instructions (shared)
     ├── layer1-bootstrap.md                ← Project identity, Docker, domains
     ├── layer2-project-core.md             ← Dev principles + critical rules
     ├── layer3-guidebook.md                ← Task routing, skills, memory
@@ -254,7 +252,7 @@ trigger keywords match. This achieves near-zero baseline cost for heavy document
 ## Updates
 
 After creating a [GitHub Release](https://github.com/lx-wnk/Agent-Context/releases), projects update automatically: on
-the next session start, the agent hook reads `update-prompt.md`, checks the Releases API, detects the version
+the next session start, the agent fetches the setup prompt from remote (UPDATE mode), checks the Releases API, detects the version
 difference, downloads the release, and overwrites the 🔒 shared files. Project-owned files are never touched. If the API
 is unreachable, the agent continues silently.
 
