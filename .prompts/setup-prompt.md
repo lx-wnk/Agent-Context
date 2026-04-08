@@ -1,6 +1,6 @@
 # Agent Context — Setup & Update
 
-> **Usage:** This prompt is always fetched from remote (`main` branch) — it is NOT deployed locally to target projects.
+> **Usage:** This prompt is fetched remotely from the latest release tag — it is NOT deployed locally to target projects.
 > It auto-detects SETUP vs. UPDATE mode and handles both flows.
 
 ## Mode Detection
@@ -16,12 +16,14 @@ Announce the detected mode to the user before proceeding.
 
 1. Read `.agent-context/.agent-context-version` (default `0.0.0` if missing)
 2. Fetch the release list from `https://api.github.com/repos/lx-wnk/Agent-Context/releases`
-3. If the fetch fails or returns no releases, abort with an informative message
-4. **UPDATE only:** If the current version already matches the latest stable release → inform the user and skip to Step 4
+3. If the fetch fails or returns no releases:
+   - **SETUP:** abort with an informative message — version selection is required
+   - **UPDATE:** inform the user that releases could not be checked, skip to Step 5
+4. **UPDATE only:** If the current version already matches the latest stable release → inform the user and skip to Step 5
 5. Present the available versions to the user (mark which is current, which is latest stable, and label pre-releases as
    `(pre-release)`)
 6. Ask the user which version to install — default is `latest stable`
-7. If the user declines → skip to Step 4
+7. If the user declines → skip to Step 5
 8. Fetch the selected release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/tags/v<version>` and use
    its `tarball_url`
 
@@ -390,7 +392,7 @@ present) are added without confirmation.
 2. No `TODO` placeholders remain (except intentional ones)
 3. `wc -l AGENTS.md` < 45 lines
 4. `wc -l .agent-context/layer*.md` — each < 50 lines
-5. `wc -l .agent-context/memory/*.md` — domain stubs < 15 lines each (excludes `index.md`, `log.md`)
+5. Check `.agent-context/memory/*.md` line counts — domain stubs < 15 lines each (skip `index.md` and `log.md`)
 6. No duplicated content across files
 7. `.claude/CLAUDE.md` points to `@AGENTS.md`
 8. **Migration audit checklist from Phase S3.5 is 100% checked off**
@@ -413,10 +415,12 @@ Inform the user to restart their agent session for the new configuration to take
 
 ## Error Handling
 
-- **Network failure** (API unreachable, tarball download fails): Skip update, keep existing files, return `ok: true`
+- **Network failure** (API unreachable, tarball download fails):
+  - **SETUP:** abort — cannot proceed without release files
+  - **UPDATE:** skip update, keep existing files, return `ok: true`
 - **Corrupted/incomplete archive**: Do NOT overwrite existing files with partial content. Skip update, return `ok: true`
 - **File write failure**: Log which file failed, continue with remaining files
-- Updates are best-effort — never block session start
+- **UPDATE mode** is best-effort — never block session start. **SETUP mode** should fail fast with clear messages.
 
 ## Constraints
 
