@@ -1,24 +1,109 @@
-# Agent Context Architecture — Setup Prompt
+# Agent Context — Setup & Update
 
-> **Usage:** Paste this entire file as a prompt into Claude Code to set up the agent-context architecture in your
-> project. This is a project-based setup and memory-handling system — it structures your project knowledge into layers
-> so Claude always has the right context without bloating the context window.
+> **Usage:** This prompt is fetched remotely from the latest release tag — it is NOT deployed locally to target projects.
+> It auto-detects SETUP vs. UPDATE mode and handles both flows.
+
+## Mode Detection
+
+1. If `.agent-context/.agent-context-version` exists → **UPDATE** mode
+2. Otherwise → **SETUP** mode
+
+Announce the detected mode to the user before proceeding.
 
 ---
 
-## Your Task
+## Step 1: Version Selection
 
-Set up the layered `.agent-context/` context architecture in this project. This gives Claude Code the right information
-at the right time — structured baseline context (~150-200 lines always loaded), full reference on-demand via memory files
-and skills.
+1. Read `.agent-context/.agent-context-version` (default `0.0.0` if missing)
+2. Fetch the release list from `https://api.github.com/repos/lx-wnk/Agent-Context/releases`
+3. If the fetch fails or returns no releases:
+   - **SETUP:** abort with an informative message — version selection is required
+   - **UPDATE:** inform the user that releases could not be checked, skip to Step 5
+4. **UPDATE only:** If the current version already matches the latest stable release → inform the user and skip to Step 5
+5. Present the available versions to the user (mark which is current, which is latest stable, and label pre-releases as
+   `(pre-release)`)
+6. Ask the user which version to install — default is `latest stable`
+7. If the user declines → skip to Step 5
+8. Fetch the selected release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/tags/v<version>` and use
+   its `tarball_url`
 
-Follow each phase in order.
+## Step 2: Install Shared Files
 
-## Phase 1: Setup Structure
+1. Download the tarball from `tarball_url` and extract it to a temp directory
+2. Copy these files from the extracted archive into `.agent-context/`:
+
+| Source (in archive)                  | Destination                                |
+| ------------------------------------ | ------------------------------------------ |
+| `context/agent-startup.md`           | `.agent-context/agent-startup.md`          |
+| `context/layer0-agent-workflow.md`   | `.agent-context/layer0-agent-workflow.md`  |
+| `context/base-principles.md`         | `.agent-context/base-principles.md`        |
+| `plugins.json`                       | `.agent-context/plugins.json`              |
+| `.prompts/decision-review-prompt.md` | `.agent-context/decision-review-prompt.md` |
+| `.prompts/memory-review-prompt.md`   | `.agent-context/memory-review-prompt.md`   |
+
+3. Write the new version to `.agent-context/.agent-context-version`
+4. Clean up the temp directory
+
+## Step 3: Template Files
+
+For each file in the archive's `templates/` directory:
+
+- If the destination file does **NOT** exist → create it from the template
+- If the destination file already exists → skip (project-owned, never overwrite)
+
+This ensures both first-time setup and updates receive new template files introduced in later versions.
+
+## Step 4: Agent Sync
+
+Update shared agents (prefixed `ac-`) in both global and project-local locations. Only update locations where `ac-*`
+agents already exist — do NOT install agents into a location that has none.
+
+1. Check if the archive contains an `agents/` directory with `ac-*.md` files. If not, skip this step.
+2. Check **both** agent locations for existing `ac-*` files:
+   - `~/.claude/agents/` (global)
+   - `.claude/agents/` (project-local)
+3. For each location that **already contains at least one `ac-*` file**:
+   - Overwrite all existing `ac-*` files with versions from the archive
+   - Add any new `ac-*` files not yet present
+   - Never touch files without the `ac-` prefix (those are user-owned)
+4. If neither location has `ac-*` files, skip — agents are opt-in via setup.
+
+## Step 5: Plugin Sync
+
+1. Read `.agent-context/plugins.json` (skip if missing)
+2. Read `.claude/settings.json` (create with `{}` if missing)
+3. For each plugin not already in `enabledPlugins`: add it with value `true`
+4. Never remove existing plugins
+
+## Step 6: Compatibility Check
+
+After updating shared files, check project-owned files for known outdated patterns:
+
+| Pattern found in project-owned file     | Suggested update                                            |
+| --------------------------------------- | ----------------------------------------------------------- |
+| `memory/decisions.md` as routing target | Change to `decisions.json` (structured format since v0.2.0) |
+
+If any patterns are found, include them in the response as suggestions — never auto-fix project-owned files.
+
+---
+
+## UPDATE Mode: Done
+
+If in UPDATE mode, skip all remaining phases. Return `ok: true` with a brief summary (e.g. "Updated 0.1.1 → 0.1.2,
+synced 3 agents, synced 2 plugins" or "Already up to date" or "User declined update"). Always return `ok: true` — even
+on failure.
+
+---
+
+## SETUP Mode: Additional Phases
+
+The following phases run **only** during first-time setup.
+
+### Phase S1: Project Structure
 
 Create the directory structure and Claude Code integration.
 
-### Directory structure
+#### Directory structure
 
 ```
 File                                     Ownership
@@ -30,9 +115,10 @@ AGENTS.md                                PROJECT — customize freely
   agent-startup.md                       🔒 SHARED — do NOT modify (auto-updated)
   layer0-agent-workflow.md               🔒 SHARED — do NOT modify (auto-updated)
   base-principles.md                     🔒 SHARED — do NOT modify (auto-updated)
-  update-prompt.md                       🔒 SHARED — do NOT modify (auto-updated)
   plugins.json                           🔒 SHARED — do NOT modify (auto-updated)
-  .agent-context-version                 🔒 SHARED — written by auto-update
+  .agent-context-version                 🔒 SHARED — written by setup/update
+  memory-review-prompt.md               🔒 SHARED — do NOT modify (auto-updated)
+  decision-review-prompt.md              🔒 SHARED — do NOT modify (auto-updated)
   decisions.json                         PROJECT — structured decisions (auto-reviewed)
   layer1-bootstrap.md                    PROJECT — customize freely
   layer2-project-core.md                 PROJECT — customize freely
@@ -41,40 +127,28 @@ AGENTS.md                                PROJECT — customize freely
     index.md                             PROJECT — skill registry
   memory/                                PROJECT — customize freely
     decisions.md                         Legacy stub (migrated to decisions.json)
+    index.md                             Memory file catalog
     lessons.md
+    log.md                               Append-only activity log
     people.md
     preferences.md
     todo.md
     user.md
 ```
 
-### Ownership rules
+#### Ownership rules
 
 **🔒 SHARED files** are overwritten on every auto-update. Never add project-specific content to them — it will be lost.
 Put project-specific workflow rules in `layer2-project-core.md`, task routing in `layer3-guidebook.md`.
 
 **PROJECT files** are created once from templates and never overwritten. All project customization goes here.
 
-### Fetching shared files
-
-Fetch the latest release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest`, download the archive
-from `tarball_url`, and copy shared files into `.agent-context/`: files from `context/` and `.prompts/update-prompt.md`.
-Also copy `plugins.json`. Write the release version (from `tag_name`, without `v` prefix) to
-`.agent-context/.agent-context-version`.
-
-For project-owned files, use the templates from `templates/` in the archive — or create them manually with TODO
-placeholders. If a project-owned file already exists, do NOT overwrite it.
-
-### Settings file
-
-Ensure `.claude/settings.json` exists (create with `{}` if missing). Do NOT overwrite existing content.
-
-## Phase 2: Discovery (Parallel Subagent Scan)
+### Phase S2: Discovery (Parallel Subagent Scan)
 
 Launch **6 parallel subagents** to scan the project. All subagents are **mandatory** — every one MUST execute, none may
 be skipped. Running them in parallel maximizes speed.
 
-### Subagent 1: Documentation Scanner
+#### Subagent 1: Documentation Scanner
 
 Scan for existing documentation files and summarize their content:
 
@@ -84,7 +158,7 @@ Scan for existing documentation files and summarize their content:
 
 Output: list of files found with summary of content per file.
 
-### Subagent 2: Project Identity & Stack
+#### Subagent 2: Project Identity & Stack
 
 Determine project name and full tech stack from:
 
@@ -93,7 +167,7 @@ Determine project name and full tech stack from:
 
 Output: project name, languages, frameworks, key dependencies.
 
-### Subagent 3: Infrastructure & Docker
+#### Subagent 3: Infrastructure & Docker
 
 Scan for container and infrastructure configuration:
 
@@ -102,7 +176,7 @@ Scan for container and infrastructure configuration:
 
 Output: container map, port map, domain list.
 
-### Subagent 4: CI/CD & Testing
+#### Subagent 4: CI/CD & Testing
 
 Scan for CI pipelines and test configuration:
 
@@ -111,7 +185,7 @@ Scan for CI pipelines and test configuration:
 
 Output: CI platform, pipeline structure, test frameworks, test commands.
 
-### Subagent 5: Git Conventions
+#### Subagent 5: Git Conventions
 
 Analyze repository history and conventions:
 
@@ -120,7 +194,7 @@ Analyze repository history and conventions:
 
 Output: commit convention, branch strategy.
 
-### Subagent 6: Skills & Plugins
+#### Subagent 6: Skills & Plugins
 
 Check for existing skills infrastructure:
 
@@ -129,25 +203,25 @@ Check for existing skills infrastructure:
 
 Output: whether skills-lock exists, list of existing skills.
 
-### Merge Results
+#### Merge Results
 
 Collect all subagent outputs. Document each finding with its target layer:
 
-| Finding type             | Document in                      |
-| ------------------------ | -------------------------------- |
-| Project name, stack      | `layer1-bootstrap.md`            |
-| Docker, domains          | `layer1-bootstrap.md`            |
-| Conventions, CI, testing | `layer2-project-core.md`         |
-| Skills, task routing     | `layer3-guidebook.md`            |
-| Existing doc content     | Input for Phase 3 classification |
+| Finding type             | Document in                       |
+| ------------------------ | --------------------------------- |
+| Project name, stack      | `layer1-bootstrap.md`             |
+| Docker, domains          | `layer1-bootstrap.md`             |
+| Conventions, CI, testing | `layer2-project-core.md`          |
+| Skills, task routing     | `layer3-guidebook.md`             |
+| Existing doc content     | Input for Phase S3 classification |
 
 Only ask the user for values that no subagent could auto-detect.
 
-## Phase 3: Content Classification
+### Phase S3: Content Classification
 
 For every piece of existing documentation, apply the **"Can the agent discover this by reading the code?"** filter:
 
-### KEEP (not discoverable):
+#### KEEP (not discoverable):
 
 - Gotchas, quirks, hard-won lessons
 - Conventions no linter enforces
@@ -160,7 +234,7 @@ For every piece of existing documentation, apply the **"Can the agent discover t
 - Workflow rules specific to this project (plan-first thresholds, verification requirements, task tracking conventions)
 - Tool commands that aren't obvious from the codebase (e.g. `npx skills experimental_install`)
 
-### REMOVE (discoverable from code):
+#### REMOVE (discoverable from code):
 
 - Directory trees, file structure
 - Entity/model field listings
@@ -172,13 +246,13 @@ For every piece of existing documentation, apply the **"Can the agent discover t
 
 **Principle:** "Every line in context files = friction the agent can't resolve alone."
 
-## Phase 3.5: Migration Audit (CRITICAL — prevents silent content loss)
+### Phase S3.5: Migration Audit (CRITICAL — prevents silent content loss)
 
 > This phase is the safety net. Shared files (layer0, base-principles) define a **generic** workflow. Projects often
 > have **project-specific** workflow rules that lived in the same files before migration. If you overwrite a shared file
 > or remove "general" content, you MUST verify nothing project-specific was lost.
 
-### Step 1: Build a "before" inventory
+#### Step 1: Build a "before" inventory
 
 Before overwriting any file, extract every distinct rule/instruction from the existing content. Create a checklist:
 
@@ -202,7 +276,7 @@ Before overwriting any file, extract every distinct rule/instruction from the ex
 - [ ] ...
 ```
 
-### Step 2: Classify each item
+#### Step 2: Classify each item
 
 For each item, determine:
 
@@ -212,7 +286,7 @@ For each item, determine:
 | **General LLM knowledge** (KISS, YAGNI, DRY, SOLID)          | Mark as ✓ removed intentionally                                                  |
 | **Project-specific, NOT in shared files**                    | ⚠️ Must be relocated to a PROJECT-owned file                                     |
 
-### Step 3: Relocate orphaned content
+#### Step 3: Relocate orphaned content
 
 Any item classified as "project-specific, NOT in shared files" must be placed in the appropriate project-owned file:
 
@@ -223,7 +297,7 @@ Any item classified as "project-specific, NOT in shared files" must be placed in
 | Testing requirements (unit test policy)                  | `layer2-project-core.md`                                |
 | Domain conventions                                       | `memory/<domain>.md`                                    |
 
-### Step 4: Verify zero loss
+#### Step 4: Verify zero loss
 
 After all relocations, go through the checklist and confirm every item has a ✓. If any item is unchecked, it's a gap —
 fix it before proceeding.
@@ -239,17 +313,17 @@ fix it before proceeding.
   shared layer0's "Skill Lookup" section
 - "Unit tests for all new implementations" is a project policy, not general LLM knowledge
 
-## Phase 4: Fill Layers & Migrate Content
+### Phase S4: Fill Layers & Migrate Content
 
 Replace `TODO` placeholders with discovered + user-provided information:
 
 - **`AGENTS.md`**: Project name, tech stack, Docker container, 3-5 quick rules
 - **`layer1-bootstrap.md`**: Identity, Docker exec pattern, domains, excluded dirs
 - **`layer2-project-core.md`**: Non-linter conventions, critical rules, testing strategy, commit convention, **workflow
-  rules rescued from Phase 3.5**
+  rules rescued from Phase S3.5**
 - **`layer3-guidebook.md`**: Task-routing table, skills index, memory file index
 
-For existing documentation found in Phase 2, route surviving content:
+For existing documentation found in Phase S2, route surviving content:
 
 | Scope                       | Target                                 |
 | --------------------------- | -------------------------------------- |
@@ -267,7 +341,7 @@ Each fact in exactly ONE place. No duplicates.
 already know these — adding them wastes context budget and reduces performance. Only store knowledge that is **specific
 to this project** and **not discoverable from the code**.
 
-## Phase 5: Project Skills Discovery
+### Phase S5: Project Skills Discovery
 
 Analyze the project for recurring patterns that benefit from dedicated skills:
 
@@ -284,7 +358,7 @@ If `skills-lock.json` exists in the project root:
 2. Add `.agents/skills/` to `.gitignore`
 3. Keep `skills-lock.json` committed
 
-## Phase 6: Agent Installation (Claude Code only, optional)
+### Phase S6: Agent Installation (Claude Code only, optional)
 
 If the release archive contains an `agents/` directory with `ac-*.md` files, offer to install them. All shared agents
 use the `ac-` prefix (agent-context) and are designed to work with any project — they auto-detect tech stacks and use
@@ -305,7 +379,7 @@ MCP tools only when available.
 **Do NOT overwrite** existing agent files with the same name unless the user explicitly confirms. New agents (not yet
 present) are added without confirmation.
 
-## Phase 7: Cleanup & Verification
+### Phase S7: Cleanup & Verification
 
 **Cleanup:**
 
@@ -318,10 +392,12 @@ present) are added without confirmation.
 2. No `TODO` placeholders remain (except intentional ones)
 3. `wc -l AGENTS.md` < 45 lines
 4. `wc -l .agent-context/layer*.md` — each < 50 lines
-5. `wc -l .agent-context/memory/*.md` — stubs < 15 lines each
+5. Check `.agent-context/memory/*.md` line counts — domain stubs < 15 lines each (skip `index.md` and `log.md`)
 6. No duplicated content across files
 7. `.claude/CLAUDE.md` points to `@AGENTS.md`
-8. **Migration audit checklist from Phase 3.5 is 100% checked off**
+8. **Migration audit checklist from Phase S3.5 is 100% checked off**
+9. `.agent-context/memory/log.md` and `.agent-context/memory/index.md` exist
+10. `.agent-context/memory-review-prompt.md` exists
 
 **Summary:**
 
@@ -337,6 +413,15 @@ Inform the user to restart their agent session for the new configuration to take
 
 ---
 
+## Error Handling
+
+- **Network failure** (API unreachable, tarball download fails):
+  - **SETUP:** abort — cannot proceed without release files
+  - **UPDATE:** skip update, keep existing files, return `ok: true`
+- **Corrupted/incomplete archive**: Do NOT overwrite existing files with partial content. Skip update, return `ok: true`
+- **File write failure**: Log which file failed, continue with remaining files
+- **UPDATE mode** is best-effort — never block session start. **SETUP mode** should fail fast with clear messages.
+
 ## Constraints
 
 - **Non-destructive:** Never overwrite project-owned files that already have content
@@ -344,5 +429,5 @@ Inform the user to restart their agent session for the new configuration to take
 - **One fact, one place:** No duplication across files
 - **No over-engineering:** Skip skills if total content < ~200 lines, skip memory stubs if domain < ~30 lines
 - **Preserve knowledge:** Nothing gets deleted — it gets routed, filtered, or promoted to code
-- **Audit before overwrite:** Always run Phase 3.5 before overwriting shared files in existing projects — the new shared
+- **Audit before overwrite:** Always run Phase S3.5 before overwriting shared files in existing projects — the new shared
   files are generic and will silently drop project-specific workflow rules

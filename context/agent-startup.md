@@ -5,5 +5,11 @@
 
 ## Auto-Update
 
-Updates can be triggered manually by running the update prompt: read `.agent-context/update-prompt.md` and follow its
-instructions. This checks for new releases, updates shared files (including the prompt itself), and syncs plugins.
+Updates can be triggered manually:
+
+1. Fetch the latest release tag from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest` (use
+   `tag_name`)
+2. Fetch the setup prompt from
+   `https://raw.githubusercontent.com/lx-wnk/Agent-Context/{tag_name}/.prompts/setup-prompt.md`
+3. Follow its instructions — it auto-detects UPDATE mode, checks for new releases, updates shared files, and syncs
+   plugins

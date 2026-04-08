@@ -43,8 +43,7 @@ Entry point is `AGENTS.md` → layers load progressively:
 
 ### Setup & Update Flow
 
-- **Setup**: `.prompts/setup-prompt.md` — fetches latest release, copies shared files, creates project-owned files from templates, discovers tech stack
-- **Update**: `.prompts/update-prompt.md` — compares `.agent-context-version` with latest GitHub Release, overwrites only shared files
+- **Setup & Update**: `.prompts/setup-prompt.md` — single prompt that auto-detects mode. SETUP: full installation with discovery. UPDATE: version check, shared file sync, agent/plugin sync.
 
 ### Agent Configurations (`agents/`)
 

@@ -14,7 +14,7 @@ Work silently and efficiently — only output the final summary.
 
 ## Step 1: Inventory
 
-1. List all files in `.agent-context/memory/`
+1. List all files in `.agent-context/memory/` (including sub-files in expanded domain directories like `memory/<domain>/`)
 2. For each file, count non-comment lines and extract all entries with dates
 3. Determine today's date
 
@@ -46,15 +46,23 @@ Identify lessons in `memory/lessons.md` that should be promoted to `layer2-proje
 
 A lesson is a graduation candidate if:
 
-- It has been applied 3+ times (look for indicators in the entry text)
+- It has been applied 3+ times (look for `conf:high` tag or other indicators in the entry text)
 - It describes a project-wide convention (not domain-specific)
 - It has survived 2+ review cycles without being questioned
 
 Flag candidates in summary — never auto-promote (user decision).
 
-## Step 5: Summary
+## Step 5: Domain Expansion Check
 
-Return `ok: true` with a summary:
+If any `memory/<domain>/` directories exist (expanded domains):
+
+1. List all sub-files in each expanded domain directory
+2. For each sub-file, count non-comment lines
+3. Flag sub-files exceeding 30 lines as **skill candidates** — suggest graduating to `skills/<reference>.md`
+
+## Step 6: Summary
+
+Return `ok: true` with a summary (adapt counts to include expanded domain sub-files):
 
 ```
 Memory Review: {total_files} files, {total_entries} entries
