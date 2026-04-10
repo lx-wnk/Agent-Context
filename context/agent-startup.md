@@ -13,3 +13,6 @@ Updates can be triggered manually:
    `https://raw.githubusercontent.com/lx-wnk/Agent-Context/{tag_name}/.prompts/setup-prompt.md`
 3. Follow its instructions — it auto-detects UPDATE mode, checks for new releases, updates shared files, and syncs
    plugins
+
+If any fetch returns a non-200 status, report the error and do not proceed. Compare the fetched version against
+`.agent-context-version` — refuse downgrades.

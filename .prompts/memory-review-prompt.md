@@ -1,6 +1,6 @@
 # Memory Review — Monthly Cron Prompt
 
-> **SHARED FILE — DO NOT MODIFY.** This file is auto-updated and will be overwritten.
+> **⚠ SHARED FILE — DO NOT ADD PROJECT-SPECIFIC CONTENT.** This file is auto-updated and will be overwritten.
 
 ## Scheduling
 
@@ -10,13 +10,15 @@ Recommended schedule: 1st of each month at 9:00 AM. You can also run this prompt
 ## Your Task
 
 Review all memory files in `.agent-context/memory/` for staleness, duplicates, and graduation candidates.
-Work silently and efficiently — only output the final summary.
+Work efficiently — report errors immediately, output the final summary at the end.
 
 ## Step 1: Inventory
 
 1. List all files in `.agent-context/memory/` (including sub-files in expanded domain directories like `memory/<domain>/`)
-2. For each file, count non-comment lines and extract all entries with dates
-3. Determine today's date
+2. If `.agent-context/memory/` does not exist, return `ok: false` with an error explaining the directory is missing.
+3. For each file, count non-comment lines and extract all entries with dates
+4. If any file cannot be read, include it in the summary under an "Errors" section rather than silently skipping it.
+5. Determine today's date
 
 ## Step 2: Staleness Check
 
@@ -38,7 +40,7 @@ Scan across all memory files for semantically duplicate information:
 - Information that is now discoverable from source code (check by grepping the codebase)
 - Entries that contradict each other
 
-Flag duplicates in summary.
+Flag duplicates in summary. If the codebase grep cannot be performed (wrong directory, timeout, or error), report the duplicate check as "skipped" rather than reporting 0 duplicates.
 
 ## Step 4: Graduation Candidates
 

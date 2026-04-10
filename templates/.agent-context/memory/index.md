@@ -18,6 +18,6 @@
 
 <!-- Domain Expansion: When a stub exceeds 15 lines, it becomes a directory. -->
 <!-- Update this table — mark expanded domains with (dir) and list sub-files. Example: -->
-<!-- | `cart/` (dir)    | Cart domain (expanded)         | On-demand     | -->
-<!--   ├ `pricing.md`  | Pricing rules, discounts       |               | -->
-<!--   └ `checkout.md` | Checkout flow, payment gotchas |               | -->
+<!-- | `api/` (dir)          | API domain (expanded)            | On-demand     | -->
+<!--   ├ `endpoints.md`     | Endpoint patterns, rate limits   |               | -->
+<!--   └ `auth.md`          | Auth flow, token handling        |               | -->

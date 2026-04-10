@@ -1,6 +1,6 @@
 # Decision Review — Daily Cron Prompt
 
-> **SHARED FILE — DO NOT MODIFY.** This file is auto-updated and will be overwritten.
+> **⚠ SHARED FILE — DO NOT ADD PROJECT-SPECIFIC CONTENT.** This file is auto-updated and will be overwritten.
 > Project-specific adjustments to the review logic belong in `layer2-project-core.md`.
 
 ## Scheduling
@@ -11,7 +11,7 @@ Recommended schedule: daily at 8:00 AM. You can also run this prompt manually at
 ## Your Task
 
 Review all decisions in `.agent-context/decisions.json` and process expired entries based on their weight.
-Work silently and efficiently — only output the final summary.
+Work efficiently — report errors immediately, output the final summary at the end.
 
 ## Step 1: Read & Parse
 
@@ -36,6 +36,18 @@ Each entry in the array follows this structure:
 
 Valid weights: `low`, `medium`, `high`, `critical`. The `reviewDate` determines when the decision is next evaluated.
 
+## Step 1.5: Validate Entries
+
+Before processing, validate each entry in the array:
+
+1. Required fields: `id`, `date`, `decision`, `reasoning`, `scope`, `weight`, `reviewDate`
+2. `weight` must be one of: `low`, `medium`, `high`, `critical`
+3. `date` and `reviewDate` must match `YYYY-MM-DD` format
+
+If the JSON cannot be parsed, return `ok: false` with the error and first 200 characters of file content. Do NOT attempt automatic repair.
+
+If entries have validation errors, include them in the final summary under an "Invalid Entries" section rather than silently skipping them. Continue processing valid entries.
+
 ## Step 2: Migration (One-Time)
 
 If `.agent-context/memory/decisions.md` exists and contains content beyond stub comments (lines starting with `<!--`):
@@ -43,7 +55,9 @@ If `.agent-context/memory/decisions.md` exists and contains content beyond stub 
 1. Parse each decision entry from the markdown
 2. Add each as a new entry to the JSON array with `weight: "medium"` and `reviewDate` set to today + 30 days
 3. Generate an `id` from the date and a kebab-case slug of the decision
-4. Replace the markdown file content with just the stub comment (preserving the file for backwards compatibility)
+4. Before adding each migrated entry, check if an entry with the same `id` already exists in the JSON array. Skip duplicates.
+5. Replace the markdown file content with just the stub comment (preserving the file for backwards compatibility)
+6. If the JSON write succeeds but clearing the markdown file fails, report partial migration in the summary.
 
 ## Step 3: Process Expired Decisions
 
@@ -75,10 +89,13 @@ Then remove the entry from the JSON array.
 
 **Ask:** Present the decision to the user and ask: graduate, extend, or delete. Then apply the chosen action.
 
+> **Unattended mode:** If running as a scheduled trigger with no interactive user, treat "Ask" decisions as **Extend** instead. Include them in the summary as "Deferred — needs user input" so the user can review manually.
+
 ## Step 4: Write Back
 
 1. Write the modified array back to `.agent-context/decisions.json`
 2. Ensure valid JSON formatting
+3. After writing, re-read the file and confirm it parses correctly as a JSON array. If validation fails, return `ok: false` with the error.
 
 ## Step 5: Summary
 
