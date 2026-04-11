@@ -59,7 +59,7 @@ If you're unsure whether something is worth saving, ask: "Would a future session
 ### Session Routine
 
 - **Session start**: read `memory/lessons.md` + `memory/preferences.md` + `memory/todo.md` for relevant context and the active task plan
-- **During session**: save each trigger the moment it fires — do not accumulate and batch
+- **During session**: triggers are handled inline (see directive above)
 - **Session end**: review whether any triggers fired but were missed; if a significant decision or discovery occurred, append a one-line entry to `memory/log.md`
 - **After 3+ memory updates**: scan for contradictions with existing entries before closing
 

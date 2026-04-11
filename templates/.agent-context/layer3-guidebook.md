@@ -45,14 +45,4 @@ See Layer 0 → Domain Expansion for rules.
 
 ## Save As You Go (Not After)
 
-> **Save the moment it happens** — not after finishing the task. Discoveries get lost if deferred. See Layer 0 → Self-Improvement Loop for full rules.
-
-When any of these occur, save IMMEDIATELY before continuing other work:
-
-1. User correction or self-discovered insight? → `memory/lessons.md`
-2. Architecture/design decision made? → `decisions.json`
-3. Task complete? → Update `memory/todo.md`
-4. User stated preference? → `memory/preferences.md`
-5. Learned about user? → `memory/user.md`
-6. Learned about team? → `memory/people.md`
-7. Significant decision or event this session? → append to `memory/log.md`
+> **Save the moment it happens** — not after finishing the task. Discoveries get lost if deferred. See Layer 0 → Self-Improvement Loop for triggers, routing, and the "When in Doubt, Save" heuristic.
