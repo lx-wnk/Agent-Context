@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Agent-Context is a layered, agent-agnostic context architecture for AI coding agents. All layers (0-3) load at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~150-200 lines. Detailed reference (skills, memory files) is pulled on-demand based on task keywords.
+Agent-Context is a layered, agent-agnostic context architecture for AI coding agents. All layers (0-3) load at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~200-250 lines. Detailed reference (skills, memory files) is pulled on-demand based on task keywords.
 
 This repository contains the framework itself: shared context files, agent configurations, templates, setup/update prompts, and documentation. It is **not** a runtime application — it's a template system installed into other projects via `.prompts/setup-prompt.md`.
 
@@ -33,13 +33,14 @@ Two categories of files, critical to understand before editing:
 
 Entry point is `AGENTS.md` → all layers load at startup via `@`-includes:
 
-| Layer | Source                                            | Purpose                                                 |
-| ----- | ------------------------------------------------- | ------------------------------------------------------- |
-| 0     | `context/layer0-agent-workflow.md`                | Universal agent workflow, memory routing, skill lookup  |
-| Base  | `context/base-principles.md`                      | Dev principles (only non-obvious ones)                  |
-| 1     | `templates/.agent-context/layer1-bootstrap.md`    | Tech stack, Docker, domains (project-owned)             |
-| 2     | `templates/.agent-context/layer2-project-core.md` | Dev rules, testing, conventions (project-owned)         |
-| 3     | `templates/.agent-context/layer3-guidebook.md`    | Task routing table, skills/memory index (project-owned) |
+| Layer   | Source                                            | Purpose                                                 |
+| ------- | ------------------------------------------------- | ------------------------------------------------------- |
+| Startup | `context/agent-startup.md`                        | Version check, update info                              |
+| 0       | `context/layer0-agent-workflow.md`                | Universal agent workflow, memory routing, skill lookup  |
+| Base    | `context/base-principles.md`                      | Dev principles (only non-obvious ones)                  |
+| 1       | `templates/.agent-context/layer1-bootstrap.md`    | Tech stack, Docker, domains (project-owned)             |
+| 2       | `templates/.agent-context/layer2-project-core.md` | Dev rules, testing, conventions (project-owned)         |
+| 3       | `templates/.agent-context/layer3-guidebook.md`    | Task routing table, skills/memory index (project-owned) |
 
 ### Setup & Update Flow
 

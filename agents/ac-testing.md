@@ -98,9 +98,9 @@ Use documentation MCP tools if available for testing framework APIs:
 
 ## Rules
 
-- NEVER write tests that always pass (`assertTrue(true)`)
-- NEVER duplicate implementation logic in tests
-- Tests MUST fail when the tested logic changes
+- Write tests that validate behavior, not tautologies (no `assertTrue(true)`)
+- Keep test logic independent from implementation logic — do not copy production code into tests
+- Tests must fail when the tested logic changes
 - Test file location: follow project convention (co-located OR mirror test directory)
 - Mocking: only mock external dependencies, not internal logic
 - On failing tests: analyze root cause, don't adjust the test to pass

@@ -101,7 +101,7 @@ Assess: "Which option is best for our context?"
 
 1. Define evaluation criteria **before** looking at options (prevents confirmation bias)
 2. Weight criteria by project context
-3. Always include "do nothing / status quo" as baseline
+3. Include "do nothing / status quo" as baseline
 4. Build decision matrix: rows = options, columns = criteria, cells = rated with evidence
 5. Consider total cost of ownership, not just initial implementation
 6. Assess exit cost: how hard is it to switch away?

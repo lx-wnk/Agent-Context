@@ -10,7 +10,7 @@
 | `todo.md`        | Active task plan                      | Session start |
 | `log.md`         | Chronological activity log            | On-demand     |
 | `people.md`      | Team and stakeholders                 | On-demand     |
-| `preferences.md` | Agent behavior preferences            | On-demand     |
+| `preferences.md` | Agent behavior preferences            | Session start |
 | `user.md`        | User profile                          | On-demand     |
 | `decisions.md`   | Legacy stub → see `../decisions.json` | Rarely        |
 

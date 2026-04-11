@@ -147,7 +147,7 @@ Every discovery should answer these seven questions:
 
 ## Rules
 
-- NEVER read every file sequentially — use targeted exploration guided by questions
+- Use targeted exploration guided by questions — avoid sequential file-by-file reading
 - Trust imports and tests over documentation — docs rot, code doesn't lie
 - State your confidence: "I'm 90% sure this is the only entry point" > "this is the entry point"
 - Map what IS, not what was intended — real codebases have legacy layers and organic growth

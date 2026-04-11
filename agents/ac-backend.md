@@ -66,7 +66,7 @@ Follow the project's established patterns. Common conventions by ecosystem:
 
 - Follow idiomatic patterns for the ecosystem
 
-Always prefer the project's ORM/DAL over raw SQL.
+Prefer the project's ORM/DAL over raw SQL.
 
 ### 4. Testing (TDD)
 
@@ -95,7 +95,7 @@ Before completing, run the project's QA command:
 
 ## Rules
 
-- Always use the project's ORM/DAL, never raw SQL unless explicitly required
+- Use the project's ORM/DAL for all database queries (raw SQL only when explicitly required)
 - Use immutable/readonly data structures for DTOs and value objects
 - Organize by business domain, not technical layer
 - Follow the project's commit convention
