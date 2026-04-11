@@ -54,13 +54,14 @@ installed version is tracked in `.agent-context/.agent-context-version` — writ
 
 ### Layer System
 
-| Layer | Location                                  | Content                           | Ownership        |
-| ----- | ----------------------------------------- | --------------------------------- | ---------------- |
-| 0     | `.agent-context/layer0-agent-workflow.md` | Universal agent workflow          | Shared (updated) |
-| Base  | `.agent-context/base-principles.md`       | Dev principles                    | Shared (updated) |
-| 1     | `.agent-context/layer1-bootstrap.md`      | Project identity, Docker, domains | Project          |
-| 2     | `.agent-context/layer2-project-core.md`   | Dev rules + `@` ref to base       | Project          |
-| 3     | `.agent-context/layer3-guidebook.md`      | Task routing, skills, memory      | Project          |
+| Layer   | Location                                  | Content                           | Ownership        |
+| ------- | ----------------------------------------- | --------------------------------- | ---------------- |
+| Startup | `.agent-context/agent-startup.md`         | Version check, update info        | Shared (updated) |
+| 0       | `.agent-context/layer0-agent-workflow.md` | Universal agent workflow          | Shared (updated) |
+| Base    | `.agent-context/base-principles.md`       | Dev principles                    | Shared (updated) |
+| 1       | `.agent-context/layer1-bootstrap.md`      | Project identity, Docker, domains | Project          |
+| 2       | `.agent-context/layer2-project-core.md`   | Dev rules + `@` ref to base       | Project          |
+| 3       | `.agent-context/layer3-guidebook.md`      | Task routing, skills, memory      | Project          |
 
 ## Why `.agent-context/` instead of `.claude/rules/`?
 
@@ -99,7 +100,7 @@ Updates can be triggered manually by fetching the setup prompt from remote and f
 
 ```
 AGENTS.md                               ← Agent reads this first
-  @.agent-context/agent-startup.md      ← Update info (hook already ran)
+  @.agent-context/agent-startup.md      ← Version check, update info
   @.agent-context/layer0-agent-workflow  ← Memory routing, skill lookup
   @.agent-context/layer1-bootstrap      ← Tech stack, Docker, domains
   @.agent-context/layer2-project-core   ← Your conventions + critical rules
@@ -120,9 +121,8 @@ claude -p "Fetch https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/.pr
 
 Or paste the contents of [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) manually into a Claude Code session.
 
-Claude analyzes existing documentation, applies quality filters, discovers your tech stack, creates the architecture,
-and creates the architecture. Restart your session afterwards — the new configuration takes effect on the next
-start.
+Claude analyzes existing documentation, applies quality filters, discovers your tech stack, and creates the
+architecture. Restart your session afterwards — the new configuration takes effect on the next start.
 
 **Fire-and-forget (Claude Code):** Run this one-liner from your project root if you don't want to confirm each tool
 usage interactively — `--allowedTools` pre-approves all required tools so the setup runs unattended:
