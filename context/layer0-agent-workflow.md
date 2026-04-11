@@ -40,7 +40,7 @@ When a `memory/<domain>.md` stub reaches 15 lines, expand it into a directory:
 
 ## Self-Improvement Loop
 
-> **TOP PRIORITY — Non-negotiable.** Saving learnings is your highest duty. Every trigger below MUST result in an immediate write — the VERY NEXT action after the discovery, before continuing with any other work. Do not batch, defer, or "save later". If you catch yourself thinking "I'll save this after I finish the current task" — stop and save it NOW.
+> **MUST — Non-negotiable.** Every trigger below MUST result in an immediate write — the very next action after the discovery, before continuing other work. Do not batch or defer.
 
 ### Triggers
 
@@ -48,14 +48,13 @@ Save immediately when ANY of the following occurs:
 
 - **User correction** → update `memory/lessons.md` with the pattern and what went wrong
 - **User preference** → update `memory/preferences.md`
-- **Self-discovered insight** (unexpected behavior, gotcha found during debugging, undocumented API quirk) → update `memory/lessons.md`
+- **Self-discovered insight or technical discovery** (unexpected behavior, gotcha, undocumented API quirk, non-obvious format found during debugging or research) → update `memory/lessons.md` or relevant domain file
 - **Architecture or design decision** made or confirmed → update `decisions.json`
 - **New personal or team info** emerges → update `memory/user.md` or `memory/people.md`
-- **Technical discovery during research** (non-obvious format, hidden API behavior, codebase quirk) → update `memory/lessons.md` or relevant domain file
 
 ### When in Doubt, Save
 
-If you're unsure whether something is worth saving — save it. A memory entry that turns out to be unnecessary can be cleaned up later. A discovery that wasn't saved is lost forever when the session ends.
+If you're unsure whether something is worth saving, ask: "Would a future session benefit from knowing this, and is it NOT discoverable from source code?" If yes — save it. Unnecessary entries can be cleaned up, but lost discoveries cannot be recovered.
 
 ### Session Routine
 
