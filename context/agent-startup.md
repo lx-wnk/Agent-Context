@@ -15,4 +15,4 @@ Updates can be triggered manually:
    plugins
 
 If any fetch returns a non-200 status, report the error and do not proceed. Compare the fetched version against
-`.agent-context-version` — refuse downgrades.
+`.agent-context/.agent-context-version` using semver — refuse downgrades.

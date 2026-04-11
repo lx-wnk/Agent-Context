@@ -40,7 +40,7 @@ Scan across all memory files for semantically duplicate information:
 - Information that is now discoverable from source code (check by grepping the codebase)
 - Entries that contradict each other
 
-Flag duplicates in summary. If the codebase grep cannot be performed (wrong directory, timeout, or error), report the duplicate check as "skipped" rather than reporting 0 duplicates.
+Flag duplicates in summary. If the codebase grep cannot be performed (wrong directory, timeout, or error), report the source-code discoverability check as "skipped" rather than reporting 0 duplicates. The other two checks (cross-file duplicates, contradictions) can still be performed from memory files alone.
 
 ## Step 4: Graduation Candidates
 
