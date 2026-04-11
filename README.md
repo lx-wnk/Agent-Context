@@ -3,9 +3,7 @@
 A project-based setup and memory-handling system for Claude Code. Optimized for structuring project knowledge so that
 Claude always has the right context at the right time — without bloating the context window.
 
-Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides a layered architecture with progressive
-disclosure: a structured baseline (~150-200 lines) is always loaded, while detailed reference (skills, memory files) is
-pulled in on-demand based on the task at hand. Auto-updates keep shared infrastructure current across all your projects.
+Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides a layered architecture: all layers (0-3) are loaded at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~150-200 lines. Detailed reference (skills, memory files) is pulled in on-demand based on the task at hand. Auto-updates keep shared infrastructure current across all your projects.
 
 ## The Problem
 
@@ -19,7 +17,7 @@ single `CLAUDE.md`, resulting in:
 
 ## The Solution
 
-A layered architecture with progressive disclosure:
+A layered architecture where all layers load at startup via `@`-includes in `AGENTS.md`:
 
 ```
 CLAUDE.md                          (3 lines — bootstrap pointer)
@@ -66,11 +64,11 @@ installed version is tracked in `.agent-context/.agent-context-version` — writ
 
 ## Why `.agent-context/` instead of `.claude/rules/`?
 
-|                     | `.claude/rules/`            | `.agent-context/`          |
-| ------------------- | --------------------------- | -------------------------- |
-| **Loading**         | Always loaded (all files)   | Layer-based, on-demand     |
-| **Path globs**      | Yes (Claude Code native)    | No (agent reads guidebook) |
-| **Discoverability** | Hidden directory convention | Explicit, self-documenting |
+|                     | `.claude/rules/`            | `.agent-context/`                   |
+| ------------------- | --------------------------- | ----------------------------------- |
+| **Loading**         | Always loaded (all files)   | Layers at startup, skills on-demand |
+| **Path globs**      | Yes (Claude Code native)    | No (agent reads guidebook)          |
+| **Discoverability** | Hidden directory convention | Explicit, self-documenting          |
 
 The guidebook pattern (layer 3) replaces path-based auto-loading with task-based routing. `.claude/CLAUDE.md` serves as
 a minimal bootstrap pointer to `AGENTS.md`.

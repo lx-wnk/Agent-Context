@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Agent-Context is a layered, agent-agnostic context architecture for AI coding agents. It provides progressive disclosure of project knowledge — a structured baseline (~150-200 lines) is always loaded, while detailed reference is pulled on-demand based on task keywords.
+Agent-Context is a layered, agent-agnostic context architecture for AI coding agents. All layers (0-3) load at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~150-200 lines. Detailed reference (skills, memory files) is pulled on-demand based on task keywords.
 
 This repository contains the framework itself: shared context files, agent configurations, templates, setup/update prompts, and documentation. It is **not** a runtime application — it's a template system installed into other projects via `.prompts/setup-prompt.md`.
 
@@ -31,7 +31,7 @@ Two categories of files, critical to understand before editing:
 
 ### Layer System
 
-Entry point is `AGENTS.md` → layers load progressively:
+Entry point is `AGENTS.md` → all layers load at startup via `@`-includes:
 
 | Layer | Source                                            | Purpose                                                 |
 | ----- | ------------------------------------------------- | ------------------------------------------------------- |

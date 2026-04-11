@@ -4,7 +4,7 @@
 > Project-specific principles belong in `layer2-project-core.md`.
 >
 > Standard practices (KISS, YAGNI, DRY, SOLID, Clean Code) are intentionally omitted — every modern LLM already applies
-> them. Adding them wastes context budget and reduces performance (ETH Zurich, 2026).
+> them. Adding them wastes context budget and reduces model performance.
 
 ## Implementation Rules
 
@@ -23,8 +23,8 @@
 
 ## Context Hygiene
 
-- Never add information discoverable from source code — it wastes context and reduces performance (ETH Zurich, 2026)
-- Place critical constraints at the beginning of context files — models lose accuracy in the middle (Chroma, 2025)
+- Never add information discoverable from source code — it wastes context and reduces model performance
+- Place critical constraints at the beginning of context files — models lose accuracy in the middle of long contexts
 - Prefer concrete rules over general principles — LLMs already know KISS/YAGNI/DRY/SOLID
 - Knowledge compounds — integrate new facts into existing entries; don't append raw notes that may contradict existing content
 - Review memory files periodically — stale context actively misleads (read `memory-review-prompt.md`)

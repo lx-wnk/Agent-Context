@@ -6,18 +6,20 @@
 
 <!-- TODO: Project Name | Tech Stack | Docker Container -->
 
-## Shared Configuration
-
-@.agent-context/agent-startup.md
-
 ## Context Architecture
 
-| Layer | File                                     | Content                         |
-| ----- | ---------------------------------------- | ------------------------------- |
-| 0     | @.agent-context/layer0-agent-workflow.md | Agent Workflow (shared)         |
-| 1     | @.agent-context/layer1-bootstrap.md      | Project identity, tech stack    |
-| 2     | @.agent-context/layer2-project-core.md   | Dev principles + critical rules |
-| 3     | @.agent-context/layer3-guidebook.md      | Task routing, skills, memory    |
+| Layer | File                                      | Content                         |
+| ----- | ----------------------------------------- | ------------------------------- |
+| 0     | `.agent-context/layer0-agent-workflow.md` | Agent Workflow (shared)         |
+| 1     | `.agent-context/layer1-bootstrap.md`      | Project identity, tech stack    |
+| 2     | `.agent-context/layer2-project-core.md`   | Dev principles + critical rules |
+| 3     | `.agent-context/layer3-guidebook.md`      | Task routing, skills, memory    |
+
+@.agent-context/agent-startup.md
+@.agent-context/layer0-agent-workflow.md
+@.agent-context/layer1-bootstrap.md
+@.agent-context/layer2-project-core.md
+@.agent-context/layer3-guidebook.md
 
 ## Quick Rules (Always Apply)
 
