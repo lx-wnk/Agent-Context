@@ -4,9 +4,8 @@
 
 ## Before You Start Any Task
 
-1. Read `memory/lessons.md` — avoid repeating past mistakes
-2. Read `memory/todo.md` — check if there's an active task plan
-3. If you're unsure which memory files exist or are relevant: read `memory/index.md`
+1. Follow Layer 0 Session Routine (loads `memory/lessons.md`, `memory/preferences.md`, `memory/todo.md`)
+2. If you're unsure which memory files exist or are relevant: read `memory/index.md`
 
 Skip files that are empty or contain only comments.
 
@@ -34,14 +33,16 @@ See Layer 0 → Domain Expansion for rules.
 
 ## Memory Files
 
-| File                | Purpose                    | Load           |
-| ------------------- | -------------------------- | -------------- |
-| `memory/lessons.md` | Hard-won lessons           | Session start  |
-| `memory/todo.md`    | Current task plan          | Session start  |
-| `memory/index.md`   | Memory file catalog        | When uncertain |
-| `memory/log.md`     | Chronological activity log | On-demand      |
-| `decisions.json`    | Architectural decisions    | On-demand      |
-| `memory/people.md`  | Team & stakeholders        | On-demand      |
+| File                    | Purpose                    | Load           |
+| ----------------------- | -------------------------- | -------------- |
+| `memory/lessons.md`     | Hard-won lessons           | Session start  |
+| `memory/preferences.md` | Agent behavior preferences | Session start  |
+| `memory/todo.md`        | Current task plan          | Session start  |
+| `memory/index.md`       | Memory file catalog        | When uncertain |
+| `memory/log.md`         | Chronological activity log | On-demand      |
+| `decisions.json`        | Architectural decisions    | On-demand      |
+| `memory/people.md`      | Team & stakeholders        | On-demand      |
+| `memory/user.md`        | User profile               | On-demand      |
 
 ## Save As You Go (Not After)
 

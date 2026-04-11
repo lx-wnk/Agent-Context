@@ -3,7 +3,7 @@
 A project-based setup and memory-handling system for Claude Code. Optimized for structuring project knowledge so that
 Claude always has the right context at the right time — without bloating the context window.
 
-Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides a layered architecture: all layers (0-3) are loaded at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~150-200 lines. Detailed reference (skills, memory files) is pulled in on-demand based on the task at hand. Auto-updates keep shared infrastructure current across all your projects.
+Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides a layered architecture: all layers (0-3) are loaded at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~200-250 lines. Detailed reference (skills, memory files) is pulled in on-demand based on the task at hand. Auto-updates keep shared infrastructure current across all your projects.
 
 ## The Problem
 
@@ -31,7 +31,7 @@ AGENTS.md                          (~35 lines — identity, quick rules)
   skills/                          (full reference, loaded on-demand)
 ```
 
-**Baseline:** ~150-200 lines (AGENTS.md + all layers). Full reference (skills, memory): loaded only when trigger keywords match.
+**Baseline:** ~200-250 lines (AGENTS.md + all layers). Full reference (skills, memory): loaded only when trigger keywords match.
 
 Auto-updates are built in: the agent fetches the setup prompt from remote, which auto-detects UPDATE mode, checks for new
 releases via the GitHub Releases API, and updates shared files. Project-owned files are never overwritten.
@@ -106,7 +106,7 @@ AGENTS.md                               ← Agent reads this first
   @.agent-context/layer3-guidebook      ← Task routing → memory/skills on-demand
 ```
 
-Total baseline: ~150-200 lines. Heavy reference (skills, memory) is loaded only when the task matches.
+Total baseline: ~200-250 lines. Heavy reference (skills, memory) is loaded only when the task matches.
 
 ## Installation
 
@@ -121,7 +121,7 @@ claude -p "Fetch https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/.pr
 Or paste the contents of [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) manually into a Claude Code session.
 
 Claude analyzes existing documentation, applies quality filters, discovers your tech stack, creates the architecture,
-and sets up the auto-update hook. Restart your session afterwards — the new configuration takes effect on the next
+and creates the architecture. Restart your session afterwards — the new configuration takes effect on the next
 start.
 
 **Fire-and-forget (Claude Code):** Run this one-liner from your project root if you don't want to confirm each tool
@@ -146,9 +146,11 @@ your-project/
     ├── layer1-bootstrap.md                ← Project identity, Docker, domains
     ├── layer2-project-core.md             ← Dev principles + critical rules
     ├── layer3-guidebook.md                ← Task routing, skills, memory
-    ├── .agent-context-version              ← Installed version (written by hook)
+    ├── .agent-context-version              ← Installed version (written by setup/update)
     ├── plugins.json                       ← Plugin configuration (shared)
     ├── decisions.json                     ← Architectural decisions (structured)
+    ├── memory-review-prompt.md            ← Memory review prompt (shared)
+    ├── decision-review-prompt.md          ← Decision review prompt (shared)
     ├── skills/
     │   └── index.md                       ← Skill registry (on-demand)
     └── memory/
@@ -157,7 +159,9 @@ your-project/
         ├── people.md                      ← Team members & stakeholders
         ├── preferences.md                 ← Agent behavior preferences
         ├── todo.md                        ← Current task plan
-        └── user.md                        ← Primary user profile
+        ├── user.md                        ← Primary user profile
+        ├── log.md                         ← Chronological activity log
+        └── index.md                       ← Memory file catalog
 ```
 
 ## Repository Structure
@@ -166,7 +170,6 @@ your-project/
 agent-context/
 ├── agents/            # Reusable agent configurations (copy to ~/.claude/agents/)
 ├── context/           # Shared agent context (copied to .agent-context/)
-├── scripts/           # Hook scripts (copied to .agent-context/scripts/)
 ├── templates/         # Project setup templates (copied once, never overwritten)
 ├── plugins.json       # Base plugin set for Claude Code
 ├── example.md         # Annotated example (Shopware 6 project)

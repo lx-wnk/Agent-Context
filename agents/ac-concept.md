@@ -125,8 +125,8 @@ Create a structured concept following the output template below.
 
 - Read code for analysis only — NEVER modify existing source files
 - Write only creates new documentation files (under `docs/concepts/` or equivalent)
-- Always develop at least 2 solution options
+- Develop at least 2 solution options
 - Effort estimates in person-days (PD), estimate realistically
 - Include buffer: +20% for unforeseen complexity
-- When requirements are unclear: ALWAYS ask rather than assume
+- When requirements are unclear: ask for clarification rather than assume
 - User stories in INVEST format (Independent, Negotiable, Valuable, Estimable, Small, Testable)
