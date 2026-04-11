@@ -40,20 +40,27 @@ When a `memory/<domain>.md` stub reaches 15 lines, expand it into a directory:
 
 ## Self-Improvement Loop
 
-> **MUST — Core agent responsibility.** Keeping memory current is not optional. Update the relevant file **immediately within the same session**, not "later".
+> **MUST — Non-negotiable.** Every trigger below MUST result in an immediate write — the very next action after the discovery, before continuing other work. Do not batch or defer.
 
 ### Triggers
 
+Save immediately when ANY of the following occurs:
+
 - **User correction** → update `memory/lessons.md` with the pattern and what went wrong
 - **User preference** → update `memory/preferences.md`
-- **Self-discovered insight** (unexpected behavior, gotcha found during debugging, undocumented API quirk) → update `memory/lessons.md`
+- **Self-discovered insight or technical discovery** (unexpected behavior, gotcha, undocumented API quirk, non-obvious format found during debugging or research) → update `memory/lessons.md` or relevant domain file
 - **Architecture or design decision** made or confirmed → update `decisions.json`
 - **New personal or team info** emerges → update `memory/user.md` or `memory/people.md`
+
+### When in Doubt, Save
+
+If you're unsure whether something is worth saving, ask: "Would a future session benefit from knowing this, and is it NOT discoverable from source code?" If yes — save it. Unnecessary entries can be cleaned up, but lost discoveries cannot be recovered.
 
 ### Session Routine
 
 - **Session start**: read `memory/lessons.md` + `memory/preferences.md` + `memory/todo.md` for relevant context and the active task plan
-- **Session end**: review whether any of the triggers above fired but were missed; if a significant decision or discovery occurred, append a one-line entry to `memory/log.md`
+- **During session**: triggers are handled inline (see directive above)
+- **Session end**: review whether any triggers fired but were missed; if a significant decision or discovery occurred, append a one-line entry to `memory/log.md`
 - **After 3+ memory updates**: scan for contradictions with existing entries before closing
 
 ### Lesson Graduation
