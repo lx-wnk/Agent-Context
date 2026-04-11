@@ -43,9 +43,11 @@ See Layer 0 → Domain Expansion for rules.
 | `decisions.json`    | Architectural decisions    | On-demand      |
 | `memory/people.md`  | Team & stakeholders        | On-demand      |
 
-## After You Finish
+## Save As You Go (Not After)
 
-> Update immediately — don't defer to a future session. See Layer 0 for full rules.
+> **Save the moment it happens** — not after finishing the task. Discoveries get lost if deferred. See Layer 0 → Self-Improvement Loop for full rules.
+
+When any of these occur, save IMMEDIATELY before continuing other work:
 
 1. User correction or self-discovered insight? → `memory/lessons.md`
 2. Architecture/design decision made? → `decisions.json`
