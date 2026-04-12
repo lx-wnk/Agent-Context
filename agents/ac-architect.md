@@ -1,6 +1,6 @@
 ---
 name: ac-architect
-description: "Architecture specialist. Delegates here for system-level and component-level architecture design and review — bounded contexts, module boundaries, dependency direction, ADRs, SOLID audits, pattern correctness, and aggregate integrity. Use when designing a new subsystem, auditing structural health, or making architectural decisions. Read-only for source code; may write ADRs and design docs under docs/architecture/."
+description: "Architecture specialist. Delegates here for system-level and component-level architecture design and review — bounded contexts, module boundaries, dependency direction, ADRs, SOLID audits, pattern correctness, and aggregate integrity. Use when designing a new subsystem, auditing structural health, or making architectural decisions. Read-only for source code; may write ADRs and design docs under docs/architecture/ and append entries to .agent-context/decisions.json."
 tools: Read, Glob, Grep, Bash, Write, WebFetch, WebSearch, Agent
 model: opus
 maxTurns: 30
