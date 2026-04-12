@@ -1,6 +1,6 @@
 ---
 name: ac-review
-description: "Code review specialist. Delegates here for PR reviews, code quality checks, architecture analysis, and security audits. Read-only — never modifies code. Use when reviewing changes before merge, auditing code quality, or checking for security issues."
+description: "Code review specialist. Delegates here for PR reviews, code quality checks, and security audits. For structural or architectural review delegate to ac-architect. Read-only — never modifies code. Use when reviewing changes before merge, auditing code quality, or checking for security issues."
 tools: Read, Glob, Grep, Bash, Agent
 model: opus
 maxTurns: 30
