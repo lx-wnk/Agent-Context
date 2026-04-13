@@ -53,25 +53,22 @@ For each file in the archive's `templates/` directory:
 
 This ensures both first-time setup and updates receive new template files introduced in later versions.
 
-## Step 4: Agent Sync
+## Step 4: Agent Plugin Check
 
-Update shared agents (prefixed `ac-`) in both global and project-local locations. Only update locations where `ac-*`
-agents already exist — do NOT install agents into a location that has none.
+Agents are no longer bundled in this repository. They live in a separate plugin: `agents@lx-wnk`
+(source: `https://github.com/lx-wnk/agents`).
 
-1. Check if the archive contains an `agents/` directory with `ac-*.md` files. If not, skip this step.
-2. Check **both** agent locations for existing `ac-*` files:
-   - `~/.claude/agents/` (global)
-   - `.claude/agents/` (project-local)
-3. For each location that **already contains at least one `ac-*` file**:
-   - Overwrite all existing `ac-*` files with versions from the archive
-   - Add any new `ac-*` files not yet present
-   - Never touch files without the `ac-` prefix (those are user-owned)
-4. If neither location has `ac-*` files, skip — agents are opt-in via setup.
+If this is a fresh setup and the user does not already have agents installed, offer to add the plugin:
+
+1. Check if `agents@lx-wnk` is already in `.agent-context/plugins.json`
+2. If not present, ask the user if they want to install the `agents@lx-wnk` plugin
+3. If yes: add `"agents@lx-wnk"` to `.agent-context/plugins.json`
+4. The plugin sync in Step 5 will then register it in Claude Code settings
 
 ## Step 5: Plugin Sync
 
 1. Read `.agent-context/plugins.json` (skip if missing)
-2. Read `.claude/settings.json` (create with `{}` if missing)
+2. Read `.claude/settings.json` (create empty if missing)
 3. For each plugin not already in `enabledPlugins`: add it with value `true`
 4. Never remove existing plugins
 
@@ -358,26 +355,22 @@ If `skills-lock.json` exists in the project root:
 2. Add `.agents/skills/` to `.gitignore`
 3. Keep `skills-lock.json` committed
 
-### Phase S6: Agent Installation (Claude Code only, optional)
+### Phase S6: Agent Plugin Installation (Claude Code only, optional)
 
-If the release archive contains an `agents/` directory with `ac-*.md` files, offer to install them. All shared agents
-use the `ac-` prefix (agent-context) and are designed to work with any project — they auto-detect tech stacks and use
-MCP tools only when available.
+Specialist agents (`ac-*`) are available via the `agents@lx-wnk` plugin at `https://github.com/lx-wnk/agents`. They are
+fully decoupled from `.agent-context/` and work in any project — they auto-detect tech stacks and use MCP tools only
+when available.
 
-1. List available `ac-*` agents and describe each one briefly (based on their `description` frontmatter)
-2. Ask the user which agents they want to install and where:
-   - `~/.claude/agents/` — available in all projects (global, recommended)
-   - `.claude/agents/` — available only in this project (project-specific)
-3. Copy selected agent files to the chosen location
-4. If the user wants project-specific customization: copy to `.claude/agents/` and suggest editing the system prompt to
-   match project conventions (e.g., add Shopware-specific rules to `ac-backend.md`). Follow the patterns documented in
-   `docs/best-practices-agent-creation.md` — especially: descriptions with "Use when..." triggers, minimal tool lists,
-   and the Role → Core Principle → Workflow → Output Format → Rules section order.
-5. For creating entirely new project-specific agents, reference `docs/best-practices-agent-creation.md` for the full
-   checklist (frontmatter design, prompt structure, anti-patterns).
+1. Ask the user if they want to install the specialist agent plugin
+2. If yes: add `"agents@lx-wnk"` to `.agent-context/plugins.json` (if not already present)
+3. Plugin sync (Step 5) will register it in Claude Code settings automatically
 
-**Do NOT overwrite** existing agent files with the same name unless the user explicitly confirms. New agents (not yet
-present) are added without confirmation.
+Available agents: `ac-analysis`, `ac-architect`, `ac-backend`, `ac-chrome`, `ac-concept`, `ac-debug`, `ac-discovery`,
+`ac-docs`, `ac-frontend`, `ac-performance`, `ac-research`, `ac-review`, `ac-testing`.
+
+For project-specific agent customization, install the plugin and then copy individual agent files from
+`~/.claude/plugins/cache/lx-wnk/agents/` to `.claude/agents/` — project-local copies override the plugin version.
+Follow the patterns in `docs/best-practices-agent-creation.md`.
 
 ### Phase S7: Cleanup & Verification
 

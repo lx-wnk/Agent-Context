@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Agent-Context is a layered, agent-agnostic context architecture for AI coding agents. All layers (0-3) load at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~200-250 lines. Detailed reference (skills, memory files) is pulled on-demand based on task keywords.
 
-This repository contains the framework itself: shared context files, agent configurations, templates, setup/update prompts, and documentation. It is **not** a runtime application — it's a template system installed into other projects via `.prompts/setup-prompt.md`.
+This repository contains the framework itself: shared context files, templates, setup/update prompts, and documentation. It is **not** a runtime application — it's a template system installed into other projects via `.prompts/setup-prompt.md`.
 
 ## Commands
 
@@ -26,7 +26,7 @@ There are no build, test, or lint commands beyond Prettier.
 
 Two categories of files, critical to understand before editing:
 
-- **Shared files** (`context/`, `agents/`, `plugins.json`): Overwritten on every auto-update in target projects. Changes here propagate to all installations.
+- **Shared files** (`context/`, `plugins.json`): Overwritten on every auto-update in target projects. Changes here propagate to all installations.
 - **Template files** (`templates/`): Copied once during setup, never overwritten. These become project-owned files.
 
 ### Layer System
@@ -44,17 +44,17 @@ Entry point is `AGENTS.md` → all layers load at startup via `@`-includes:
 
 ### Setup & Update Flow
 
-- **Setup & Update**: `.prompts/setup-prompt.md` — single prompt that auto-detects mode. SETUP: full installation with discovery. UPDATE: version check, shared file sync, agent/plugin sync.
+- **Setup & Update**: `.prompts/setup-prompt.md` — single prompt that auto-detects mode. SETUP: full installation with discovery. UPDATE: version check, shared file sync, plugin sync.
 
-### Agent Configurations (`agents/`)
+### Agent Plugin (`agents@lx-wnk`)
 
-12 pre-built agents, all prefixed `ac-`. Each is a YAML-frontmatter markdown file defining role, tools, model, and workflow. See `docs/best-practices-agent-creation.md` (German) for conventions:
+Specialist agents (`ac-*`) live in a **separate repository**: `https://github.com/lx-wnk/agents`. They are NOT part of
+this repo. The `agents/` directory has been removed — agents are installed via the `agents@lx-wnk` plugin entry in
+`plugins.json`.
 
-- One agent = one clear responsibility
-- Declare only tools actually used
-- MCP tools are always conditional ("if available")
-- Every workflow step needs a clear exit condition
-- Affirmative instructions over prohibitions
+Key design principle: agents are **zero-coupled** to `.agent-context/`. They detect tech stack from project manifests
+and receive project context via the delegating prompt. See `docs/best-practices-agent-creation.md` (German) for
+agent conventions.
 
 ## Key Conventions
 
