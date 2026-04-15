@@ -12,5 +12,6 @@
   "github@claude-plugins-official",
   "skill-creator@claude-plugins-official",
   "hookify@claude-plugins-official",
-  "playground@claude-plugins-official"
+  "playground@claude-plugins-official",
+  "agents@lx-wnk"
 ]
