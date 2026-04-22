@@ -25,6 +25,12 @@ The original `memory/cart.md` stays as an index pointing to sub-files.
 See Layer 0 → Domain Expansion for rules.
 -->
 
+## Knowledge Map
+
+External knowledge sources and task-based routing to project docs, architecture files, and other structured knowledge. Updated automatically on every agent run.
+
+@.agent-context/knowledge-map.md
+
 ## Skills Index
 
 @.agent-context/skills/index.md
