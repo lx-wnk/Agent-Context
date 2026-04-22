@@ -216,15 +216,30 @@ Put project-specific workflow rules in `layer2-project-core.md`, task routing in
 Launch **6 parallel subagents** to scan the project. All subagents are **mandatory** — every one MUST execute, none may
 be skipped. Running them in parallel maximizes speed.
 
-#### Subagent 1: Documentation Scanner
+#### Subagent 1: Documentation & Knowledge Scanner
 
-Scan for existing documentation files and summarize their content:
+Scan for all existing documentation and structured knowledge sources:
 
-- `CLAUDE.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md`
-- `.claude/rules/*.md`
-- `skills-lock.json`
+- Root-level markdown files: `CLAUDE.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`
+- `.claude/rules/*.md`, `skills-lock.json`
+- Any folder containing 3+ markdown or structured-data files (YAML, JSON, OpenAPI):
+  `docs/`, `architecture/`, `wiki/`, `api/`, `specs/`, `rfcs/`, `decisions/`, or similarly named directories
 
-Output: list of files found with summary of content per file.
+For each source found, output one structured finding:
+
+```json
+{
+  "source": "<relative-path>",
+  "size_lines": <line-count>,
+  "topic": "<inferred topic>",
+  "category_guess": "consolidate|reference|ignore",
+  "confidence": <0.0-1.0>,
+  "recommended_action": "consolidate|reference|ignore",
+  "sha256": "<sha256-of-file>"
+}
+```
+
+Apply Knowledge Decision Logic rules to determine `recommended_action` and `confidence`.
 
 #### Subagent 2: Project Identity & Stack
 
