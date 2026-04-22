@@ -1,5 +1,6 @@
 # Lessons Learned
 
-<!-- Format: - **[scope]** What happened — what we learned `conf:high|med|low` (YYYY-MM-DD) -->
-<!-- conf:high = proven 3+ times | conf:med = observed once/twice | conf:low = suspected -->
-<!-- The date enables staleness tracking. Always include it. -->
+<!-- Format: - **[scope]** Lesson (YYYY-MM-DD) ttl:VALUE source:SOURCE conf:LEVEL -->
+<!-- TTL: infinite (architecture/security) | 90d (gotchas/quirks) | 30d (sprint/temp) -->
+<!-- Source: user (user-confirmed) | discovered (agent-found) | external (from docs/code) -->
+<!-- Conf: high | med | low — used for contradiction resolution (higher conf wins) -->
