@@ -1,7 +1,7 @@
 # Knowledge Map
 
-> Universal knowledge index for this project. Maintained automatically by the agent — human edits will be overwritten on next trigger.
-> Updated immediately when knowledge sources change (see Layer 0 → Self-Improvement Loop).
+> Universal knowledge index for this project. Updated automatically by the agent when knowledge sources change — row-level edits only, other content is preserved.
+> See Layer 0 → Knowledge Map Triggers for the update rules.
 
 ## Task Routing
 

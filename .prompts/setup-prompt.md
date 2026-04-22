@@ -241,8 +241,8 @@ AGENTS.md                                PROJECT — customize freely
   .agent-context-version                 🔒 SHARED — written by setup/update
   memory-review-prompt.md               🔒 SHARED — do NOT modify (auto-updated)
   decision-review-prompt.md              🔒 SHARED — do NOT modify (auto-updated)
-  knowledge-map.md                       PROJECT — maintained by agent, never overwrite
-  setup-decisions.json                   PROJECT — maintained by agent, never overwrite
+  knowledge-map.md                       PROJECT — maintained by agent, never recreate from template
+  setup-decisions.json                   PROJECT — maintained by agent, never recreate from template
   decisions.json                         PROJECT — structured decisions (auto-reviewed)
   layer1-bootstrap.md                    PROJECT — customize freely
   layer2-project-core.md                 PROJECT — customize freely
@@ -510,6 +510,8 @@ Available agents: `ac-analysis`, `ac-architect`, `ac-backend`, `ac-chrome`, `ac-
 
 For project-specific agent customization, install the plugin and then copy individual agent files from `~/.claude/plugins/cache/lx-wnk/agents/` to `.claude/agents/` — project-local copies override the plugin version. Follow the patterns in `docs/best-practices-agent-creation.md`.
 
+> **Note:** Phase S7 (Knowledge Re-Sync) is UPDATE-only and does not run during SETUP. The knowledge-map.md is created in Phase S4. SETUP phases jump from S6 to S8.
+
 ### Phase S8: Cleanup & Verification
 
 **Cleanup:**
@@ -522,18 +524,17 @@ For project-specific agent customization, install the plugin and then copy indiv
 1. `AGENTS.md` exists with identity and layer references
 2. No `TODO` placeholders remain (except intentional ones)
 3. `wc -l AGENTS.md` < 45 lines
-4. `wc -l .agent-context/layer*.md` — each < 50 lines
-5. Check `.agent-context/memory/*.md` line counts — domain stubs < 15 lines each (skip `index.md` and `log.md`)
-6. **Token Budget Audit** — run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-context/memory/*.md` and report:
+4. Check `.agent-context/memory/*.md` line counts — domain stubs < 15 lines each (skip `index.md` and `log.md`)
+5. **Token Budget Audit** — run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-context/memory/*.md` and report:
    - Layer files ≥ 50 lines: flag as bloated
    - `knowledge-map.md` ≥ 100 lines: flag for cleanup
    - Memory files ≥ 500 lines: flag as skill graduation candidate
    - Include the audit table in the summary output (✅ / ⚠️ per file)
-7. No duplicated content across files
-8. `.claude/CLAUDE.md` points to `@AGENTS.md`
-9. **Migration audit checklist from Phase S3.5 is 100% checked off**
-10. `.agent-context/memory/log.md` and `.agent-context/memory/index.md` exist
-11. `.agent-context/memory-review-prompt.md` exists
+6. No duplicated content across files
+7. `.claude/CLAUDE.md` points to `@AGENTS.md`
+8. **Migration audit checklist from Phase S3.5 is 100% checked off**
+9. `.agent-context/memory/log.md` and `.agent-context/memory/index.md` exist
+10. `.agent-context/memory-review-prompt.md` exists
 
 **Summary:**
 
