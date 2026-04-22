@@ -20,12 +20,10 @@ Announce the detected mode to the user before proceeding.
    - **SETUP:** abort with an informative message — version selection is required
    - **UPDATE:** inform the user that releases could not be checked, skip to Step 5
 4. **UPDATE only:** If the current version already matches the latest stable release → inform the user and skip to Step 5
-5. Present the available versions to the user (mark which is current, which is latest stable, and label pre-releases as
-   `(pre-release)`)
+5. Present the available versions to the user (mark which is current, which is latest stable, and label pre-releases as `(pre-release)`)
 6. Ask the user which version to install — default is `latest stable`
 7. If the user declines → skip to Step 5
-8. Fetch the selected release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/tags/v<version>` and use
-   its `tarball_url`
+8. Fetch the selected release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/tags/v<version>` and use its `tarball_url`
 
 ## Step 2: Install Shared Files
 
@@ -55,8 +53,7 @@ This ensures both first-time setup and updates receive new template files introd
 
 ## Step 4: Agent Plugin Check
 
-Agents are no longer bundled in this repository. They live in a separate plugin: `agents@lx-wnk`
-(source: `https://github.com/lx-wnk/agents`).
+Agents are no longer bundled in this repository. They live in a separate plugin: `agents@lx-wnk` (source: `https://github.com/lx-wnk/agents`).
 
 If this is a fresh setup and the user does not already have agents installed, offer to add the plugin:
 
@@ -84,11 +81,139 @@ If any patterns are found, include them in the response as suggestions — never
 
 ---
 
+## Knowledge Decision Logic
+
+Used during Phase S2 (SETUP) and Step 7 (UPDATE) when processing discovered knowledge sources.
+
+### Auto-Decision (no user input required)
+
+Apply automatically when confidence ≥ 0.8:
+
+| Signal                                                     | Action                                        |
+| ---------------------------------------------------------- | --------------------------------------------- |
+| Size <30 lines AND maps cleanly to one layer               | Auto-route to target layer, no question       |
+| Size >100 lines OR file has a table of contents            | Auto → add to `knowledge-map.md` as reference |
+| Existing `setup-decisions.json` entry with matching SHA256 | Reuse previous decision silently              |
+
+### Requires Ack/Nack
+
+Ask the user when:
+
+- Confidence <0.8 OR content spans multiple layer categories
+- Two sources contain contradicting information about the same topic
+- A structured knowledge folder is discovered for the first time
+- Size is 30–100 lines AND category is ambiguous
+
+### Claude Code Interactive Mode
+
+Detected when `.claude/settings.json` exists **and** neither of the following signals is present: `CI=true` environment variable set, or the prompt was invoked with the `-p` flag (non-interactive / headless mode). If either signal is present, fall back to Plan-File Mode.
+
+Batch all pending Ack/Nack decisions into a single message:
+
+```
+I found the following — please confirm:
+1. docs/architecture.md → reference in knowledge-map (287 lines, structured)  [Ack/Nack]
+2. docs/api-guide.md    → reference in knowledge-map (412 lines, has TOC)     [Ack/Nack]
+3. CONTRIBUTING.md      → consolidate into layer2 (18 lines, conventions)     [Ack/Nack]
+```
+
+High-confidence auto-decisions are listed in the summary only — not asked.
+
+### Plan-File Mode (other agents / CI / headless)
+
+When not in Claude Code interactive mode, write `.agent-context/setup-plan.md` before executing:
+
+```markdown
+# Setup Plan — YYYY-MM-DD
+
+| #   | Source                     | Action      | Confidence | Status    |
+| --- | -------------------------- | ----------- | ---------- | --------- |
+| 1   | docs/architecture.md       | reference   | 0.91       | ✅ auto   |
+| 2   | CONTRIBUTING.md            | consolidate | 0.85       | ✅ auto   |
+| 3   | src/: conflict rule A vs B | keep rule A | 0.55       | ⏳ review |
+```
+
+User edits the Status column and re-runs the prompt to execute.
+
+### Decision Manifest
+
+After all decisions are made, write/update `.agent-context/setup-decisions.json`:
+
+```json
+{
+  "docs/architecture.md": {
+    "action": "reference",
+    "sha256": "<sha256-of-file-contents>",
+    "decided_at": "YYYY-MM-DD",
+    "source": "user-ack"
+  }
+}
+```
+
+Compute SHA256 with `sha256sum <file>` (Linux/Mac) or equivalent. Use today's date for `decided_at`.
+
+## Step 7: Knowledge Re-Sync (UPDATE mode)
+
+After updating shared files (Steps 1–6), re-synchronize all project knowledge:
+
+### 7a: Consolidated Fact Inventory
+
+Launch parallel subagents (same as SETUP Phase S2 Subagent 1) to scan:
+
+- Existing `.agent-context/` (all layers, memory/, decisions.json, skills/)
+- All root-level `*.md` files
+- Any folder containing 3+ markdown or structured-data files
+
+Check `.agent-context/setup-decisions.json` for existing decisions — skip sources with matching SHA256.
+
+For new or changed sources: apply Knowledge Decision Logic (Ack/Nack or plan-file).
+
+### 7b: Routing & Restructuring (additive-only)
+
+Route facts to their targets — **additive only, never overwrite existing content**:
+
+| Fact Type                   | Target                   | Rule                                                           |
+| --------------------------- | ------------------------ | -------------------------------------------------------------- |
+| Project-wide convention     | `layer2-project-core.md` | Append if keyword not already present                          |
+| Domain-specific fact        | `memory/<domain>.md`     | Append if keyword not already present                          |
+| Heavy reference (>30 lines) | `skills/<reference>.md`  | Create if skill does not exist                                 |
+| Gotcha / lesson             | `memory/lessons.md`      | Append with today's date, `ttl:90d source:discovered conf:med` |
+| Architecture decision       | `decisions.json`         | Append to JSON array if id not present                         |
+| External knowledge pointer  | `knowledge-map.md`       | Append row if source not already listed                        |
+
+Keyword check: search target file for 2–3 key terms from the fact. If found → skip. If not found → append.
+
+### 7c: Global Integrity Check
+
+For each fact/finding collected in 7a:
+
+1. Search for its 2–3 key terms across all `.agent-context/` files and `knowledge-map.md`
+2. If no match found → list as missing
+3. If any facts are missing: report them to the user, do NOT commit — ask how to resolve
+4. If all facts are accounted for → proceed
+
+### 7d: knowledge-map.md Update
+
+For each source with `action = "reference"`:
+
+- Update SHA256 and Last Verified if the file has changed
+- Add any new sources discovered since last run
+- Remove entries for sources that no longer exist
+
+Update `.agent-context/setup-decisions.json` with all new decisions.
+
+### 7e: Token Budget Audit
+
+Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-context/memory/*.md` and report:
+
+- Layer files ≥ 50 lines: flag as bloated
+- `knowledge-map.md` ≥ 100 lines: flag for cleanup
+- Memory files ≥ 500 lines: flag as skill graduation candidate
+- Include the audit table in the summary output (✅ / ⚠️ per file)
+
 ## UPDATE Mode: Done
 
-If in UPDATE mode, skip all remaining phases. Return `ok: true` with a brief summary (e.g. "Updated 0.1.1 → 0.1.2,
-synced 3 agents, synced 2 plugins" or "Already up to date" or "User declined update"). Always return `ok: true` — even
-on failure.
+If in UPDATE mode, skip all remaining phases. Return `ok: true` with a brief summary (e.g. "Updated 0.1.1 → 0.1.2, synced 3 agents, synced 2 plugins" or "Already up to date" or "User declined update"). Always return `ok: true` — even on failure.
 
 ---
 
@@ -116,6 +241,8 @@ AGENTS.md                                PROJECT — customize freely
   .agent-context-version                 🔒 SHARED — written by setup/update
   memory-review-prompt.md               🔒 SHARED — do NOT modify (auto-updated)
   decision-review-prompt.md              🔒 SHARED — do NOT modify (auto-updated)
+  knowledge-map.md                       PROJECT — maintained by agent, never recreate from template
+  setup-decisions.json                   PROJECT — maintained by agent, never recreate from template
   decisions.json                         PROJECT — structured decisions (auto-reviewed)
   layer1-bootstrap.md                    PROJECT — customize freely
   layer2-project-core.md                 PROJECT — customize freely
@@ -142,18 +269,32 @@ Put project-specific workflow rules in `layer2-project-core.md`, task routing in
 
 ### Phase S2: Discovery (Parallel Subagent Scan)
 
-Launch **6 parallel subagents** to scan the project. All subagents are **mandatory** — every one MUST execute, none may
-be skipped. Running them in parallel maximizes speed.
+Launch **6 parallel subagents** to scan the project. All subagents are **mandatory** — every one MUST execute, none may be skipped. Running them in parallel maximizes speed.
 
-#### Subagent 1: Documentation Scanner
+#### Subagent 1: Documentation & Knowledge Scanner
 
-Scan for existing documentation files and summarize their content:
+Scan for all existing documentation and structured knowledge sources:
 
-- `CLAUDE.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md`
-- `.claude/rules/*.md`
-- `skills-lock.json`
+- Root-level markdown files: `CLAUDE.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`
+- `.claude/rules/*.md`, `skills-lock.json`
+- Any folder containing 3+ markdown or structured-data files (YAML, JSON, OpenAPI):
+  `docs/`, `architecture/`, `wiki/`, `api/`, `specs/`, `rfcs/`, `decisions/`, or similarly named directories
 
-Output: list of files found with summary of content per file.
+For each source found, output one structured finding:
+
+```json
+{
+  "source": "<relative-path>",
+  "size_lines": <line-count>,
+  "topic": "<inferred topic>",
+  "category_guess": "consolidate|reference|ignore",
+  "confidence": <0.0-1.0>,
+  "recommended_action": "consolidate|reference|ignore",
+  "sha256": "<sha256-of-file>"
+}
+```
+
+Apply Knowledge Decision Logic rules to determine `recommended_action` and `confidence`.
 
 #### Subagent 2: Project Identity & Stack
 
@@ -245,9 +386,7 @@ For every piece of existing documentation, apply the **"Can the agent discover t
 
 ### Phase S3.5: Migration Audit (CRITICAL — prevents silent content loss)
 
-> This phase is the safety net. Shared files (layer0, base-principles) define a **generic** workflow. Projects often
-> have **project-specific** workflow rules that lived in the same files before migration. If you overwrite a shared file
-> or remove "general" content, you MUST verify nothing project-specific was lost.
+> This phase is the safety net. Shared files (layer0, base-principles) define a **generic** workflow. Projects often have **project-specific** workflow rules that lived in the same files before migration. If you overwrite a shared file or remove "general" content, you MUST verify nothing project-specific was lost.
 
 #### Step 1: Build a "before" inventory
 
@@ -296,18 +435,13 @@ Any item classified as "project-specific, NOT in shared files" must be placed in
 
 #### Step 4: Verify zero loss
 
-After all relocations, go through the checklist and confirm every item has a ✓. If any item is unchecked, it's a gap —
-fix it before proceeding.
+After all relocations, go through the checklist and confirm every item has a ✓. If any item is unchecked, it's a gap — fix it before proceeding.
 
 **Common traps to watch for:**
 
-- The new shared `layer0` is much shorter than the old one — it only covers Skill Lookup, Memory Rules, and
-  Self-Improvement. Old layer0 content like Plan-First, Subagent Strategy, Task Management, Verification must move to
-  `layer2-project-core.md`
-- `base-principles.md` says "present concrete options" but your project might have said "present up to 5 options" — keep
-  the project-specific detail
-- External skill installation commands (`npx skills experimental_install`) are project-specific, not covered by the
-  shared layer0's "Skill Lookup" section
+- The new shared `layer0` is much shorter than the old one — it only covers Skill Lookup, Memory Rules, and Self-Improvement. Old layer0 content like Plan-First, Subagent Strategy, Task Management, Verification must move to `layer2-project-core.md`
+- `base-principles.md` says "present concrete options" but your project might have said "present up to 5 options" — keep the project-specific detail
+- External skill installation commands (`npx skills experimental_install`) are project-specific, not covered by the shared layer0's "Skill Lookup" section
 - "Unit tests for all new implementations" is a project policy, not general LLM knowledge
 
 ### Phase S4: Fill Layers & Migrate Content
@@ -316,8 +450,7 @@ Replace `TODO` placeholders with discovered + user-provided information:
 
 - **`AGENTS.md`**: Project name, tech stack, Docker container, 3-5 quick rules
 - **`layer1-bootstrap.md`**: Identity, Docker exec pattern, domains, excluded dirs
-- **`layer2-project-core.md`**: Non-linter conventions, critical rules, testing strategy, commit convention, **workflow
-  rules rescued from Phase S3.5**
+- **`layer2-project-core.md`**: Non-linter conventions, critical rules, testing strategy, commit convention, **workflow rules rescued from Phase S3.5**
 - **`layer3-guidebook.md`**: Task-routing table, skills index, memory file index
 
 For existing documentation found in Phase S2, route surviving content:
@@ -334,9 +467,19 @@ For existing documentation found in Phase S2, route surviving content:
 
 Each fact in exactly ONE place. No duplicates.
 
-**Important:** Do NOT create memory files for general programming principles (KISS, YAGNI, DRY, SOLID, Clean Code). LLMs
-already know these — adding them wastes context budget and reduces performance. Only store knowledge that is **specific
-to this project** and **not discoverable from the code**.
+#### knowledge-map.md
+
+After filling all layers, create or update `.agent-context/knowledge-map.md`:
+
+1. For every source from Subagent 1 with `recommended_action = "reference"` (after Ack/Nack decisions):
+   - Add a row to **Knowledge Sources** table: source path, inferred topic, format, sha256, today's date
+   - If a clear task type can be determined: add a row to **Task Routing** table
+   - Otherwise: add a `<!-- TODO: add task type for this source -->` comment after the row
+2. Write/update `.agent-context/setup-decisions.json` with all decisions (auto + user-confirmed)
+
+Do not modify any source file — the map is a pointer index only.
+
+**Important:** Do NOT create memory files for general programming principles (KISS, YAGNI, DRY, SOLID, Clean Code). LLMs already know these — adding them wastes context budget and reduces performance. Only store knowledge that is **specific to this project** and **not discoverable from the code**.
 
 ### Phase S5: Project Skills Discovery
 
@@ -357,22 +500,19 @@ If `skills-lock.json` exists in the project root:
 
 ### Phase S6: Agent Plugin Installation (Claude Code only, optional)
 
-Specialist agents (`ac-*`) are available via the `agents@lx-wnk` plugin at `https://github.com/lx-wnk/agents`. They are
-fully decoupled from `.agent-context/` and work in any project — they auto-detect tech stacks and use MCP tools only
-when available.
+Specialist agents (`ac-*`) are available via the `agents@lx-wnk` plugin at `https://github.com/lx-wnk/agents`. They are fully decoupled from `.agent-context/` and work in any project — they auto-detect tech stacks and use MCP tools only when available.
 
 1. Ask the user if they want to install the specialist agent plugin
 2. If yes: add `"agents@lx-wnk"` to `.agent-context/plugins.json` (if not already present)
 3. Plugin sync (Step 5) will register it in Claude Code settings automatically
 
-Available agents: `ac-analysis`, `ac-architect`, `ac-backend`, `ac-chrome`, `ac-concept`, `ac-debug`, `ac-discovery`,
-`ac-docs`, `ac-frontend`, `ac-performance`, `ac-research`, `ac-review`, `ac-testing`.
+Available agents: `ac-analysis`, `ac-architect`, `ac-backend`, `ac-chrome`, `ac-concept`, `ac-debug`, `ac-discovery`, `ac-docs`, `ac-frontend`, `ac-performance`, `ac-research`, `ac-review`, `ac-testing`.
 
-For project-specific agent customization, install the plugin and then copy individual agent files from
-`~/.claude/plugins/cache/lx-wnk/agents/` to `.claude/agents/` — project-local copies override the plugin version.
-Follow the patterns in `docs/best-practices-agent-creation.md`.
+For project-specific agent customization, install the plugin and then copy individual agent files from `~/.claude/plugins/cache/lx-wnk/agents/` to `.claude/agents/` — project-local copies override the plugin version. Follow the patterns in `docs/best-practices-agent-creation.md`.
 
-### Phase S7: Cleanup & Verification
+> **Note:** Phase S7 (Knowledge Re-Sync) is UPDATE-only and does not run during SETUP. The knowledge-map.md is created in Phase S4. SETUP phases jump from S6 to S8.
+
+### Phase S8: Cleanup & Verification
 
 **Cleanup:**
 
@@ -384,8 +524,12 @@ Follow the patterns in `docs/best-practices-agent-creation.md`.
 1. `AGENTS.md` exists with identity and layer references
 2. No `TODO` placeholders remain (except intentional ones)
 3. `wc -l AGENTS.md` < 45 lines
-4. `wc -l .agent-context/layer*.md` — each < 50 lines
-5. Check `.agent-context/memory/*.md` line counts — domain stubs < 15 lines each (skip `index.md` and `log.md`)
+4. Check `.agent-context/memory/*.md` line counts — domain stubs < 15 lines each (skip `index.md` and `log.md`)
+5. **Token Budget Audit** — run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-context/memory/*.md` and report:
+   - Layer files ≥ 50 lines: flag as bloated
+   - `knowledge-map.md` ≥ 100 lines: flag for cleanup
+   - Memory files ≥ 500 lines: flag as skill graduation candidate
+   - Include the audit table in the summary output (✅ / ⚠️ per file)
 6. No duplicated content across files
 7. `.claude/CLAUDE.md` points to `@AGENTS.md`
 8. **Migration audit checklist from Phase S3.5 is 100% checked off**
@@ -394,13 +538,14 @@ Follow the patterns in `docs/best-practices-agent-creation.md`.
 
 **Summary:**
 
-| Metric                 | Before | After |
-| ---------------------- | ------ | ----- |
-| Always-loaded lines    | X      | Y     |
-| On-demand lines        | 0      | Z     |
-| Number of source files | X      | —     |
-| Number of target files | —      | Y     |
-| Migration audit items  | N      | N ✓   |
+| Metric                             | Before | After |
+| ---------------------------------- | ------ | ----- |
+| Always-loaded lines                | X      | Y     |
+| On-demand lines                    | 0      | Z     |
+| Number of source files             | X      | —     |
+| Number of target files (incl. map) | —      | Y     |
+| `knowledge-map.md` entries         | —      | N     |
+| Migration audit items              | N      | N ✓   |
 
 Inform the user to restart their agent session for the new configuration to take effect.
 
@@ -422,5 +567,4 @@ Inform the user to restart their agent session for the new configuration to take
 - **One fact, one place:** No duplication across files
 - **No over-engineering:** Skip skills if total content < ~200 lines, skip memory stubs if domain < ~30 lines
 - **Preserve knowledge:** Nothing gets deleted — it gets routed, filtered, or promoted to code
-- **Audit before overwrite:** Always run Phase S3.5 before overwriting shared files in existing projects — the new shared
-  files are generic and will silently drop project-specific workflow rules
+- **Audit before overwrite:** Always run Phase S3.5 before overwriting shared files in existing projects — the new shared files are generic and will silently drop project-specific workflow rules
