@@ -534,21 +534,27 @@ Follow the patterns in `docs/best-practices-agent-creation.md`.
 3. `wc -l AGENTS.md` < 45 lines
 4. `wc -l .agent-context/layer*.md` — each < 50 lines
 5. Check `.agent-context/memory/*.md` line counts — domain stubs < 15 lines each (skip `index.md` and `log.md`)
-6. No duplicated content across files
-7. `.claude/CLAUDE.md` points to `@AGENTS.md`
-8. **Migration audit checklist from Phase S3.5 is 100% checked off**
-9. `.agent-context/memory/log.md` and `.agent-context/memory/index.md` exist
-10. `.agent-context/memory-review-prompt.md` exists
+6. **Token Budget Audit** — run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-context/memory/*.md` and report:
+   - Layer files ≥ 50 lines: flag as bloated
+   - `knowledge-map.md` ≥ 100 lines: flag for cleanup
+   - Memory files ≥ 500 lines: flag as skill graduation candidate
+   - Include the audit table in the summary output (✅ / ⚠️ per file)
+7. No duplicated content across files
+8. `.claude/CLAUDE.md` points to `@AGENTS.md`
+9. **Migration audit checklist from Phase S3.5 is 100% checked off**
+10. `.agent-context/memory/log.md` and `.agent-context/memory/index.md` exist
+11. `.agent-context/memory-review-prompt.md` exists
 
 **Summary:**
 
-| Metric                 | Before | After |
-| ---------------------- | ------ | ----- |
-| Always-loaded lines    | X      | Y     |
-| On-demand lines        | 0      | Z     |
-| Number of source files | X      | —     |
-| Number of target files | —      | Y     |
-| Migration audit items  | N      | N ✓   |
+| Metric                             | Before | After |
+| ---------------------------------- | ------ | ----- |
+| Always-loaded lines                | X      | Y     |
+| On-demand lines                    | 0      | Z     |
+| Number of source files             | X      | —     |
+| Number of target files (incl. map) | —      | Y     |
+| `knowledge-map.md` entries         | —      | N     |
+| Migration audit items              | N      | N ✓   |
 
 Inform the user to restart their agent session for the new configuration to take effect.
 
