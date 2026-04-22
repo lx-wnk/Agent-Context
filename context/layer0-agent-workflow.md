@@ -63,6 +63,17 @@ If you're unsure whether something is worth saving, ask: "Would a future session
 - **Session end**: review whether any triggers fired but were missed; if a significant decision or discovery occurred, append a one-line entry to `memory/log.md`
 - **After 3+ memory updates**: scan for contradictions with existing entries before closing
 
+### Knowledge Map Triggers
+
+Update `.agent-context/knowledge-map.md` immediately when any of the following occurs — same non-negotiable rule as all other triggers (next action after discovery, before continuing):
+
+| Event                                              | Action                                                   |
+| -------------------------------------------------- | -------------------------------------------------------- |
+| External file changed (SHA256 mismatch detected)   | Update SHA256 + Last Verified in Knowledge Sources table |
+| New structured knowledge file or folder discovered | Add entry to Knowledge Sources + add row to Task Routing |
+| Task type used but no routing row exists for it    | Add routing row to Task Routing based on current task    |
+| Knowledge source no longer exists                  | Remove entry from Knowledge Sources table                |
+
 ### Lesson Graduation
 
 When a lesson has proven itself (applied 3+ times, never questioned), suggest promoting it:
