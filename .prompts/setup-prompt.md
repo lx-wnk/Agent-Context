@@ -420,6 +420,18 @@ For existing documentation found in Phase S2, route surviving content:
 
 Each fact in exactly ONE place. No duplicates.
 
+#### knowledge-map.md
+
+After filling all layers, create or update `.agent-context/knowledge-map.md`:
+
+1. For every source from Subagent 1 with `recommended_action = "reference"` (after Ack/Nack decisions):
+   - Add a row to **Knowledge Sources** table: source path, inferred topic, format, sha256, today's date
+   - If a clear task type can be determined: add a row to **Task Routing** table
+   - Otherwise: add a `<!-- TODO: add task type for this source -->` comment after the row
+2. Write/update `.agent-context/setup-decisions.json` with all decisions (auto + user-confirmed)
+
+Do not modify any source file — the map is a pointer index only.
+
 **Important:** Do NOT create memory files for general programming principles (KISS, YAGNI, DRY, SOLID, Clean Code). LLMs
 already know these — adding them wastes context budget and reduces performance. Only store knowledge that is **specific
 to this project** and **not discoverable from the code**.
