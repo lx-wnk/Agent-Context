@@ -46,7 +46,6 @@ context/layer0-agent-workflow.md  →──    .agent-context/layer0-agent-workf
 context/base-principles.md        →──    .agent-context/base-principles.md (overwritable)
 plugins.json                      →──    .agent-context/plugins.json (overwritable)
 templates/*                       →──    AGENTS.md, layer1-3, memory/ (project-owned)
-agents/*.md                       →──    ~/.claude/agents/ or .claude/agents/ (user choice)
 ```
 
 **Overwritable** files are updated on every release. **Project-owned** files are created once and never overwritten. The
@@ -113,24 +112,19 @@ Total baseline: ~200-250 lines. Heavy reference (skills, memory) is loaded only 
 
 ### Quick Start
 
-Run this in your project directory:
+Run this one-liner from your project root — `--allowedTools` pre-approves all required tools so the setup runs
+unattended:
 
 ```bash
-claude -p "Fetch https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/.prompts/setup-prompt.md and follow its instructions exactly."
+claude -p "Fetch https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/.prompts/setup-prompt.md and follow its instructions exactly." \
+    --allowedTools "Edit,Write,Read,Bash,Glob,Grep,WebFetch,WebSearch,Agent" || true
 ```
-
-Or paste the contents of [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) manually into a Claude Code session.
 
 Claude analyzes existing documentation, applies quality filters, discovers your tech stack, and creates the
 architecture. Restart your session afterwards — the new configuration takes effect on the next start.
 
-**Fire-and-forget (Claude Code):** Run this one-liner from your project root if you don't want to confirm each tool
-usage interactively — `--allowedTools` pre-approves all required tools so the setup runs unattended:
-
-```bash
-claude -p "Fetch https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/.prompts/setup-prompt.md and follow its instructions exactly." \
-    --allowedTools "Edit,Write,Read,Bash,Glob,Grep,WebFetch,WebSearch,Agent"
-```
+Or paste the contents of [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) manually into a Claude Code session
+if you prefer to confirm each step.
 
 ### What Gets Created
 
@@ -168,7 +162,6 @@ your-project/
 
 ```
 agent-context/
-├── agents/            # Reusable agent configurations (copy to ~/.claude/agents/)
 ├── context/           # Shared agent context (copied to .agent-context/)
 ├── templates/         # Project setup templates (copied once, never overwritten)
 ├── plugins.json       # Base plugin set for Claude Code
@@ -179,43 +172,8 @@ agent-context/
 
 ## Agents
 
-Pre-built, generalized agent configurations for Claude Code in the [`agents/`](agents/) directory. All agents use the
-`ac-` prefix (agent-context) to identify them as shared defaults. Each agent is a `.md` file with YAML frontmatter that
-defines its role, tools, and behavior.
-
-| Agent            | Model  | Purpose                                                                        |
-| ---------------- | ------ | ------------------------------------------------------------------------------ |
-| `ac-review`      | Opus   | Comprehensive code review (quality, architecture, security) — read-only        |
-| `ac-frontend`    | Opus   | Frontend development with optional Figma, browser, and docs MCP tools          |
-| `ac-backend`     | Opus   | Backend development — auto-detects tech stack (PHP, Node, Python, Go, etc.)    |
-| `ac-concept`     | Opus   | Technical concepts, estimates, and user stories                                |
-| `ac-chrome`      | Sonnet | Chrome browser automation, screenshots, GIF recording                          |
-| `ac-testing`     | Sonnet | Test writing, TDD workflows, coverage improvement                              |
-| `ac-debug`       | Opus   | Systematic root cause analysis with max effort                                 |
-| `ac-performance` | Opus   | Performance audits, profiling, bottleneck analysis (USE/RED/Golden Signals)    |
-| `ac-discovery`   | Opus   | Codebase mapping, architecture tracing, onboarding into unfamiliar projects    |
-| `ac-analysis`    | Opus   | Impact analysis, dependency tracing, risk assessment, tech debt evaluation     |
-| `ac-research`    | Opus   | Technology evaluation, best practice research, security vulnerability research |
-| `ac-docs`        | Sonnet | Documentation maintenance and agent-context knowledge base                     |
-
-All agents respond in the user's language. MCP tools (JetBrains, Figma, Playwright, etc.) are used when available but
-not required — agents adapt to whatever tools the user has configured.
-
-### Installation
-
-Copy the agents you want to `~/.claude/agents/` (global) or `.claude/agents/` (project-specific):
-
-```bash
-# All agents globally
-cp agents/ac-*.md ~/.claude/agents/
-
-# Single agent for a specific project
-mkdir -p .claude/agents
-cp agents/ac-backend.md .claude/agents/
-```
-
-**Overriding:** Create a project-specific agent with the same `ac-` name to override the shared default, or create
-agents without the prefix for project-specific roles (e.g., `shopware-backend.md`).
+Specialist agents (`ac-*`) are distributed as the [`agents@lx-wnk`](https://github.com/lx-wnk/agents) plugin —
+installed automatically via `plugins.json`. See the plugin repo for the full agent list and documentation.
 
 ## Example
 
@@ -226,8 +184,9 @@ prose — shared files link back to `context/`, project-owned files explain what
 
 ### 1. "Can the agent discover this by reading the code?"
 
-Based on the [ETH Zurich study (2026)](https://arxiv.org/abs/2602.11988): auto-generated context files reduce agent
-performance by ~3%. Only include information that is **not discoverable** from source code.
+Based on the [ETH Zurich study (2026)](https://arxiv.org/abs/2602.11988): auto-generated context files tend to
+**reduce** task success rates while increasing token cost by over 20%. Only include information that is **not
+discoverable** from source code.
 
 **Keep:** Gotchas, non-linter conventions, architecture decisions, external system references, CI workflows. **Remove:**
 Directory trees, entity fields, route tables, service registrations, dependency lists.
@@ -254,22 +213,34 @@ trigger keywords match. This achieves near-zero baseline cost for heavy document
 
 After creating a [GitHub Release](https://github.com/lx-wnk/Agent-Context/releases), projects update automatically: on
 the next session start, the agent fetches the setup prompt from remote (UPDATE mode), checks the Releases API, detects the version
-difference, downloads the release, and overwrites the 🔒 shared files. Project-owned files are never touched. If the API
+difference, downloads the release, and overwrites the shared files. Project-owned files are never touched. If the API
 is unreachable, the agent continues silently.
 
 ## Research & References
 
+### Core Papers
+
 - [ETH Zurich: Evaluating AGENTS.md (arxiv 2602.11988)](https://arxiv.org/abs/2602.11988) — Empirical evaluation of
-  context files across coding agents
-- [Addy Osmani: Stop Using /init for AGENTS.md](https://addyosmani.com/blog/agents-md/) — The "discoverable?" filter
-- [Context Engineering for AI Agents — Anthropic](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
-- [Context Engineering for Coding Agents — Martin Fowler](https://martinfowler.com/articles/exploring-gen-ai/context-engineering-coding-agents.html)
-- [Want better AI outputs? Try context engineering — GitHub Blog](https://github.blog/ai-and-ml/generative-ai/want-better-ai-outputs-try-context-engineering/)
-- [AGENTS.md specification](https://agents.md/) — Open standard for agent instructions
+  context files across coding agents; finds auto-generated context tends to reduce task success rates while increasing token cost by 20%+
+- [Empirical Study of CLAUDE.md Files (arxiv 2509.14744)](https://arxiv.org/abs/2509.14744) — Analysis of 253 CLAUDE.md files across 242 repositories; validates layered hierarchy design; identifies dominant content categories (Build/Run, Implementation Details, Architecture)
+- [Lost in the Middle: How LLMs Use Long Contexts (arxiv 2307.03172)](https://arxiv.org/abs/2307.03172) — Foundational paper on U-shaped position bias; explains why critical constraints belong at the top of context files, not the middle
+- [Agentic Context Engineering (arxiv 2510.04618)](https://arxiv.org/abs/2510.04618) — Treats context as an evolving playbook refined through generation, reflection, and curation; directly relevant to the memory self-improvement loop
+
+### Engineering & Best Practices
+
+- [Addy Osmani: Stop Using /init for AGENTS.md](https://addyosmani.com/blog/agents-md/) — The "discoverable?" filter for what belongs in context files
+- [Anthropic: Effective Context Engineering for AI Agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) — Authoritative guide on context design for agentic systems
+- [Anthropic: How We Built Our Multi-Agent Research System](https://www.anthropic.com/engineering/multi-agent-research-system) — Orchestrator/subagent patterns; multi-agent outperformed single-agent Claude Opus 4 by 90%+ on internal evals
+- [Anthropic: Effective Harnesses for Long-Running Agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) — Structured environments for multi-session tasks; relevant to setup/update prompt design
+- [Context Engineering for Coding Agents — Thoughtworks](https://martinfowler.com/articles/exploring-gen-ai/context-engineering-coding-agents.html) — Practical framing of context engineering for coding workflows (Birgitta Böckeler, published on martinfowler.com)
+- [Want better AI outputs? Try context engineering — GitHub Blog](https://github.blog/ai-and-ml/generative-ai/want-better-ai-outputs-try-context-engineering/) — Accessible overview of context engineering concepts
+
+### Standards & Docs
+
+- [AGENTS.md specification](https://agents.md/) — Open standard for agent instructions, stewarded by the Agentic AI Foundation (Linux Foundation)
 - [Claude Code: Best Practices](https://code.claude.com/docs/en/best-practices)
 - [Claude Code: Skills](https://code.claude.com/docs/en/skills)
-- [Agent Creation Best Practices](docs/best-practices-agent-creation.md) — Comprehensive guide for creating custom agent
-  configurations (German)
+- [Agent Creation Best Practices](docs/best-practices-agent-creation.md) — Comprehensive guide for creating custom agent configurations (German)
 
 ## License
 
