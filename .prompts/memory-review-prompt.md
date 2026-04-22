@@ -24,13 +24,17 @@ Work efficiently — report errors immediately, output the final summary at the 
 
 For each memory entry that has a date (format `YYYY-MM-DD`):
 
-| Age         | Action                                                        |
-| ----------- | ------------------------------------------------------------- |
-| < 90 days   | Keep — still fresh                                            |
-| 90-180 days | Flag as **stale** — include in summary for user review        |
-| > 180 days  | Flag as **archive candidate** — suggest removal or graduation |
+1. Extract inline TTL marker if present (e.g., `ttl:90d`, `ttl:infinite`, `ttl:30d`)
+2. Apply TTL rules:
 
-Entries without dates: flag as **undated** in summary (suggest adding a date).
+| TTL                        | Rule                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------- |
+| `ttl:infinite`             | Never expires — skip staleness check                                                  |
+| `ttl:Nd` (e.g., `ttl:90d`) | Flag as **archive candidate** when (date + N days) < today                            |
+| No TTL present             | Apply defaults: <90 days keep, 90-180 days **stale**, >180 days **archive candidate** |
+
+3. Entries without dates: flag as **undated** in summary (suggest adding date + TTL).
+4. On contradiction between two entries with conflicting facts: flag as **conflict** — include both in summary. Higher `conf:` value wins; equal conf requires user resolution.
 
 ## Step 3: Duplicate Detection
 
