@@ -27,11 +27,11 @@ For each memory entry that has a date (format `YYYY-MM-DD`):
 1. Extract inline TTL marker if present (e.g., `ttl:90d`, `ttl:infinite`, `ttl:30d`)
 2. Apply TTL rules:
 
-| TTL                        | Rule                                                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------- |
-| `ttl:infinite`             | Never expires — skip staleness check                                                  |
-| `ttl:Nd` (e.g., `ttl:90d`) | Flag as **archive candidate** when (date + N days) < today                            |
-| No TTL present             | Apply defaults: <90 days keep, 90-180 days **stale**, >180 days **archive candidate** |
+| TTL                        | Rule                                                                                                            |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `ttl:infinite`             | Never expires — skip staleness check                                                                            |
+| `ttl:Nd` (e.g., `ttl:90d`) | Flag as **stale** when (date + 0.75×N days) < today; flag as **archive candidate** when (date + N days) < today |
+| No TTL present             | Apply defaults: <90 days keep, 90-180 days **stale**, >180 days **archive candidate**                           |
 
 3. Entries without dates: flag as **undated** in summary (suggest adding date + TTL).
 
