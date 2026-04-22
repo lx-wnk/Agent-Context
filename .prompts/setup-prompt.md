@@ -84,6 +84,77 @@ If any patterns are found, include them in the response as suggestions — never
 
 ---
 
+## Knowledge Decision Logic
+
+Used during Phase S2 (SETUP) and Step 7 (UPDATE) when processing discovered knowledge sources.
+
+### Auto-Decision (no user input required)
+
+Apply automatically when confidence ≥ 0.8:
+
+| Signal                                                     | Action                                        |
+| ---------------------------------------------------------- | --------------------------------------------- |
+| Size <30 lines AND maps cleanly to one layer               | Auto-route to target layer, no question       |
+| Size >100 lines OR file has a table of contents            | Auto → add to `knowledge-map.md` as reference |
+| Existing `setup-decisions.json` entry with matching SHA256 | Reuse previous decision silently              |
+
+### Requires Ack/Nack
+
+Ask the user when:
+
+- Confidence <0.8 OR content spans multiple layer categories
+- Two sources contain contradicting information about the same topic
+- A structured knowledge folder is discovered for the first time
+- Size is 30–100 lines AND category is ambiguous
+
+### Claude Code Interactive Mode
+
+Detected when `.claude/settings.json` exists and the session is interactive (not headless/CI).
+
+Batch all pending Ack/Nack decisions into a single message:
+
+```
+I found the following — please confirm:
+1. docs/architecture.md → reference in knowledge-map (287 lines, structured)  [Ack/Nack]
+2. docs/api-guide.md    → reference in knowledge-map (412 lines, has TOC)     [Ack/Nack]
+3. CONTRIBUTING.md      → consolidate into layer2 (18 lines, conventions)     [Ack/Nack]
+```
+
+High-confidence auto-decisions are listed in the summary only — not asked.
+
+### Plan-File Mode (other agents / CI / headless)
+
+When not in Claude Code interactive mode, write `.agent-context/setup-plan.md` before executing:
+
+```markdown
+# Setup Plan — YYYY-MM-DD
+
+| #   | Source                     | Action      | Confidence | Status    |
+| --- | -------------------------- | ----------- | ---------- | --------- |
+| 1   | docs/architecture.md       | reference   | 0.91       | ✅ auto   |
+| 2   | CONTRIBUTING.md            | consolidate | 0.85       | ✅ auto   |
+| 3   | src/: conflict rule A vs B | keep rule A | 0.55       | ⏳ review |
+```
+
+User edits the Status column and re-runs the prompt to execute.
+
+### Decision Manifest
+
+After all decisions are made, write/update `.agent-context/setup-decisions.json`:
+
+```json
+{
+  "docs/architecture.md": {
+    "action": "reference",
+    "sha256": "<sha256-of-file-contents>",
+    "decided_at": "YYYY-MM-DD",
+    "source": "user-ack"
+  }
+}
+```
+
+Compute SHA256 with `sha256sum <file>` (Linux/Mac) or equivalent. Use today's date for `decided_at`.
+
 ## UPDATE Mode: Done
 
 If in UPDATE mode, skip all remaining phases. Return `ok: true` with a brief summary (e.g. "Updated 0.1.1 → 0.1.2,
