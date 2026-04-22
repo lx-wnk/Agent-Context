@@ -1,6 +1,6 @@
 # Agent-Context Optimizations Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Transform the Agent-Context framework into a self-maintaining, knowledge-preserving system that synchronizes every project installation to "optimum" on every update.
 
@@ -35,12 +35,12 @@
 
 - Create: `templates/.agent-context/knowledge-map.md`
 
-- [ ] **Step 1: Verify file does not exist**
+- [x] **Step 1: Verify file does not exist**
 
 Run: `ls templates/.agent-context/knowledge-map.md 2>&1`
 Expected: `No such file or directory`
 
-- [ ] **Step 2: Create the file**
+- [x] **Step 2: Create the file**
 
 Write exactly this content to `templates/.agent-context/knowledge-map.md`:
 
@@ -72,17 +72,17 @@ Write exactly this content to `templates/.agent-context/knowledge-map.md`:
 -->
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Run: `grep -c "Knowledge Sources" templates/.agent-context/knowledge-map.md`
 Expected: `1`
 
-- [ ] **Step 4: Format**
+- [x] **Step 4: Format**
 
 Run: `npm run prettier`
 Expected: All files pass
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add templates/.agent-context/knowledge-map.md
@@ -97,12 +97,12 @@ git commit -m "feat: add knowledge-map.md template for universal knowledge point
 
 - Modify: `context/layer0-agent-workflow.md`
 
-- [ ] **Step 1: Verify the section to modify**
+- [x] **Step 1: Verify the section to modify**
 
 Run: `grep -n "Lesson Graduation" context/layer0-agent-workflow.md`
 Expected: a line number (e.g., `68:## Lesson Graduation`)
 
-- [ ] **Step 2: Insert Knowledge Map Triggers section**
+- [x] **Step 2: Insert Knowledge Map Triggers section**
 
 In `context/layer0-agent-workflow.md`, locate the `## Lesson Graduation` section. Insert the following block **immediately before** it (after the empty line that follows the Session Routine section):
 
@@ -119,22 +119,22 @@ Update `.agent-context/knowledge-map.md` immediately when any of the following o
 | Knowledge source no longer exists                  | Remove entry from Knowledge Sources table                |
 ```
 
-- [ ] **Step 3: Verify insertion**
+- [x] **Step 3: Verify insertion**
 
 Run: `grep -n "Knowledge Map Triggers" context/layer0-agent-workflow.md`
 Expected: a line number
 
-- [ ] **Step 4: Check line count stays reasonable**
+- [x] **Step 4: Check line count stays reasonable**
 
 Run: `wc -l context/layer0-agent-workflow.md`
 Expected: under 145 lines
 
-- [ ] **Step 5: Format**
+- [x] **Step 5: Format**
 
 Run: `npm run prettier`
 Expected: All files pass
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add context/layer0-agent-workflow.md
@@ -149,12 +149,12 @@ git commit -m "feat: add knowledge-map triggers to layer0 self-improvement loop"
 
 - Modify: `templates/.agent-context/layer3-guidebook.md`
 
-- [ ] **Step 1: Verify current Skills Index section**
+- [x] **Step 1: Verify current Skills Index section**
 
 Run: `grep -n "Skills Index" templates/.agent-context/layer3-guidebook.md`
 Expected: a line number
 
-- [ ] **Step 2: Insert knowledge-map pointer**
+- [x] **Step 2: Insert knowledge-map pointer**
 
 In `templates/.agent-context/layer3-guidebook.md`, find the line:
 
@@ -172,17 +172,17 @@ External knowledge sources and task-based routing to project docs, architecture 
 @.agent-context/knowledge-map.md
 ```
 
-- [ ] **Step 3: Verify insertion**
+- [x] **Step 3: Verify insertion**
 
 Run: `grep -n "knowledge-map" templates/.agent-context/layer3-guidebook.md`
 Expected: a line containing `@.agent-context/knowledge-map.md`
 
-- [ ] **Step 4: Format**
+- [x] **Step 4: Format**
 
 Run: `npm run prettier`
 Expected: All files pass
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add templates/.agent-context/layer3-guidebook.md
@@ -199,13 +199,13 @@ git commit -m "feat: add knowledge-map pointer to layer3-guidebook template"
 - Modify: `templates/.agent-context/memory/preferences.md`
 - Modify: `templates/.agent-context/memory/people.md`
 
-- [ ] **Step 1: Check current content of all three files**
+- [x] **Step 1: Check current content of all three files**
 
 Run: `cat templates/.agent-context/memory/lessons.md`
 Run: `cat templates/.agent-context/memory/preferences.md`
 Run: `cat templates/.agent-context/memory/people.md`
 
-- [ ] **Step 2: Replace lessons.md**
+- [x] **Step 2: Replace lessons.md**
 
 Write exactly this content to `templates/.agent-context/memory/lessons.md`:
 
@@ -218,7 +218,7 @@ Write exactly this content to `templates/.agent-context/memory/lessons.md`:
 <!-- Conf: high | med | low — used for contradiction resolution (higher conf wins) -->
 ```
 
-- [ ] **Step 3: Replace preferences.md**
+- [x] **Step 3: Replace preferences.md**
 
 Write exactly this content to `templates/.agent-context/memory/preferences.md`:
 
@@ -231,7 +231,7 @@ Write exactly this content to `templates/.agent-context/memory/preferences.md`:
 <!-- Conf: high | med | low -->
 ```
 
-- [ ] **Step 4: Replace people.md**
+- [x] **Step 4: Replace people.md**
 
 Write exactly this content to `templates/.agent-context/memory/people.md`:
 
@@ -244,17 +244,17 @@ Write exactly this content to `templates/.agent-context/memory/people.md`:
 <!-- Conf: high | med | low -->
 ```
 
-- [ ] **Step 5: Verify all three files updated**
+- [x] **Step 5: Verify all three files updated**
 
 Run: `grep -l "ttl:VALUE" templates/.agent-context/memory/lessons.md templates/.agent-context/memory/preferences.md templates/.agent-context/memory/people.md | wc -l`
 Expected: `3`
 
-- [ ] **Step 6: Format**
+- [x] **Step 6: Format**
 
 Run: `npm run prettier`
 Expected: All files pass
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add templates/.agent-context/memory/lessons.md templates/.agent-context/memory/preferences.md templates/.agent-context/memory/people.md
@@ -269,12 +269,12 @@ git commit -m "feat: add TTL/source/conf metadata format to memory templates"
 
 - Modify: `.prompts/memory-review-prompt.md`
 
-- [ ] **Step 1: Find the Staleness Check section**
+- [x] **Step 1: Find the Staleness Check section**
 
 Run: `grep -n "Staleness Check" .prompts/memory-review-prompt.md`
 Expected: a line number (e.g., `45:## Step 2: Staleness Check`)
 
-- [ ] **Step 2: Replace the Staleness Check section**
+- [x] **Step 2: Replace the Staleness Check section**
 
 Find this block in `.prompts/memory-review-prompt.md`:
 
@@ -312,22 +312,22 @@ For each memory entry that has a date (format `YYYY-MM-DD`):
 4. On contradiction between two entries with conflicting facts: flag as **conflict** — include both in summary. Higher `conf:` value wins; equal conf requires user resolution.
 ```
 
-- [ ] **Step 3: Verify replacement**
+- [x] **Step 3: Verify replacement**
 
 Run: `grep -n "ttl:infinite" .prompts/memory-review-prompt.md`
 Expected: a line number
 
-- [ ] **Step 4: Verify SHARED FILE header still present**
+- [x] **Step 4: Verify SHARED FILE header still present**
 
 Run: `grep -c "SHARED FILE" .prompts/memory-review-prompt.md`
 Expected: `1`
 
-- [ ] **Step 5: Format**
+- [x] **Step 5: Format**
 
 Run: `npm run prettier`
 Expected: All files pass
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add .prompts/memory-review-prompt.md
@@ -342,12 +342,12 @@ git commit -m "feat: add TTL-aware staleness check and conflict detection to mem
 
 - Modify: `templates/.agent-context/decisions.json`
 
-- [ ] **Step 1: Verify current content**
+- [x] **Step 1: Verify current content**
 
 Run: `cat templates/.agent-context/decisions.json`
 Expected: `[]`
 
-- [ ] **Step 2: Write ADR-001**
+- [x] **Step 2: Write ADR-001**
 
 Write exactly this content to `templates/.agent-context/decisions.json`:
 
@@ -370,17 +370,17 @@ Write exactly this content to `templates/.agent-context/decisions.json`:
 ]
 ```
 
-- [ ] **Step 3: Verify JSON is valid**
+- [x] **Step 3: Verify JSON is valid**
 
 Run: `python3 -c "import json; json.load(open('templates/.agent-context/decisions.json')); print('valid')"`
 Expected: `valid`
 
-- [ ] **Step 4: Format**
+- [x] **Step 4: Format**
 
 Run: `npm run prettier`
 Expected: All files pass
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add templates/.agent-context/decisions.json
@@ -399,12 +399,12 @@ This task modifies `.prompts/setup-prompt.md` in four sequential sub-tasks. Each
 
 #### Sub-task 7a: Add Knowledge Decision Logic Section
 
-- [ ] **Step 1: Locate the insertion point**
+- [x] **Step 1: Locate the insertion point**
 
 Run: `grep -n "UPDATE Mode: Done" .prompts/setup-prompt.md`
 Expected: a line number (e.g., `88:## UPDATE Mode: Done`)
 
-- [ ] **Step 2: Insert Knowledge Decision Logic before "UPDATE Mode: Done"**
+- [x] **Step 2: Insert Knowledge Decision Logic before "UPDATE Mode: Done"**
 
 Find this line in `.prompts/setup-prompt.md`:
 
@@ -490,24 +490,24 @@ Compute SHA256 with `sha256sum <file>` (Linux/Mac) or equivalent. Use today's da
 
 ````
 
-- [ ] **Step 3: Verify insertion**
+- [x] **Step 3: Verify insertion**
 
 Run: `grep -n "Knowledge Decision Logic" .prompts/setup-prompt.md`
 Expected: a line number
 
-- [ ] **Step 4: Format**
+- [x] **Step 4: Format**
 
 Run: `npm run prettier`
 Expected: All files pass
 
 #### Sub-task 7b: Expand Phase S2 Discovery to All Knowledge Sources
 
-- [ ] **Step 5: Locate Subagent 1 in Phase S2**
+- [x] **Step 5: Locate Subagent 1 in Phase S2**
 
 Run: `grep -n "Subagent 1: Documentation Scanner" .prompts/setup-prompt.md`
 Expected: a line number
 
-- [ ] **Step 6: Replace Subagent 1 scope**
+- [x] **Step 6: Replace Subagent 1 scope**
 
 Find this block in `.prompts/setup-prompt.md`:
 
@@ -554,19 +554,19 @@ Apply Knowledge Decision Logic rules to determine `recommended_action` and `conf
 
 ````
 
-- [ ] **Step 7: Verify replacement**
+- [x] **Step 7: Verify replacement**
 
 Run: `grep -n "structured-data files" .prompts/setup-prompt.md`
 Expected: a line number
 
 #### Sub-task 7c: Add knowledge-map.md Creation to Phase S4
 
-- [ ] **Step 8: Locate Phase S4 insertion point**
+- [x] **Step 8: Locate Phase S4 insertion point**
 
 Run: `grep -n "Phase S4: Fill Layers" .prompts/setup-prompt.md`
 Expected: a line number
 
-- [ ] **Step 9: Add knowledge-map creation step at end of Phase S4**
+- [x] **Step 9: Add knowledge-map creation step at end of Phase S4**
 
 Find this line in `.prompts/setup-prompt.md`:
 
@@ -590,19 +590,19 @@ After filling all layers, create or update `.agent-context/knowledge-map.md`:
 Do not modify any source file — the map is a pointer index only.
 ```
 
-- [ ] **Step 10: Verify insertion**
+- [x] **Step 10: Verify insertion**
 
 Run: `grep -n "knowledge-map.md" .prompts/setup-prompt.md | head -5`
 Expected: multiple lines including the new section
 
 #### Sub-task 7d: Add UPDATE Step 7 — Knowledge Re-Sync
 
-- [ ] **Step 11: Locate "UPDATE Mode: Done" block**
+- [x] **Step 11: Locate "UPDATE Mode: Done" block**
 
 Run: `grep -n "UPDATE mode, skip all remaining" .prompts/setup-prompt.md`
 Expected: a line number
 
-- [ ] **Step 12: Insert Step 7 before the UPDATE Done block**
+- [x] **Step 12: Insert Step 7 before the UPDATE Done block**
 
 Find this block in `.prompts/setup-prompt.md`:
 
@@ -666,19 +666,19 @@ For each source with `action = "reference"`:
 Update `.agent-context/setup-decisions.json` with all new decisions.
 ```
 
-- [ ] **Step 13: Verify insertion**
+- [x] **Step 13: Verify insertion**
 
 Run: `grep -n "Step 7: Knowledge Re-Sync" .prompts/setup-prompt.md`
 Expected: a line number
 
 #### Sub-task 7e: Add Token Budget Audit to Phase S7
 
-- [ ] **Step 14: Locate Phase S7 Verification section**
+- [x] **Step 14: Locate Phase S7 Verification section**
 
 Run: `grep -n "wc -l AGENTS.md" .prompts/setup-prompt.md`
 Expected: a line number
 
-- [ ] **Step 15: Add token budget audit after existing line-count checks**
+- [x] **Step 15: Add token budget audit after existing line-count checks**
 
 Find this block in `.prompts/setup-prompt.md` (existing verification step 4 and 5):
 
@@ -699,12 +699,12 @@ Replace with:
    - Include the audit table in the summary output (✅ / ⚠️ per file)
 ```
 
-- [ ] **Step 16: Format**
+- [x] **Step 16: Format**
 
 Run: `npm run prettier`
 Expected: All files pass
 
-- [ ] **Step 17: Verify all sub-task changes are present**
+- [x] **Step 17: Verify all sub-task changes are present**
 
 ```bash
 grep -c "Knowledge Decision Logic" .prompts/setup-prompt.md
@@ -716,7 +716,7 @@ grep -c "Token Budget Audit" .prompts/setup-prompt.md
 
 Expected: each command returns `1` or more
 
-- [ ] **Step 18: Commit**
+- [x] **Step 18: Commit**
 
 ```bash
 git add .prompts/setup-prompt.md
@@ -731,7 +731,7 @@ git commit -m "feat: enhance setup-prompt with discovery expansion, knowledge re
 
 - Modify: `README.md`
 
-- [ ] **Step 1: Add knowledge-map.md and setup-decisions.json to the installed file structure**
+- [x] **Step 1: Add knowledge-map.md and setup-decisions.json to the installed file structure**
 
 In `README.md`, find the code block showing `.agent-context/` directory structure (the one listing `decisions.json`, `memory-review-prompt.md`, etc.).
 
@@ -742,7 +742,7 @@ Add these two lines after `decisions.json`:
     ├── setup-decisions.json               ← Decision manifest for idempotent re-runs
 ```
 
-- [ ] **Step 2: Update Key Principles section**
+- [x] **Step 2: Update Key Principles section**
 
 In `README.md`, locate the `## Key Principles` section. After the existing three principles (`1. "Can the agent discover this..."`, `2. Narrowest fitting scope`, `3. Stubs + Skills pattern`), add:
 
@@ -756,7 +756,7 @@ Updates are not file patches. Every `setup-prompt.md` run (SETUP or UPDATE) perf
 `knowledge-map.md` is the single routing index for all project knowledge — both internal (agent-context) and external (docs, architecture files, API specs). Agents update it immediately when sources change, following the same non-negotiable rule as `lessons.md` updates. The map always reflects current project reality.
 ```
 
-- [ ] **Step 3: Update the Updates section to reflect new flow**
+- [x] **Step 3: Update the Updates section to reflect new flow**
 
 In `README.md`, locate the `## Updates` section. Find the sentence describing what the update does and replace it with:
 
@@ -764,7 +764,7 @@ In `README.md`, locate the `## Updates` section. Find the sentence describing wh
 After creating a [GitHub Release](https://github.com/lx-wnk/Agent-Context/releases), projects update automatically: on the next session start, the agent fetches the setup prompt from remote (UPDATE mode), checks the Releases API, detects the version difference, downloads the release, and overwrites the shared files. The update then performs a full knowledge re-synchronization — scanning all project knowledge sources, routing new facts to optimal targets, and verifying nothing was lost. Project-owned files receive improvements additively; content is never deleted. If the API is unreachable, the agent continues silently.
 ```
 
-- [ ] **Step 4: Add new Research & References entries**
+- [x] **Step 4: Add new Research & References entries**
 
 In `README.md`, locate `### Core Papers` under `## Research & References`. Add these entries:
 
@@ -785,7 +785,7 @@ Under `### Engineering & Best Practices`, add:
 - [Copier: Template Updating](https://copier.readthedocs.io/en/stable/updating/) — Three-way merge approach for project-owned files (evaluated and adapted — conflict markers replaced with additive-only + integrity check)
 ```
 
-- [ ] **Step 5: Verify additions**
+- [x] **Step 5: Verify additions**
 
 ```bash
 grep -c "knowledge-map.md" README.md
@@ -797,12 +797,12 @@ grep -c "llms.txt" README.md
 
 Expected: each returns `1` or more
 
-- [ ] **Step 6: Format**
+- [x] **Step 6: Format**
 
 Run: `npm run prettier`
 Expected: All files pass
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add README.md
@@ -815,17 +815,17 @@ git commit -m "docs: update README with knowledge-map, new principles, and resea
 
 **Files:** Read-only
 
-- [ ] **Step 1: Run Prettier on all files**
+- [x] **Step 1: Run Prettier on all files**
 
 Run: `npm run prettier`
 Expected: All files pass with zero errors
 
-- [ ] **Step 2: Verify all shared context files have the SHARED FILE header**
+- [x] **Step 2: Verify all shared context files have the SHARED FILE header**
 
 Run: `grep -rL "SHARED FILE" context/*.md .prompts/memory-review-prompt.md .prompts/decision-review-prompt.md`
 Expected: no output (all shared files have the header; setup-prompt.md is excluded — it is not a shared context file)
 
-- [ ] **Step 3: Verify line counts are within limits**
+- [x] **Step 3: Verify line counts are within limits**
 
 ```bash
 wc -l context/layer0-agent-workflow.md
@@ -843,7 +843,7 @@ Expected:
 - `knowledge-map.md` template < 30 lines
 - Memory templates < 10 lines each
 
-- [ ] **Step 4: Verify new files exist**
+- [x] **Step 4: Verify new files exist**
 
 ```bash
 ls templates/.agent-context/knowledge-map.md
@@ -855,12 +855,12 @@ grep -c "Knowledge Map Triggers" context/layer0-agent-workflow.md
 
 Expected: each returns `1` or more (no errors)
 
-- [ ] **Step 5: Verify no duplicate content across shared files**
+- [x] **Step 5: Verify no duplicate content across shared files**
 
 Run: `grep -h "Knowledge Map" context/*.md | sort | uniq -d`
 Expected: no output (no duplicates)
 
-- [ ] **Step 6: Final commit if any formatting fixes were applied**
+- [x] **Step 6: Final commit if any formatting fixes were applied**
 
 ```bash
 git status
@@ -869,7 +869,7 @@ git add -A
 git commit -m "chore: formatting fixes after agent-context optimizations"
 ```
 
-- [ ] **Step 7: Push branch**
+- [x] **Step 7: Push branch**
 
 ```bash
 git push -u origin feat/agent-context-optimizations
