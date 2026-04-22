@@ -14,24 +14,25 @@
 
 ## File Map
 
-| File | Action | Responsibility |
-|---|---|---|
-| `templates/.agent-context/knowledge-map.md` | **Create** | Universal knowledge pointer index template |
-| `context/layer0-agent-workflow.md` | Modify | Add knowledge-map to Self-Improvement Loop triggers |
-| `templates/.agent-context/layer3-guidebook.md` | Modify | Add `@knowledge-map.md` pointer |
-| `templates/.agent-context/memory/lessons.md` | Modify | Add TTL/source/conf metadata format |
-| `templates/.agent-context/memory/preferences.md` | Modify | Add TTL/source/conf metadata format |
-| `templates/.agent-context/memory/people.md` | Modify | Add TTL/source/conf metadata format |
-| `.prompts/memory-review-prompt.md` | Modify | Add TTL-aware staleness check |
-| `templates/.agent-context/decisions.json` | Modify | Add ADR-001 entry |
-| `.prompts/setup-prompt.md` | Modify | Discovery expansion, UPDATE re-sync, Ack/Nack UX, token audit |
-| `README.md` | Modify | New capabilities, file structure, Key Principles, Research refs |
+| File                                             | Action     | Responsibility                                                  |
+| ------------------------------------------------ | ---------- | --------------------------------------------------------------- |
+| `templates/.agent-context/knowledge-map.md`      | **Create** | Universal knowledge pointer index template                      |
+| `context/layer0-agent-workflow.md`               | Modify     | Add knowledge-map to Self-Improvement Loop triggers             |
+| `templates/.agent-context/layer3-guidebook.md`   | Modify     | Add `@knowledge-map.md` pointer                                 |
+| `templates/.agent-context/memory/lessons.md`     | Modify     | Add TTL/source/conf metadata format                             |
+| `templates/.agent-context/memory/preferences.md` | Modify     | Add TTL/source/conf metadata format                             |
+| `templates/.agent-context/memory/people.md`      | Modify     | Add TTL/source/conf metadata format                             |
+| `.prompts/memory-review-prompt.md`               | Modify     | Add TTL-aware staleness check                                   |
+| `templates/.agent-context/decisions.json`        | Modify     | Add ADR-001 entry                                               |
+| `.prompts/setup-prompt.md`                       | Modify     | Discovery expansion, UPDATE re-sync, Ack/Nack UX, token audit   |
+| `README.md`                                      | Modify     | New capabilities, file structure, Key Principles, Research refs |
 
 ---
 
 ### Task 1: knowledge-map.md Template
 
 **Files:**
+
 - Create: `templates/.agent-context/knowledge-map.md`
 
 - [ ] **Step 1: Verify file does not exist**
@@ -52,7 +53,7 @@ Write exactly this content to `templates/.agent-context/knowledge-map.md`:
 ## Task Routing
 
 | Working on... | Agent-Context | External Knowledge |
-|---|---|---|
+| ------------- | ------------- | ------------------ |
 
 <!-- TODO: Populated during setup. Example:
 | Auth / Login     | `memory/auth.md`                  | `docs/auth-flow.md`           |
@@ -63,7 +64,7 @@ Write exactly this content to `templates/.agent-context/knowledge-map.md`:
 ## Knowledge Sources
 
 | Source | Topic | Format | SHA256 | Last Verified |
-|--------|-------|--------|--------|---------------|
+| ------ | ----- | ------ | ------ | ------------- |
 
 <!-- TODO: Populated during setup. Example:
 | `docs/auth-flow.md`          | Auth & Sessions     | Markdown | a3f... | 2026-04-22 |
@@ -93,6 +94,7 @@ git commit -m "feat: add knowledge-map.md template for universal knowledge point
 ### Task 2: Layer 0 — Knowledge Map in Self-Improvement Loop
 
 **Files:**
+
 - Modify: `context/layer0-agent-workflow.md`
 
 - [ ] **Step 1: Verify the section to modify**
@@ -109,13 +111,12 @@ In `context/layer0-agent-workflow.md`, locate the `## Lesson Graduation` section
 
 Update `.agent-context/knowledge-map.md` immediately when any of the following occurs — same non-negotiable rule as all other triggers (next action after discovery, before continuing):
 
-| Event | Action |
-|---|---|
-| External file changed (SHA256 mismatch detected) | Update SHA256 + Last Verified in Knowledge Sources table |
+| Event                                              | Action                                                   |
+| -------------------------------------------------- | -------------------------------------------------------- |
+| External file changed (SHA256 mismatch detected)   | Update SHA256 + Last Verified in Knowledge Sources table |
 | New structured knowledge file or folder discovered | Add entry to Knowledge Sources + add row to Task Routing |
-| Task type used but no routing row exists for it | Add routing row to Task Routing based on current task |
-| Knowledge source no longer exists | Remove entry from Knowledge Sources table |
-
+| Task type used but no routing row exists for it    | Add routing row to Task Routing based on current task    |
+| Knowledge source no longer exists                  | Remove entry from Knowledge Sources table                |
 ```
 
 - [ ] **Step 3: Verify insertion**
@@ -145,6 +146,7 @@ git commit -m "feat: add knowledge-map triggers to layer0 self-improvement loop"
 ### Task 3: Layer 3 Template — Knowledge Map Pointer
 
 **Files:**
+
 - Modify: `templates/.agent-context/layer3-guidebook.md`
 
 - [ ] **Step 1: Verify current Skills Index section**
@@ -168,7 +170,6 @@ Insert the following block **before** the `## Skills Index` section:
 External knowledge sources and task-based routing to project docs, architecture files, and other structured knowledge. Updated automatically on every agent run.
 
 @.agent-context/knowledge-map.md
-
 ```
 
 - [ ] **Step 3: Verify insertion**
@@ -193,6 +194,7 @@ git commit -m "feat: add knowledge-map pointer to layer3-guidebook template"
 ### Task 4: Memory Templates — TTL/Source/Conf Format
 
 **Files:**
+
 - Modify: `templates/.agent-context/memory/lessons.md`
 - Modify: `templates/.agent-context/memory/preferences.md`
 - Modify: `templates/.agent-context/memory/people.md`
@@ -264,6 +266,7 @@ git commit -m "feat: add TTL/source/conf metadata format to memory templates"
 ### Task 5: Memory Review Prompt — TTL-Aware Staleness
 
 **Files:**
+
 - Modify: `.prompts/memory-review-prompt.md`
 
 - [ ] **Step 1: Find the Staleness Check section**
@@ -280,11 +283,11 @@ Find this block in `.prompts/memory-review-prompt.md`:
 
 For each memory entry that has a date (format `YYYY-MM-DD`):
 
-| Age | Action |
-| --- | ------ |
-| < 90 days | Keep — still fresh |
-| 90-180 days | Flag as **stale** — include in summary for user review |
-| > 180 days | Flag as **archive candidate** — suggest removal or graduation |
+| Age         | Action                                                        |
+| ----------- | ------------------------------------------------------------- |
+| < 90 days   | Keep — still fresh                                            |
+| 90-180 days | Flag as **stale** — include in summary for user review        |
+| > 180 days  | Flag as **archive candidate** — suggest removal or graduation |
 
 Entries without dates: flag as **undated** in summary (suggest adding a date).
 ```
@@ -299,11 +302,11 @@ For each memory entry that has a date (format `YYYY-MM-DD`):
 1. Extract inline TTL marker if present (e.g., `ttl:90d`, `ttl:infinite`, `ttl:30d`)
 2. Apply TTL rules:
 
-| TTL | Rule |
-| --- | ---- |
-| `ttl:infinite` | Never expires — skip staleness check |
-| `ttl:Nd` (e.g., `ttl:90d`) | Flag as **archive candidate** when (date + N days) < today |
-| No TTL present | Apply defaults: <90 days keep, 90-180 days **stale**, >180 days **archive candidate** |
+| TTL                        | Rule                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------- |
+| `ttl:infinite`             | Never expires — skip staleness check                                                  |
+| `ttl:Nd` (e.g., `ttl:90d`) | Flag as **archive candidate** when (date + N days) < today                            |
+| No TTL present             | Apply defaults: <90 days keep, 90-180 days **stale**, >180 days **archive candidate** |
 
 3. Entries without dates: flag as **undated** in summary (suggest adding date + TTL).
 4. On contradiction between two entries with conflicting facts: flag as **conflict** — include both in summary. Higher `conf:` value wins; equal conf requires user resolution.
@@ -336,6 +339,7 @@ git commit -m "feat: add TTL-aware staleness check and conflict detection to mem
 ### Task 6: decisions.json — ADR-001
 
 **Files:**
+
 - Modify: `templates/.agent-context/decisions.json`
 
 - [ ] **Step 1: Verify current content**
@@ -390,6 +394,7 @@ git commit -m "docs: add ADR-001 (Claude Code Native Extension deferred) to deci
 This task modifies `.prompts/setup-prompt.md` in four sequential sub-tasks. Each sub-task adds one independent section or modifies one existing section.
 
 **Files:**
+
 - Modify: `.prompts/setup-prompt.md`
 
 #### Sub-task 7a: Add Knowledge Decision Logic Section
@@ -418,11 +423,11 @@ Used during Phase S2 (SETUP) and Step 7 (UPDATE) when processing discovered know
 
 Apply automatically when confidence ≥ 0.8:
 
-| Signal | Action |
-|---|---|
-| Size <30 lines AND maps cleanly to one layer | Auto-route to target layer, no question |
-| Size >100 lines OR file has a table of contents | Auto → add to `knowledge-map.md` as reference |
-| Existing `setup-decisions.json` entry with matching SHA256 | Reuse previous decision silently |
+| Signal                                                     | Action                                        |
+| ---------------------------------------------------------- | --------------------------------------------- |
+| Size <30 lines AND maps cleanly to one layer               | Auto-route to target layer, no question       |
+| Size >100 lines OR file has a table of contents            | Auto → add to `knowledge-map.md` as reference |
+| Existing `setup-decisions.json` entry with matching SHA256 | Reuse previous decision silently              |
 
 ### Requires Ack/Nack
 
@@ -438,13 +443,15 @@ Ask the user when:
 Detected when `.claude/settings.json` exists and the session is interactive (not headless/CI).
 
 Batch all pending Ack/Nack decisions into a single message:
+```
 
-```
 I found the following — please confirm:
-1. docs/architecture.md → reference in knowledge-map (287 lines, structured)  [Ack/Nack]
-2. docs/api-guide.md    → reference in knowledge-map (412 lines, has TOC)     [Ack/Nack]
-3. CONTRIBUTING.md      → consolidate into layer2 (18 lines, conventions)     [Ack/Nack]
-```
+
+1. docs/architecture.md → reference in knowledge-map (287 lines, structured) [Ack/Nack]
+2. docs/api-guide.md → reference in knowledge-map (412 lines, has TOC) [Ack/Nack]
+3. CONTRIBUTING.md → consolidate into layer2 (18 lines, conventions) [Ack/Nack]
+
+````
 
 High-confidence auto-decisions are listed in the summary only — not asked.
 
@@ -460,7 +467,7 @@ When not in Claude Code interactive mode, write `.agent-context/setup-plan.md` b
 | 1 | docs/architecture.md | reference | 0.91 | ✅ auto |
 | 2 | CONTRIBUTING.md | consolidate | 0.85 | ✅ auto |
 | 3 | layer2: conflict rule A vs B | keep rule A | 0.55 | ⏳ review |
-```
+````
 
 User edits the Status column and re-runs the prompt to execute.
 
@@ -481,7 +488,7 @@ After all decisions are made, write/update `.agent-context/setup-decisions.json`
 
 Compute SHA256 with `sha256sum <file>` (Linux/Mac) or equivalent. Use today's date for `decided_at`.
 
-```
+````
 
 - [ ] **Step 3: Verify insertion**
 
@@ -514,11 +521,11 @@ Scan for existing documentation files and summarize their content:
 - `skills-lock.json`
 
 Output: list of files found with summary of content per file.
-```
+````
 
 Replace with:
 
-```markdown
+````markdown
 #### Subagent 1: Documentation & Knowledge Scanner
 
 Scan for all existing documentation and structured knowledge sources:
@@ -541,9 +548,11 @@ For each source found, output one structured finding:
   "sha256": "<sha256-of-file>"
 }
 ```
+````
 
 Apply Knowledge Decision Logic rules to determine `recommended_action` and `confidence`.
-```
+
+````
 
 - [ ] **Step 7: Verify replacement**
 
@@ -563,7 +572,7 @@ Find this line in `.prompts/setup-prompt.md`:
 
 ```markdown
 Each fact in exactly ONE place. No duplicates.
-```
+````
 
 Add the following block **after** that line (after the blank line that follows it):
 
@@ -613,6 +622,7 @@ After updating shared files (Steps 1–6), re-synchronize all project knowledge:
 ### 7a: Consolidated Fact Inventory
 
 Launch parallel subagents (same as SETUP Phase S2) to scan:
+
 - Existing `.agent-context/` (all layers, memory/, decisions.json, skills/)
 - All root-level `*.md` files
 - Any folder containing 3+ markdown or structured-data files
@@ -625,14 +635,14 @@ For new or changed sources: apply Knowledge Decision Logic (Ack/Nack or plan-fil
 
 Route facts to their targets — **additive only, never overwrite existing content**:
 
-| Fact Type | Target | Rule |
-|---|---|---|
-| Project-wide convention | `layer2-project-core.md` | Append if keyword not already present |
-| Domain-specific fact | `memory/<domain>.md` | Append if keyword not already present |
-| Heavy reference (>30 lines) | `skills/<reference>.md` | Create if skill does not exist |
-| Gotcha / lesson | `memory/lessons.md` | Append with today's date + TTL |
-| Architecture decision | `decisions.json` | Append to JSON array if id not present |
-| External knowledge pointer | `knowledge-map.md` | Append row if source not already listed |
+| Fact Type                   | Target                   | Rule                                    |
+| --------------------------- | ------------------------ | --------------------------------------- |
+| Project-wide convention     | `layer2-project-core.md` | Append if keyword not already present   |
+| Domain-specific fact        | `memory/<domain>.md`     | Append if keyword not already present   |
+| Heavy reference (>30 lines) | `skills/<reference>.md`  | Create if skill does not exist          |
+| Gotcha / lesson             | `memory/lessons.md`      | Append with today's date + TTL          |
+| Architecture decision       | `decisions.json`         | Append to JSON array if id not present  |
+| External knowledge pointer  | `knowledge-map.md`       | Append row if source not already listed |
 
 Keyword check: search target file for 2–3 key terms from the fact. If found → skip. If not found → append.
 
@@ -648,12 +658,12 @@ For each fact/finding collected in 7a:
 ### 7d: knowledge-map.md Update
 
 For each source with `action = "reference"`:
+
 - Update SHA256 and Last Verified if the file has changed
 - Add any new sources discovered since last run
 - Remove entries for sources that no longer exist
 
 Update `.agent-context/setup-decisions.json` with all new decisions.
-
 ```
 
 - [ ] **Step 13: Verify insertion**
@@ -718,6 +728,7 @@ git commit -m "feat: enhance setup-prompt with discovery expansion, knowledge re
 ### Task 8: README Update
 
 **Files:**
+
 - Modify: `README.md`
 
 - [ ] **Step 1: Add knowledge-map.md and setup-decisions.json to the installed file structure**
@@ -825,6 +836,7 @@ wc -l templates/.agent-context/memory/*.md
 ```
 
 Expected:
+
 - `context/layer0-agent-workflow.md` < 145 lines
 - `context/base-principles.md` < 40 lines
 - Each `layer*.md` template < 35 lines
