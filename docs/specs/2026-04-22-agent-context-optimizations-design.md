@@ -332,4 +332,20 @@ If the framework ever introduces a Claude-specific opt-in overlay layer, the Nat
 | Memory TTL | Inline `ttl:` + `source:` + `conf:` metadata on every memory entry |
 | Security | Trust-scoring, source attribution, contradiction resolution without autonomous override |
 | Token Audit | Automated line-count check in update prompt, graduation candidates reported |
+| README | Updated to reflect new capabilities + new Research & References entries |
 | Claude Native | Deferred — see ADR-001 |
+
+### README Updates
+
+`README.md` is updated as part of this implementation to reflect:
+- New update philosophy (full knowledge re-sync vs. file patch)
+- `knowledge-map.md` and `setup-decisions.json` added to the installed file structure
+- Extended "Key Principles" covering knowledge integrity and self-maintaining routing
+- New "Research & References" entries for all sources informing this design:
+  - Tokalator (arxiv 2604.08290) — silent token overhead of instruction files
+  - arxiv 2601.20404 — empirical AGENTS.md runtime/token impact
+  - SSGM Framework (arxiv 2603.11768) — memory lifecycle governance and TTL
+  - MemoryGraft (arxiv 2512.16962) — context poisoning via memory/skill files
+  - A-MemGuard (OpenReview) — consensus validation as poisoning defense
+  - llms.txt standard — pointer-index pattern for docs-as-context
+  - Terraform / Nx — plan/apply and persisted decision manifest patterns
