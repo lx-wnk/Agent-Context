@@ -27,7 +27,7 @@ See Layer 0 → Domain Expansion for rules.
 
 ## Knowledge Map
 
-External knowledge sources and task-based routing to project docs, architecture files, and other structured knowledge. Updated automatically on every agent run.
+External knowledge sources and task-based routing to project docs, architecture files, and other structured knowledge. Updated when knowledge sources change — see Layer 0 → Knowledge Map Triggers.
 
 @.agent-context/knowledge-map.md
 

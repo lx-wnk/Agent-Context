@@ -172,14 +172,14 @@ For new or changed sources: apply Knowledge Decision Logic (Ack/Nack or plan-fil
 
 Route facts to their targets — **additive only, never overwrite existing content**:
 
-| Fact Type                   | Target                   | Rule                                    |
-| --------------------------- | ------------------------ | --------------------------------------- |
-| Project-wide convention     | `layer2-project-core.md` | Append if keyword not already present   |
-| Domain-specific fact        | `memory/<domain>.md`     | Append if keyword not already present   |
-| Heavy reference (>30 lines) | `skills/<reference>.md`  | Create if skill does not exist          |
-| Gotcha / lesson             | `memory/lessons.md`      | Append with today's date + TTL          |
-| Architecture decision       | `decisions.json`         | Append to JSON array if id not present  |
-| External knowledge pointer  | `knowledge-map.md`       | Append row if source not already listed |
+| Fact Type                   | Target                   | Rule                                                           |
+| --------------------------- | ------------------------ | -------------------------------------------------------------- |
+| Project-wide convention     | `layer2-project-core.md` | Append if keyword not already present                          |
+| Domain-specific fact        | `memory/<domain>.md`     | Append if keyword not already present                          |
+| Heavy reference (>30 lines) | `skills/<reference>.md`  | Create if skill does not exist                                 |
+| Gotcha / lesson             | `memory/lessons.md`      | Append with today's date, `ttl:90d source:discovered conf:med` |
+| Architecture decision       | `decisions.json`         | Append to JSON array if id not present                         |
+| External knowledge pointer  | `knowledge-map.md`       | Append row if source not already listed                        |
 
 Keyword check: search target file for 2–3 key terms from the fact. If found → skip. If not found → append.
 
@@ -232,6 +232,8 @@ AGENTS.md                                PROJECT — customize freely
   .agent-context-version                 🔒 SHARED — written by setup/update
   memory-review-prompt.md               🔒 SHARED — do NOT modify (auto-updated)
   decision-review-prompt.md              🔒 SHARED — do NOT modify (auto-updated)
+  knowledge-map.md                       PROJECT — maintained by agent, never overwrite
+  setup-decisions.json                   PROJECT — maintained by agent, never overwrite
   decisions.json                         PROJECT — structured decisions (auto-reviewed)
   layer1-bootstrap.md                    PROJECT — customize freely
   layer2-project-core.md                 PROJECT — customize freely

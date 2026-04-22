@@ -1,6 +1,6 @@
 # Knowledge Map
 
-> Universal knowledge index for this project. Maintained automatically — never edit manually.
+> Universal knowledge index for this project. Maintained automatically by the agent — human edits will be overwritten on next trigger.
 > Updated immediately when knowledge sources change (see Layer 0 → Self-Improvement Loop).
 
 ## Task Routing
