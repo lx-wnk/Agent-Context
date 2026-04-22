@@ -106,7 +106,7 @@ Ask the user when:
 
 ### Claude Code Interactive Mode
 
-Detected when `.claude/settings.json` exists and the session is interactive (not headless/CI).
+Detected when `.claude/settings.json` exists **and** neither of the following signals is present: `CI=true` environment variable set, or the prompt was invoked with the `-p` flag (non-interactive / headless mode). If either signal is present, fall back to Plan-File Mode.
 
 Batch all pending Ack/Nack decisions into a single message:
 
@@ -201,6 +201,15 @@ For each source with `action = "reference"`:
 - Remove entries for sources that no longer exist
 
 Update `.agent-context/setup-decisions.json` with all new decisions.
+
+### 7e: Token Budget Audit
+
+Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-context/memory/*.md` and report:
+
+- Layer files ≥ 50 lines: flag as bloated
+- `knowledge-map.md` ≥ 100 lines: flag for cleanup
+- Memory files ≥ 500 lines: flag as skill graduation candidate
+- Include the audit table in the summary output (✅ / ⚠️ per file)
 
 ## UPDATE Mode: Done
 
@@ -501,7 +510,7 @@ Available agents: `ac-analysis`, `ac-architect`, `ac-backend`, `ac-chrome`, `ac-
 
 For project-specific agent customization, install the plugin and then copy individual agent files from `~/.claude/plugins/cache/lx-wnk/agents/` to `.claude/agents/` — project-local copies override the plugin version. Follow the patterns in `docs/best-practices-agent-creation.md`.
 
-### Phase S7: Cleanup & Verification
+### Phase S8: Cleanup & Verification
 
 **Cleanup:**
 
