@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "ADR-001",
+    "title": "Claude Code Native Extension Deferred",
+    "date": "2026-04-22",
+    "status": "decided",
+    "context": "Claude Code offers native features that overlap with manual patterns in this framework: .claude/rules/*.md with paths: frontmatter, SessionStart hooks, and skill paths: for glob-triggered auto-activation. These would yield meaningful performance gains within Claude Code.",
+    "decision": "The Native Extension is deferred. The Agent-Context framework is deliberately agent-agnostic, working in Claude Code, Cursor, GitHub Copilot, Gemini CLI, and any agent that reads AGENTS.md or CLAUDE.md. Plugin-installed agents (agents@lx-wnk) cannot use hooks or mcpServers, which would create divergent behavior between the main Claude agent and plugin agents within Claude Code itself.",
+    "consequences": "No Claude-specific optimizations in the core framework. If a Claude-specific opt-in overlay layer is introduced in the future, revisit this decision. At that point: .claude/rules/*.md should mirror Layer 3 routing (not replace it), and hooks should be additive enhancements only.",
+    "references": [
+      "code.claude.com/docs/en/hooks",
+      "code.claude.com/docs/en/skills",
+      "Plugin agents cannot use hooks, mcpServers, or permissionMode (Claude Code docs, 2026-04-22)"
+    ]
+  }
+]
