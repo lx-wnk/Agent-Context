@@ -155,6 +155,56 @@ After all decisions are made, write/update `.agent-context/setup-decisions.json`
 
 Compute SHA256 with `sha256sum <file>` (Linux/Mac) or equivalent. Use today's date for `decided_at`.
 
+## Step 7: Knowledge Re-Sync (UPDATE mode)
+
+After updating shared files (Steps 1–6), re-synchronize all project knowledge:
+
+### 7a: Consolidated Fact Inventory
+
+Launch parallel subagents (same as SETUP Phase S2 Subagent 1) to scan:
+
+- Existing `.agent-context/` (all layers, memory/, decisions.json, skills/)
+- All root-level `*.md` files
+- Any folder containing 3+ markdown or structured-data files
+
+Check `.agent-context/setup-decisions.json` for existing decisions — skip sources with matching SHA256.
+
+For new or changed sources: apply Knowledge Decision Logic (Ack/Nack or plan-file).
+
+### 7b: Routing & Restructuring (additive-only)
+
+Route facts to their targets — **additive only, never overwrite existing content**:
+
+| Fact Type                   | Target                   | Rule                                    |
+| --------------------------- | ------------------------ | --------------------------------------- |
+| Project-wide convention     | `layer2-project-core.md` | Append if keyword not already present   |
+| Domain-specific fact        | `memory/<domain>.md`     | Append if keyword not already present   |
+| Heavy reference (>30 lines) | `skills/<reference>.md`  | Create if skill does not exist          |
+| Gotcha / lesson             | `memory/lessons.md`      | Append with today's date + TTL          |
+| Architecture decision       | `decisions.json`         | Append to JSON array if id not present  |
+| External knowledge pointer  | `knowledge-map.md`       | Append row if source not already listed |
+
+Keyword check: search target file for 2–3 key terms from the fact. If found → skip. If not found → append.
+
+### 7c: Global Integrity Check
+
+For each fact/finding collected in 7a:
+
+1. Search for its 2–3 key terms across all `.agent-context/` files and `knowledge-map.md`
+2. If no match found → list as missing
+3. If any facts are missing: report them to the user, do NOT commit — ask how to resolve
+4. If all facts are accounted for → proceed
+
+### 7d: knowledge-map.md Update
+
+For each source with `action = "reference"`:
+
+- Update SHA256 and Last Verified if the file has changed
+- Add any new sources discovered since last run
+- Remove entries for sources that no longer exist
+
+Update `.agent-context/setup-decisions.json` with all new decisions.
+
 ## UPDATE Mode: Done
 
 If in UPDATE mode, skip all remaining phases. Return `ok: true` with a brief summary (e.g. "Updated 0.1.1 → 0.1.2,
