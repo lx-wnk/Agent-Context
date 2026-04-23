@@ -107,16 +107,31 @@ Total baseline: ~200-250 lines. Heavy reference (skills, memory) is loaded only 
 
 ### Quick Start
 
-Run this one-liner from your project root — `--allowedTools` pre-approves all required tools so the setup runs unattended:
+Run this one-liner from your project root:
 
 ```bash
-claude -p "Fetch https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/.prompts/setup-prompt.md and follow its instructions exactly." \
-    --allowedTools "Edit,Write,Read,Bash,Glob,Grep,WebFetch,WebSearch,Agent" || true
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/install.sh)"
+```
+
+The script runs Claude headlessly, shows live progress in your terminal, and exits cleanly when done:
+
+```
+Starting agent-context setup in /your/project...
+...............
+[agent-context] Step 1/7: Checking version...
+....
+[agent-context] Mode: UPDATE (0.3.0 → 0.5.0)
+[agent-context] Step 2/7: Downloading release 0.5.0...
+...
 ```
 
 Claude analyzes existing documentation, applies quality filters, discovers your tech stack, and creates the architecture. Restart your session afterwards — the new configuration takes effect on the next start.
 
-Or paste the contents of [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) manually into a Claude Code session if you prefer to confirm each step.
+**Requires:** [Claude Code CLI](https://claude.ai/code) installed and authenticated.
+
+### Alternative: paste into a session
+
+Paste the contents of [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) directly into a Claude Code session if you prefer to confirm each step interactively.
 
 ### What Gets Created
 
@@ -160,9 +175,28 @@ agent-context/
 ├── templates/         # Project setup templates (copied once, never overwritten)
 ├── plugins.json       # Base plugin set for Claude Code
 ├── example.md         # Annotated example (Shopware 6 project)
-├── .prompts/          # Prompt files (setup + auto-update agent instructions)
+├── install.sh         # Installer script (curl one-liner entry point)
+├── .prompts/          # Prompt files for Claude (setup + review instructions)
 └── README.md
 ```
+
+## Development & Contributing
+
+To test local changes to `.prompts/setup-prompt.md` without creating a release, set `AGENT_CONTEXT_PROMPT` to your local clone's prompt file. The installer script will use it instead of fetching from GitHub.
+
+```bash
+# Set once for your shell session
+export AGENT_CONTEXT_PROMPT=/path/to/your/Agent-Context/.prompts/setup-prompt.md
+
+# Then run the installer in any target project
+/bin/bash -c /path/to/your/Agent-Context/install.sh
+
+# Or inline
+AGENT_CONTEXT_PROMPT=/path/to/your/Agent-Context/.prompts/setup-prompt.md \
+    /bin/bash -c /path/to/your/Agent-Context/install.sh
+```
+
+Replace `/path/to/your/Agent-Context` with the path to your local clone. No changes to release logic required.
 
 ## Agents
 
