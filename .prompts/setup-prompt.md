@@ -157,6 +157,23 @@ After updating shared files, check project-owned files for known outdated patter
 
 If any patterns are found, include them in the response as suggestions — never auto-fix project-owned files.
 
+### CLAUDE.md Bootstrap Check (auto-fix exception)
+
+CLAUDE.md is the agent's entry point. Without it, all project context is lost. Check both locations:
+
+1. `.claude/CLAUDE.md`
+2. `CLAUDE.md` (project root)
+
+For each found location:
+- If the file already contains `@AGENTS.md` → skip
+- If the file exists but does **not** contain `@AGENTS.md` → append `@AGENTS.md` as the last line
+
+If **neither** location exists → create `.claude/CLAUDE.md` with content:
+
+```
+@AGENTS.md
+```
+
 ---
 
 ## Knowledge Decision Logic
