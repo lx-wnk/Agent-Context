@@ -3,12 +3,70 @@
 > **Usage:** This prompt is fetched remotely from the latest release tag — it is NOT deployed locally to target projects.
 > It auto-detects SETUP vs. UPDATE mode and handles both flows.
 
+## Global Constraint: Knowledge Map Sources
+
+**This rule applies everywhere in this prompt — no exceptions.**
+
+A file may only appear in `knowledge-map.md` if ALL of the following are true:
+
+1. It is tracked or staged by git, or untracked but not gitignored (`git ls-files --cached --others --exclude-standard`)
+2. It contains project knowledge — documentation, architecture decisions, conventions, domain facts
+3. It is NOT agent-managed infrastructure (skills, agents, rules, plugins, or any tooling the agent self-indexes)
+
+## Step 0: Interactive Mode Detection (MUST run first, before anything else)
+
+**This is the very first action. Run it immediately before reading or acting on any other step.**
+
+Run this bash command and store the result:
+
+```bash
+bash -c '[ -t 0 ] && echo interactive || echo headless'
+```
+
+Then check the environment:
+
+```bash
+echo "${CI:-unset}"
+```
+
+Set `INTERACTIVE_MODE=true` if the bash output was `interactive` AND `CI` is not `true`. Otherwise set `INTERACTIVE_MODE=false`.
+
+In non-interactive mode (`INTERACTIVE_MODE=false`), write progress to `.agent-context/setup.log` at the start of each step via a Bash tool call:
+
+```bash
+echo "[agent-context] Step N/7: <description>" >> .agent-context/setup.log
+```
+
+Create the log file at the very start (before Step 1) so `tail -f` can attach immediately:
+
+```bash
+mkdir -p .agent-context && > .agent-context/setup.log
+```
+
+Example log entries:
+
+```
+[agent-context] Mode: UPDATE (0.3.0 → 0.5.0)
+[agent-context] Step 1/7: Checking version...
+[agent-context] Step 2/7: Downloading release 0.5.0...
+[agent-context] Step 3/7: Installing shared files...
+[agent-context] Step 4/7: Processing template files...
+[agent-context] Step 5/7: Syncing plugins...
+[agent-context] Step 6/7: Compatibility check...
+[agent-context] Step 7/7: Knowledge re-sync...
+[agent-context] Done.
+```
+
+Write `[agent-context] Done.` as the final log line — not as a numbered step.
+
+---
+
 ## Mode Detection
 
 1. If `.agent-context/.agent-context-version` exists → **UPDATE** mode
 2. Otherwise → **SETUP** mode
 
-Announce the detected mode to the user before proceeding.
+If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode, do NOT log the mode here — log it in Step 1 once the target version is known.
 
 ---
 
@@ -20,17 +78,24 @@ Announce the detected mode to the user before proceeding.
    - **SETUP:** abort with an informative message — version selection is required
    - **UPDATE:** inform the user that releases could not be checked, skip to Step 5
 4. **UPDATE only:** If the current version already matches the latest stable release → inform the user and skip to Step 5
-5. Present the available versions to the user (mark which is current, which is latest stable, and label pre-releases as `(pre-release)`)
-6. Ask the user which version to install — default is `latest stable`
-7. If the user declines → skip to Step 5
-8. Fetch the selected release from `https://api.github.com/repos/lx-wnk/Agent-Context/releases/tags/v<version>` and use its `tarball_url`
+5. If `INTERACTIVE_MODE=false`: skip the version prompt entirely, use the latest stable release automatically — do not present a table or ask any question. Then log the mode and target version:
+   ```bash
+   echo "[agent-context] Mode: UPDATE (0.3.0 → 0.5.0)" >> .agent-context/setup.log
+   # or for SETUP:
+   echo "[agent-context] Mode: SETUP (installing 0.5.0)" >> .agent-context/setup.log
+   ```
+6. Present the available versions to the user (mark which is current, which is latest stable, and label pre-releases as `(pre-release)`)
+7. Ask the user which version to install — default is `latest stable`
+8. If the user declines → skip to Step 5
+9. Store the selected version tag (e.g. `v0.5.0`) — it is used to build raw file URLs in Steps 2 and 3.
 
 ## Step 2: Install Shared Files
 
-1. Download the tarball from `tarball_url` and extract it to a temp directory
-2. Copy these files from the extracted archive into `.agent-context/`:
+Fetch each shared file directly from GitHub raw content — no tarball or temp directory needed.
 
-| Source (in archive)                  | Destination                                |
+Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
+
+| Source path                          | Destination                                |
 | ------------------------------------ | ------------------------------------------ |
 | `context/agent-startup.md`           | `.agent-context/agent-startup.md`          |
 | `context/layer0-agent-workflow.md`   | `.agent-context/layer0-agent-workflow.md`  |
@@ -39,14 +104,27 @@ Announce the detected mode to the user before proceeding.
 | `.prompts/decision-review-prompt.md` | `.agent-context/decision-review-prompt.md` |
 | `.prompts/memory-review-prompt.md`   | `.agent-context/memory-review-prompt.md`   |
 
-3. Write the new version to `.agent-context/.agent-context-version`
-4. Clean up the temp directory
+Fetch each file with:
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/<source-path>" \
+    -o "<destination>"
+```
+
+Write the new version to `.agent-context/.agent-context-version`.
 
 ## Step 3: Template Files
 
-For each file in the archive's `templates/` directory:
+List the contents of the `templates/` directory via the GitHub Contents API:
 
-- If the destination file does **NOT** exist → create it from the template
+```bash
+curl -fsSL "https://api.github.com/repos/lx-wnk/Agent-Context/contents/templates?ref=<tag>"
+```
+
+This returns a recursive file listing. For each file:
+
+- Fetch it from `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/templates/<relative-path>`
+- If the destination file does **NOT** exist → write it
 - If the destination file already exists → skip (project-owned, never overwrite)
 
 This ensures both first-time setup and updates receive new template files introduced in later versions.
@@ -158,7 +236,9 @@ After updating shared files (Steps 1–6), re-synchronize all project knowledge:
 
 ### 7a: Consolidated Fact Inventory
 
-Launch parallel subagents (same as SETUP Phase S2 Subagent 1) to scan:
+Apply the **Global Constraint: Knowledge Map Sources** — run `git ls-files --cached --others --exclude-standard` and only consider files in that output.
+
+Launch parallel subagents (same as SETUP Phase S2 Subagent 1) to scan within that set:
 
 - Existing `.agent-context/` (all layers, memory/, decisions.json, skills/)
 - All root-level `*.md` files
@@ -273,7 +353,9 @@ Launch **6 parallel subagents** to scan the project. All subagents are **mandato
 
 #### Subagent 1: Documentation & Knowledge Scanner
 
-Scan for all existing documentation and structured knowledge sources:
+Apply the **Global Constraint: Knowledge Map Sources** — run `git ls-files --cached --others --exclude-standard` and only consider files in that output.
+
+Scan for all existing documentation and structured knowledge sources within that set:
 
 - Root-level markdown files: `CLAUDE.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`
 - `.claude/rules/*.md`, `skills-lock.json`
@@ -469,7 +551,7 @@ Each fact in exactly ONE place. No duplicates.
 
 #### knowledge-map.md
 
-After filling all layers, create or update `.agent-context/knowledge-map.md`:
+After filling all layers, create or update `.agent-context/knowledge-map.md`. Apply the **Global Constraint: Knowledge Map Sources** — only add entries for sources that satisfy all three conditions.
 
 1. For every source from Subagent 1 with `recommended_action = "reference"` (after Ack/Nack decisions):
    - Add a row to **Knowledge Sources** table: source path, inferred topic, format, sha256, today's date
