@@ -13,6 +13,31 @@ A file may only appear in `knowledge-map.md` if ALL of the following are true:
 2. It contains project knowledge — documentation, architecture decisions, conventions, domain facts
 3. It is NOT agent-managed infrastructure (skills, agents, rules, plugins, or any tooling the agent self-indexes)
 
+## File Classification: AI Docs vs Real Docs
+
+This classification is used in UPDATE mode (Migration Cleanup step) and SETUP mode (Phase S5).
+
+### AI Docs (migratable — safe to delete/replace)
+
+Built-in directories and files always treated as AI docs:
+- `.ai/`
+- `.agent-context/`
+- `AGENTS.md`
+- `CLAUDE.md` (root)
+- `GEMINI.md` (root)
+- `.claude/CLAUDE.md`
+- `.cursorrules`
+- `.cursor/rules/`
+- `.github/copilot-instructions.md`
+
+If the prompt was invoked with an `--ai-dirs` argument (injected by `install.sh`), those directories extend this built-in list.
+
+### Real Docs (unberührbar — never modify, move, or delete)
+
+Any file **not** in an AI-managed directory. When a file's classification is uncertain (e.g. a root-level `makefile`, a custom config), default to **Real Doc** (conservative). Add it to the `UNRESOLVED` list in the post-migration report.
+
+---
+
 ## Step 0: Interactive Mode Detection (MUST run first, before anything else)
 
 **This is the very first action. Run it immediately before reading or acting on any other step.**
