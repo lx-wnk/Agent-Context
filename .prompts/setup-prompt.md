@@ -35,7 +35,7 @@ If the prompt was invoked with an `--ai-dirs` argument (injected by `install.sh`
 
 ### Real Docs (never modify, move, or delete)
 
-Any file **not** in an AI-managed directory. When a file's classification is uncertain (e.g. a root-level `makefile`, a custom config), default to **Real Doc** (conservative). Add it to the `UNRESOLVED` list in the post-migration report.
+Any file **not** in a built-in AI-doc path or a directory supplied via `--ai-dirs` is automatically a **Real Doc**. Only treat classification as uncertain for files **inside** those candidate AI-managed locations when it is unclear whether they are agent-managed infrastructure or project knowledge; in that case, default to **Real Doc** (conservative) and add it to the `UNRESOLVED` list in the post-migration report.
 
 ---
 
@@ -261,13 +261,27 @@ Check whether any built-in AI-doc directories (other than `.agent-context/` itse
 for dir in .ai .cursor/rules; do [ -d "$dir" ] && echo "FOUND: $dir"; done
 for f in CLAUDE.md GEMINI.md .cursorrules .github/copilot-instructions.md; do
   if [ -f "$f" ]; then
-    # Skip CLAUDE.md if it already contains only the bootstrap pointer
-    if [ "$f" = "CLAUDE.md" ] && grep -q "@AGENTS.md" "$f" && [ "$(wc -l < "$f")" -le 3 ]; then
+    # Skip CLAUDE.md if it is bootstrap-only: up to 5 total lines, with all
+    # non-blank lines consisting solely of the @AGENTS.md pointer.
+    if [ "$f" = "CLAUDE.md" ] && [ "$(wc -l < "$f")" -le 5 ] && \
+       grep -q "@AGENTS.md" "$f" && \
+       [ "$(grep -cve '^[[:space:]]*$' "$f")" -eq "$(grep -cxe '[[:space:]]*@AGENTS\.md[[:space:]]*' "$f")" ]; then
       continue
     fi
     echo "FOUND: $f"
   fi
 done
+AI_DIRS="${AI_DIRS:-}"
+OLD_IFS="$IFS"
+IFS=','
+for extra in $AI_DIRS; do
+  IFS="$OLD_IFS"
+  [ -n "$extra" ] || continue
+  [ -d "$extra" ] && echo "FOUND: $extra"
+  [ -f "$extra" ] && echo "FOUND: $extra"
+  IFS=','
+done
+IFS="$OLD_IFS"
 ```
 
 If none found → skip to Step 5.
@@ -291,6 +305,7 @@ rm .cursorrules      # flat file
 ```
 
 Do NOT delete Real Docs. Do NOT carry over any file contents or path references to the new structure.
+A directory is only safe to delete if **all** of its contents are confirmed AI-docs. If any file inside cannot be confidently classified, skip deletion of that whole directory and add the unclassifiable paths to the `UNRESOLVED` list instead.
 Do NOT delete `.agent-context/` itself — it is the destination of this migration.
 
 ### 4.5d: Mark UNRESOLVED files
@@ -356,7 +371,7 @@ For each fact/finding collected in 7a:
 
 ### 7d: knowledge-map.md Update
 
-**If Migration Cleanup (Step 4.5) ran** (check: `grep -q "MIGRATION_CLEANUP: ran" .agent-context/setup.log`)**:**
+**If Migration Cleanup (Step 4.5) ran** (check: `grep -q "MIGRATION_CLEANUP: ran" .agent-context/setup.log`):
 
 Regenerate `knowledge-map.md` from scratch; reconcile `setup-decisions.json` by removing stale entries:
 
@@ -405,7 +420,7 @@ If anything didn't go as expected, resume this session with:
   claude --resume $CLAUDE_SESSION_ID
 ```
 
-The session ID is set via `--session-id` by `install.sh` and available as `$CLAUDE_SESSION_ID`.
+`$CLAUDE_SESSION_ID` is exported by `install.sh` before invoking the agent. If unset (fallback scenario), omit the resume line.
 
 ---
 
@@ -729,7 +744,7 @@ If anything didn't go as expected, resume this session with:
   claude --resume $CLAUDE_SESSION_ID
 ```
 
-The session ID is set via `--session-id` by `install.sh` and available as `$CLAUDE_SESSION_ID`.
+`$CLAUDE_SESSION_ID` is exported by `install.sh` before invoking the agent. If unset (fallback scenario), omit the resume line.
 
 ---
 

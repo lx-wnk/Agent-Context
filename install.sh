@@ -31,6 +31,7 @@ if [ -n "$AI_DIRS" ]; then
 fi
 
 SESSION_ID=$(uuidgen 2>/dev/null || python3 -c "import uuid; print(uuid.uuid4())" 2>/dev/null || echo "unknown")
+export CLAUDE_SESSION_ID="$SESSION_ID"
 
 if ! command -v claude &>/dev/null; then
     echo "Error: claude CLI not found. Install it from https://claude.ai/code" >&2
@@ -41,7 +42,9 @@ mkdir -p .agent-context
 > "$LOG"
 
 echo "Starting agent-context setup in $(pwd)..."
-echo "Session ID: $SESSION_ID  (run 'claude --resume $SESSION_ID' to resume if needed)"
+if [ "$SESSION_ID" != "unknown" ]; then
+  echo "Session ID: $SESSION_ID  (run 'claude --resume $SESSION_ID' to resume if needed)"
+fi
 
 AGENT_CONTEXT_SETUP=1 claude -p "$PROMPT_INSTRUCTION" \
     --allowedTools "$ALLOWED_TOOLS" \
