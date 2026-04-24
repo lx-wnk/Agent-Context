@@ -23,10 +23,10 @@ Built-in directories and files always treated as AI docs:
 
 - `.ai/`
 - `.agent-context/` (only migrate away from it when replacing with a newer structure — never delete the current destination)
-- `AGENTS.md`
+- `AGENTS.md` (Agent-Context entry point — never delete during migration, only referenced)
 - `CLAUDE.md` (root)
 - `GEMINI.md` (root)
-- `.claude/CLAUDE.md`
+- `.claude/CLAUDE.md` (bootstrap pointer — never delete during migration, only referenced)
 - `.cursorrules`
 - `.cursor/rules/`
 - `.github/copilot-instructions.md`
@@ -259,7 +259,15 @@ Check whether any built-in AI-doc directories (other than `.agent-context/` itse
 
 ```bash
 for dir in .ai .cursor/rules; do [ -d "$dir" ] && echo "FOUND: $dir"; done
-for f in AGENTS.md CLAUDE.md GEMINI.md .cursorrules .claude/CLAUDE.md .github/copilot-instructions.md; do [ -f "$f" ] && echo "FOUND: $f"; done
+for f in CLAUDE.md GEMINI.md .cursorrules .github/copilot-instructions.md; do
+  if [ -f "$f" ]; then
+    # Skip CLAUDE.md if it already contains only the bootstrap pointer
+    if [ "$f" = "CLAUDE.md" ] && grep -q "@AGENTS.md" "$f" && [ "$(wc -l < "$f")" -le 3 ]; then
+      continue
+    fi
+    echo "FOUND: $f"
+  fi
+done
 ```
 
 If none found → skip to Step 5.
@@ -346,7 +354,7 @@ For each fact/finding collected in 7a:
 
 Do NOT update the existing `knowledge-map.md` and `setup-decisions.json` incrementally — regenerate them from scratch:
 
-1. Delete (or empty) `.agent-context/knowledge-map.md` and `.agent-context/setup-decisions.json`
+1. Empty (not delete) `.agent-context/knowledge-map.md`; for `.agent-context/setup-decisions.json` keep entries whose source file still exists — only remove entries pointing to deleted paths
 2. Scan all Real Docs currently in the repo (apply **Global Constraint: Knowledge Map Sources**)
 3. Compute fresh SHA256 for each source: `sha256sum <file>`
 4. Rebuild `knowledge-map.md` routing table and Knowledge Sources table from scratch
