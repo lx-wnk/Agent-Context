@@ -145,22 +145,10 @@ Check both locations:
 1. `.claude/CLAUDE.md`
 2. `CLAUDE.md` (project root)
 
-**For each found location, apply in order:**
+**For each found location:**
 
-1. **Has content beyond `@AGENTS.md`?**
-   - Extract any substantive content (rules, conventions, architecture notes)
-   - Apply Knowledge Decision Logic to route each extracted item to the correct layer file (same rules as Step 5)
-   - After routing, reduce the file to just the bootstrap pointer (see below)
-
-2. **Does not contain `@AGENTS.md`?** → append `@AGENTS.md` as the last line
-
-3. **Contains only `@AGENTS.md` (or equivalent bootstrap pointer)?** → skip
-
-If **neither** location exists → create `.claude/CLAUDE.md` with content:
-
-```
-@AGENTS.md
-```
+- **Has content beyond `@AGENTS.md`?** → Extract substantive content (rules, conventions, architecture notes) and apply Knowledge Decision Logic to route each item to the correct layer file (same rules as Step 5). Do NOT attempt to write or overwrite CLAUDE.md — `install.sh` replaces it with the bootstrap pointer after this agent exits.
+- **Contains only `@AGENTS.md` (or equivalent)?** → skip, nothing to migrate
 
 ---
 
@@ -555,13 +543,7 @@ Each fact in exactly ONE place. No duplicates.
 
 #### CLAUDE.md Reduction
 
-After routing all content from an existing `CLAUDE.md` (root or `.claude/`) to layer files, replace that file with the bootstrap pointer only:
-
-```
-@AGENTS.md
-```
-
-If the file did not exist before, create `.claude/CLAUDE.md` with that content. Do not leave any original content in CLAUDE.md — it now lives in the layer files.
+After routing all content from an existing `CLAUDE.md` to layer files, do NOT attempt to overwrite it — `install.sh` replaces it with the bootstrap pointer (`@AGENTS.md`) after this agent exits. The knowledge is already in the layers; the file swap is handled outside the agent.
 
 #### knowledge-map.md
 

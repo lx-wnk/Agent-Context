@@ -28,9 +28,11 @@ mkdir -p .agent-context
 
 echo "Starting agent-context setup in $(pwd)..."
 
-claude -p "$PROMPT_INSTRUCTION" \
+AGENT_CONTEXT_SETUP=1 claude -p "$PROMPT_INSTRUCTION" \
     --allowedTools "$ALLOWED_TOOLS" \
-    --output-format text > /dev/null &
+    --output-format text \
+    --dangerously-skip-permissions \
+    < /dev/null > /dev/null &
 CLAUDE_PID=$!
 
 show_progress() {
@@ -63,9 +65,28 @@ show_progress() {
     fi
 }
 
+update_claude_md() {
+    local updated=0
+    for loc in ".claude/CLAUDE.md" "CLAUDE.md"; do
+        [ -f "$loc" ] || continue
+        if grep -q "@AGENTS.md" "$loc" && [ "$(wc -l < "$loc")" -le 5 ]; then
+            continue
+        fi
+        printf '@AGENTS.md\n' > "$loc"
+        echo "Updated $loc → @AGENTS.md"
+        updated=1
+    done
+    if [ "$updated" -eq 0 ] && [ ! -f ".claude/CLAUDE.md" ] && [ ! -f "CLAUDE.md" ]; then
+        mkdir -p .claude
+        printf '@AGENTS.md\n' > .claude/CLAUDE.md
+        echo "Created .claude/CLAUDE.md → @AGENTS.md"
+    fi
+}
+
 show_progress
 wait "$CLAUDE_PID"
 EXIT_CODE=$?
+update_claude_md
 
 if ! grep -q "^\[agent-context\]" "$LOG" 2>/dev/null; then
     echo "Warning: no progress was logged — Claude may have exited early or encountered an error."
