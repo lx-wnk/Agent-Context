@@ -352,13 +352,13 @@ For each fact/finding collected in 7a:
 
 **If Migration Cleanup (Step 4.5) deleted any old AI directories:**
 
-Do NOT update the existing `knowledge-map.md` and `setup-decisions.json` incrementally — regenerate them from scratch:
+Regenerate `knowledge-map.md` from scratch; reconcile `setup-decisions.json` by removing stale entries:
 
-1. Empty (not delete) `.agent-context/knowledge-map.md`; for `.agent-context/setup-decisions.json` keep entries whose source file still exists — only remove entries pointing to deleted paths
+1. Empty `.agent-context/knowledge-map.md`; for `.agent-context/setup-decisions.json` keep entries whose source file still exists — only remove entries pointing to deleted paths
 2. Scan all Real Docs currently in the repo (apply **Global Constraint: Knowledge Map Sources**)
 3. Compute fresh SHA256 for each source: `sha256sum <file>`
 4. Rebuild `knowledge-map.md` routing table and Knowledge Sources table from scratch
-5. Rebuild `setup-decisions.json` with only currently-existing files and their current SHA256 values
+5. Ensure entries exist in `setup-decisions.json` for all currently-existing Real Docs; update SHA256 where changed
 6. Scan `.agent-context/skills/` and rebuild `skills/index.md` from what actually exists there
 
 No old paths. No stale hashes. No entries for files that no longer exist.
