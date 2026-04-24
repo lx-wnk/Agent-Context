@@ -376,6 +376,21 @@ Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-conte
 
 If in UPDATE mode, skip all remaining phases. Return `ok: true` with a brief summary (e.g. "Updated 0.1.1 → 0.1.2" or "Already up to date" or "User declined update"). Always return `ok: true` — even on failure.
 
+Always output the following at the very end of the UPDATE run. Omit the `UNRESOLVED` block if the list is empty:
+
+```
+Migration complete.
+
+UNRESOLVED (could not be classified — review manually):
+  - <file1>
+  - <file2>
+
+If anything didn't go as expected, resume this session with:
+  claude --resume $CLAUDE_SESSION_ID
+```
+
+`$CLAUDE_SESSION_ID` is available as an environment variable during the agent run.
+
 ---
 
 ## SETUP Mode: Additional Phases
@@ -683,6 +698,19 @@ Do not modify any source file — the map is a pointer index only.
 | Migration audit items              | N      | N ✓   |
 
 Inform the user to restart their agent session for the new configuration to take effect.
+
+Output the following at the very end. Omit the `UNRESOLVED` block if the list is empty:
+
+```
+Setup complete.
+
+UNRESOLVED (could not be classified — review manually):
+  - <file1>
+  - <file2>
+
+If anything didn't go as expected, resume this session with:
+  claude --resume $CLAUDE_SESSION_ID
+```
 
 ---
 
