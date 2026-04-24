@@ -267,7 +267,7 @@ If none found → skip to Step 5.
 
 For each found old directory/file:
 1. Apply the **File Classification** rules from the top of this prompt.
-2. Any file that cannot be classified confidently → add to `UNRESOLVED` list, do NOT touch it.
+2. Any file that cannot be classified confidently → add to `UNRESOLVED` list, do NOT touch it (log command in 4.5d).
 3. All confirmed AI-doc files → proceed to deletion.
 
 ### 4.5c: Delete old AI directories
