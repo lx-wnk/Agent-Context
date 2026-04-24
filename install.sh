@@ -18,6 +18,17 @@ if [ -n "${AGENT_CONTEXT_PROMPT:-}" ]; then
     PROMPT_INSTRUCTION="Read $(realpath "$AGENT_CONTEXT_PROMPT") and follow its instructions exactly."
 fi
 
+AI_DIRS=""
+for arg in "$@"; do
+    case "$arg" in
+        --ai-dirs=*) AI_DIRS="${arg#--ai-dirs=}" ;;
+    esac
+done
+
+if [ -n "$AI_DIRS" ]; then
+    PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION Additional AI directories to treat as migratable (extends built-in defaults): $AI_DIRS"
+fi
+
 if ! command -v claude &>/dev/null; then
     echo "Error: claude CLI not found. Install it from https://claude.ai/code" >&2
     exit 1
