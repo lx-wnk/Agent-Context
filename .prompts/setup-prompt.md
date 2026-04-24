@@ -249,9 +249,9 @@ After all decisions are made, write/update `.agent-context/setup-decisions.json`
 
 Compute SHA256 with `sha256sum <file>` (Linux/Mac) or equivalent. Use today's date for `decided_at`.
 
-## Step 4.5: Migration Cleanup (UPDATE mode only)
+## Step 4.5: Migration Cleanup (SETUP and UPDATE)
 
-Run this step unconditionally in UPDATE mode — it self-skips in 4.5a if no old AI directories are found.
+Run this step in both SETUP and UPDATE mode — it self-skips in 4.5a if no old AI directories are found.
 
 ### 4.5a: Detect old AI directories
 
@@ -682,6 +682,7 @@ Do not modify any source file — the map is a pointer index only.
 
 **Cleanup:**
 
+- Run **Step 4.5: Migration Cleanup** — detect and delete legacy AI directories (`.ai/`, `.cursorrules`, etc.)
 - Delete or empty migrated source files (`.claude/rules/*.md`, etc.)
 - Verify `.agent-context/` is NOT in `.gitignore`
 
