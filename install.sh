@@ -30,6 +30,8 @@ if [ -n "$AI_DIRS" ]; then
     PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION Additional AI directories to treat as migratable (extends built-in defaults): $AI_DIRS"
 fi
 
+SESSION_ID=$(uuidgen 2>/dev/null || python3 -c "import uuid; print(uuid.uuid4())" 2>/dev/null || echo "unknown")
+
 if ! command -v claude &>/dev/null; then
     echo "Error: claude CLI not found. Install it from https://claude.ai/code" >&2
     exit 1
@@ -39,11 +41,13 @@ mkdir -p .agent-context
 > "$LOG"
 
 echo "Starting agent-context setup in $(pwd)..."
+echo "Session ID: $SESSION_ID  (run 'claude --resume $SESSION_ID' to resume if needed)"
 
 AGENT_CONTEXT_SETUP=1 claude -p "$PROMPT_INSTRUCTION" \
     --allowedTools "$ALLOWED_TOOLS" \
     --output-format text \
     --dangerously-skip-permissions \
+    --session-id "$SESSION_ID" \
     < /dev/null > /dev/null &
 CLAUDE_PID=$!
 

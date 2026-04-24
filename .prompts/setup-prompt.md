@@ -304,6 +304,12 @@ echo "[agent-context] UNRESOLVED: <path/to/file>" >> .agent-context/setup.log
 
 If nothing is unresolved, skip this step.
 
+Regardless of whether any UNRESOLVED files exist, write the migration state to the log:
+
+```bash
+echo "[agent-context] MIGRATION_CLEANUP: ran" >> .agent-context/setup.log
+```
+
 ---
 
 ## Step 5: Knowledge Re-Sync (UPDATE mode)
@@ -350,7 +356,7 @@ For each fact/finding collected in 7a:
 
 ### 7d: knowledge-map.md Update
 
-**If Migration Cleanup (Step 4.5) deleted any old AI directories:**
+**If Migration Cleanup (Step 4.5) ran** (check: `grep -q "MIGRATION_CLEANUP: ran" .agent-context/setup.log`)**:**
 
 Regenerate `knowledge-map.md` from scratch; reconcile `setup-decisions.json` by removing stale entries:
 
@@ -363,7 +369,7 @@ Regenerate `knowledge-map.md` from scratch; reconcile `setup-decisions.json` by 
 
 No old paths. No stale hashes. No entries for files that no longer exist.
 
-**If no Migration Cleanup ran (normal update):**
+**If Migration Cleanup did not run** (`MIGRATION_CLEANUP: ran` not found in log)**:**
 
 For each source with `action = "reference"`:
 
@@ -399,7 +405,7 @@ If anything didn't go as expected, resume this session with:
   claude --resume $CLAUDE_SESSION_ID
 ```
 
-`$CLAUDE_SESSION_ID` is available as an environment variable during the agent run.
+The session ID is set via `--session-id` by `install.sh` and available as `$CLAUDE_SESSION_ID`.
 
 ---
 
@@ -722,7 +728,7 @@ If anything didn't go as expected, resume this session with:
   claude --resume $CLAUDE_SESSION_ID
 ```
 
-`$CLAUDE_SESSION_ID` is available as an environment variable during the agent run.
+The session ID is set via `--session-id` by `install.sh` and available as `$CLAUDE_SESSION_ID`.
 
 ---
 
