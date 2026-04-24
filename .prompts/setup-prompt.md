@@ -20,6 +20,7 @@ This classification is used in UPDATE mode (Migration Cleanup step) and SETUP mo
 ### AI Docs (migratable — safe to delete/replace)
 
 Built-in directories and files always treated as AI docs:
+
 - `.ai/`
 - `.agent-context/` (only migrate away from it when replacing with a newer structure — never delete the current destination)
 - `AGENTS.md`
@@ -266,6 +267,7 @@ If none found → skip to Step 5.
 ### 4.5b: Classify all files in old AI directories
 
 For each found old directory/file:
+
 1. Apply the **File Classification** rules from the top of this prompt.
 2. Any file that cannot be classified confidently → add to `UNRESOLVED` list, do NOT touch it (log command in 4.5d).
 3. All confirmed AI-doc files → proceed to deletion.
