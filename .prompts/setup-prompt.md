@@ -250,7 +250,7 @@ Compute SHA256 with `sha256sum <file>` (Linux/Mac) or equivalent. Use today's da
 
 ## Step 4.5: Migration Cleanup (UPDATE mode only)
 
-Run this step only when the current repo contains an AI directory that is being replaced (e.g. `.ai/` exists but `.agent-context/` is the new target).
+Run this step unconditionally in UPDATE mode — it self-skips in 4.5a if no old AI directories are found.
 
 ### 4.5a: Detect old AI directories
 
@@ -258,7 +258,7 @@ Check whether any built-in AI-doc directories (other than `.agent-context/` itse
 
 ```bash
 for dir in .ai .cursor/rules; do [ -d "$dir" ] && echo "FOUND: $dir"; done
-for f in CLAUDE.md GEMINI.md .cursorrules .github/copilot-instructions.md; do [ -f "$f" ] && echo "FOUND: $f"; done
+for f in AGENTS.md CLAUDE.md GEMINI.md .cursorrules .claude/CLAUDE.md .github/copilot-instructions.md; do [ -f "$f" ] && echo "FOUND: $f"; done
 ```
 
 If none found → skip to Step 5.
@@ -276,17 +276,20 @@ Delete only confirmed AI-doc directories and files:
 
 ```bash
 # Example — adapt to what was found in 4.5a:
-rm -rf .ai/
+rm -rf .ai/          # directory
+rm .cursorrules      # flat file
 ```
 
 Do NOT delete Real Docs. Do NOT carry over any file contents or path references to the new structure.
+Do NOT delete `.agent-context/` itself — it is the destination of this migration.
 
 ### 4.5d: Mark UNRESOLVED files
 
 If any files could not be classified, store them for the post-migration report:
 
 ```bash
-echo "[agent-context] UNRESOLVED: <comma-separated list>" >> .agent-context/setup.log
+# One line per unresolved file:
+echo "[agent-context] UNRESOLVED: <path/to/file>" >> .agent-context/setup.log
 ```
 
 If nothing is unresolved, skip this step.
