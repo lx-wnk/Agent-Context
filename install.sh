@@ -6,6 +6,7 @@ ALLOWED_TOOLS="Edit,Write,Read,Bash,Glob,Grep,WebFetch,WebSearch,Agent"
 LOG=".agent-context/setup.log"
 
 # --local <path>: use a local prompt file instead of the remote URL (for testing)
+# --ai-dirs=<dirs>: comma-separated extra AI-doc dirs to treat as migratable (e.g. --ai-dirs=".cursor,.ai-custom")
 PROMPT_INSTRUCTION="Fetch $PROMPT_URL and follow its instructions exactly."
 if [ "${1:-}" = "--local" ]; then
     AGENT_CONTEXT_PROMPT="${2:-}"
