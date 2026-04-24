@@ -248,6 +248,51 @@ After all decisions are made, write/update `.agent-context/setup-decisions.json`
 
 Compute SHA256 with `sha256sum <file>` (Linux/Mac) or equivalent. Use today's date for `decided_at`.
 
+## Step 4.5: Migration Cleanup (UPDATE mode only)
+
+Run this step only when the current repo contains an AI directory that is being replaced (e.g. `.ai/` exists but `.agent-context/` is the new target).
+
+### 4.5a: Detect old AI directories
+
+Check whether any built-in AI-doc directories (other than `.agent-context/` itself) exist:
+
+```bash
+for dir in .ai .cursor/rules; do [ -d "$dir" ] && echo "FOUND: $dir"; done
+for f in CLAUDE.md GEMINI.md .cursorrules .github/copilot-instructions.md; do [ -f "$f" ] && echo "FOUND: $f"; done
+```
+
+If none found → skip to Step 5.
+
+### 4.5b: Classify all files in old AI directories
+
+For each found old directory/file:
+1. Apply the **File Classification** rules from the top of this prompt.
+2. Any file that cannot be classified confidently → add to `UNRESOLVED` list, do NOT touch it.
+3. All confirmed AI-doc files → proceed to deletion.
+
+### 4.5c: Delete old AI directories
+
+Delete only confirmed AI-doc directories and files:
+
+```bash
+# Example — adapt to what was found in 4.5a:
+rm -rf .ai/
+```
+
+Do NOT delete Real Docs. Do NOT carry over any file contents or path references to the new structure.
+
+### 4.5d: Mark UNRESOLVED files
+
+If any files could not be classified, store them for the post-migration report:
+
+```bash
+echo "[agent-context] UNRESOLVED: <comma-separated list>" >> .agent-context/setup.log
+```
+
+If nothing is unresolved, skip this step.
+
+---
+
 ## Step 5: Knowledge Re-Sync (UPDATE mode)
 
 After updating shared files (Steps 1–6), re-synchronize all project knowledge:
