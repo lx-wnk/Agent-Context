@@ -712,6 +712,8 @@ If anything didn't go as expected, resume this session with:
   claude --resume $CLAUDE_SESSION_ID
 ```
 
+`$CLAUDE_SESSION_ID` is available as an environment variable during the agent run.
+
 ---
 
 ## Error Handling
