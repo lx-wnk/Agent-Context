@@ -26,7 +26,7 @@ There are no build, test, or lint commands beyond Prettier.
 
 Two categories of files, critical to understand before editing:
 
-- **Shared files** (`context/`, `plugins.json`): Overwritten on every auto-update in target projects. Changes here propagate to all installations.
+- **Shared files** (`context/`): Overwritten on every auto-update in target projects. Changes here propagate to all installations.
 - **Template files** (`templates/`): Copied once during setup, never overwritten. These become project-owned files.
 
 ### Layer System
@@ -44,17 +44,7 @@ Entry point is `AGENTS.md` → all layers load at startup via `@`-includes:
 
 ### Setup & Update Flow
 
-- **Setup & Update**: `.prompts/setup-prompt.md` — single prompt that auto-detects mode. SETUP: full installation with discovery. UPDATE: version check, shared file sync, plugin sync.
-
-### Agent Plugin (`agents@lx-wnk`)
-
-Specialist agents (`ac-*`) live in a **separate repository**: `https://github.com/lx-wnk/agents`. They are NOT part of
-this repo. The `agents/` directory has been removed — agents are installed via the `agents@lx-wnk` plugin entry in
-`plugins.json`.
-
-Key design principle: agents are **zero-coupled** to `.agent-context/`. They detect tech stack from project manifests
-and receive project context via the delegating prompt. See `docs/best-practices-agent-creation.md` (German) for
-agent conventions.
+- **Setup & Update**: `.prompts/setup-prompt.md` — single prompt that auto-detects mode. SETUP: full installation with discovery. UPDATE: version check, shared file sync.
 
 ## Key Conventions
 

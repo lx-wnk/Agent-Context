@@ -47,13 +47,11 @@ Example log entries:
 
 ```
 [agent-context] Mode: UPDATE (0.3.0 → 0.5.0)
-[agent-context] Step 1/7: Checking version...
-[agent-context] Step 2/7: Downloading release 0.5.0...
-[agent-context] Step 3/7: Installing shared files...
-[agent-context] Step 4/7: Processing template files...
-[agent-context] Step 5/7: Syncing plugins...
-[agent-context] Step 6/7: Compatibility check...
-[agent-context] Step 7/7: Knowledge re-sync...
+[agent-context] Step 1/5: Checking version...
+[agent-context] Step 2/5: Installing shared files...
+[agent-context] Step 3/5: Processing template files...
+[agent-context] Step 4/5: Compatibility check...
+[agent-context] Step 5/5: Knowledge re-sync...
 [agent-context] Done.
 ```
 
@@ -76,8 +74,8 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
 2. Fetch the release list from `https://api.github.com/repos/lx-wnk/Agent-Context/releases`
 3. If the fetch fails or returns no releases:
    - **SETUP:** abort with an informative message — version selection is required
-   - **UPDATE:** inform the user that releases could not be checked, skip to Step 5
-4. **UPDATE only:** If the current version already matches the latest stable release → inform the user and skip to Step 5
+   - **UPDATE:** inform the user that releases could not be checked, skip to Step 4
+4. **UPDATE only:** If the current version already matches the latest stable release → inform the user and skip to Step 4
 5. If `INTERACTIVE_MODE=false`: skip the version prompt entirely, use the latest stable release automatically — do not present a table or ask any question. Then log the mode and target version:
    ```bash
    echo "[agent-context] Mode: UPDATE (0.3.0 → 0.5.0)" >> .agent-context/setup.log
@@ -86,7 +84,7 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
    ```
 6. Present the available versions to the user (mark which is current, which is latest stable, and label pre-releases as `(pre-release)`)
 7. Ask the user which version to install — default is `latest stable`
-8. If the user declines → skip to Step 5
+8. If the user declines → skip to Step 4
 9. Store the selected version tag (e.g. `v0.5.0`) — it is used to build raw file URLs in Steps 2 and 3.
 
 ## Step 2: Install Shared Files
@@ -100,7 +98,6 @@ Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
 | `context/agent-startup.md`           | `.agent-context/agent-startup.md`          |
 | `context/layer0-agent-workflow.md`   | `.agent-context/layer0-agent-workflow.md`  |
 | `context/base-principles.md`         | `.agent-context/base-principles.md`        |
-| `plugins.json`                       | `.agent-context/plugins.json`              |
 | `.prompts/decision-review-prompt.md` | `.agent-context/decision-review-prompt.md` |
 | `.prompts/memory-review-prompt.md`   | `.agent-context/memory-review-prompt.md`   |
 
@@ -129,25 +126,7 @@ This returns a recursive file listing. For each file:
 
 This ensures both first-time setup and updates receive new template files introduced in later versions.
 
-## Step 4: Agent Plugin Check
-
-Agents are no longer bundled in this repository. They live in a separate plugin: `agents@lx-wnk` (source: `https://github.com/lx-wnk/agents`).
-
-If this is a fresh setup and the user does not already have agents installed, offer to add the plugin:
-
-1. Check if `agents@lx-wnk` is already in `.agent-context/plugins.json`
-2. If not present, ask the user if they want to install the `agents@lx-wnk` plugin
-3. If yes: add `"agents@lx-wnk"` to `.agent-context/plugins.json`
-4. The plugin sync in Step 5 will then register it in Claude Code settings
-
-## Step 5: Plugin Sync
-
-1. Read `.agent-context/plugins.json` (skip if missing)
-2. Read `.claude/settings.json` (create empty if missing)
-3. For each plugin not already in `enabledPlugins`: add it with value `true`
-4. Never remove existing plugins
-
-## Step 6: Compatibility Check
+## Step 4: Compatibility Check
 
 After updating shared files, check project-owned files for known outdated patterns:
 
@@ -157,11 +136,25 @@ After updating shared files, check project-owned files for known outdated patter
 
 If any patterns are found, include them in the response as suggestions — never auto-fix project-owned files.
 
+### CLAUDE.md Bootstrap Check (auto-fix exception)
+
+CLAUDE.md is the agent's entry point and must contain **only** the bootstrap pointer. All project knowledge belongs in the layer files — content left in CLAUDE.md bypasses the layer system and causes duplication.
+
+Check both locations:
+
+1. `.claude/CLAUDE.md`
+2. `CLAUDE.md` (project root)
+
+**For each found location:**
+
+- **Has content beyond `@AGENTS.md`?** → Extract substantive content (rules, conventions, architecture notes) and apply Knowledge Decision Logic to route each item to the correct layer file (same rules as Step 5). Do NOT attempt to write or overwrite CLAUDE.md — `install.sh` replaces it with the bootstrap pointer after this agent exits.
+- **Contains only `@AGENTS.md` (or equivalent)?** → skip, nothing to migrate
+
 ---
 
 ## Knowledge Decision Logic
 
-Used during Phase S2 (SETUP) and Step 7 (UPDATE) when processing discovered knowledge sources.
+Used during Phase S2 (SETUP) and Step 5 (UPDATE) when processing discovered knowledge sources.
 
 ### Auto-Decision (no user input required)
 
@@ -230,7 +223,7 @@ After all decisions are made, write/update `.agent-context/setup-decisions.json`
 
 Compute SHA256 with `sha256sum <file>` (Linux/Mac) or equivalent. Use today's date for `decided_at`.
 
-## Step 7: Knowledge Re-Sync (UPDATE mode)
+## Step 5: Knowledge Re-Sync (UPDATE mode)
 
 After updating shared files (Steps 1–6), re-synchronize all project knowledge:
 
@@ -293,7 +286,7 @@ Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-conte
 
 ## UPDATE Mode: Done
 
-If in UPDATE mode, skip all remaining phases. Return `ok: true` with a brief summary (e.g. "Updated 0.1.1 → 0.1.2, synced 3 agents, synced 2 plugins" or "Already up to date" or "User declined update"). Always return `ok: true` — even on failure.
+If in UPDATE mode, skip all remaining phases. Return `ok: true` with a brief summary (e.g. "Updated 0.1.1 → 0.1.2" or "Already up to date" or "User declined update"). Always return `ok: true` — even on failure.
 
 ---
 
@@ -317,7 +310,6 @@ AGENTS.md                                PROJECT — customize freely
   agent-startup.md                       🔒 SHARED — do NOT modify (auto-updated)
   layer0-agent-workflow.md               🔒 SHARED — do NOT modify (auto-updated)
   base-principles.md                     🔒 SHARED — do NOT modify (auto-updated)
-  plugins.json                           🔒 SHARED — do NOT modify (auto-updated)
   .agent-context-version                 🔒 SHARED — written by setup/update
   memory-review-prompt.md               🔒 SHARED — do NOT modify (auto-updated)
   decision-review-prompt.md              🔒 SHARED — do NOT modify (auto-updated)
@@ -414,12 +406,12 @@ Analyze repository history and conventions:
 
 Output: commit convention, branch strategy.
 
-#### Subagent 6: Skills & Plugins
+#### Subagent 6: Skills
 
 Check for existing skills infrastructure:
 
 - `skills-lock.json` — locked skill definitions
-- `.claude/skills/`, `.agents/skills/` — existing project skills
+- `.claude/skills/` — existing project skills
 
 Output: whether skills-lock exists, list of existing skills.
 
@@ -549,6 +541,10 @@ For existing documentation found in Phase S2, route surviving content:
 
 Each fact in exactly ONE place. No duplicates.
 
+#### CLAUDE.md Reduction
+
+After routing all content from an existing `CLAUDE.md` to layer files, do NOT attempt to overwrite it — `install.sh` replaces it with the bootstrap pointer (`@AGENTS.md`) after this agent exits. The knowledge is already in the layers; the file swap is handled outside the agent.
+
 #### knowledge-map.md
 
 After filling all layers, create or update `.agent-context/knowledge-map.md`. Apply the **Global Constraint: Knowledge Map Sources** — only add entries for sources that satisfy all three conditions.
@@ -563,38 +559,7 @@ Do not modify any source file — the map is a pointer index only.
 
 **Important:** Do NOT create memory files for general programming principles (KISS, YAGNI, DRY, SOLID, Clean Code). LLMs already know these — adding them wastes context budget and reduces performance. Only store knowledge that is **specific to this project** and **not discoverable from the code**.
 
-### Phase S5: Project Skills Discovery
-
-Analyze the project for recurring patterns that benefit from dedicated skills:
-
-- Custom build/deploy scripts, CI workflows
-- Testing patterns specific to this project
-- Domain-specific business logic patterns
-- Common code generation tasks
-
-For each pattern, create a skill in `.claude/skills/<skill-name>/SKILL.md` with YAML frontmatter.
-
-If `skills-lock.json` exists in the project root:
-
-1. Run `npx skills experimental_install` to install locked skills — this is **mandatory**, not optional
-2. Add `.agents/skills/` to `.gitignore`
-3. Keep `skills-lock.json` committed
-
-### Phase S6: Agent Plugin Installation (Claude Code only, optional)
-
-Specialist agents (`ac-*`) are available via the `agents@lx-wnk` plugin at `https://github.com/lx-wnk/agents`. They are fully decoupled from `.agent-context/` and work in any project — they auto-detect tech stacks and use MCP tools only when available.
-
-1. Ask the user if they want to install the specialist agent plugin
-2. If yes: add `"agents@lx-wnk"` to `.agent-context/plugins.json` (if not already present)
-3. Plugin sync (Step 5) will register it in Claude Code settings automatically
-
-Available agents: `ac-analysis`, `ac-architect`, `ac-backend`, `ac-chrome`, `ac-concept`, `ac-debug`, `ac-discovery`, `ac-docs`, `ac-frontend`, `ac-performance`, `ac-research`, `ac-review`, `ac-testing`.
-
-For project-specific agent customization, install the plugin and then copy individual agent files from `~/.claude/plugins/cache/lx-wnk/agents/` to `.claude/agents/` — project-local copies override the plugin version. Follow the patterns in `docs/best-practices-agent-creation.md`.
-
-> **Note:** Phase S7 (Knowledge Re-Sync) is UPDATE-only and does not run during SETUP. The knowledge-map.md is created in Phase S4. SETUP phases jump from S6 to S8.
-
-### Phase S8: Cleanup & Verification
+### Phase S5: Cleanup & Verification
 
 **Cleanup:**
 
