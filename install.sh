@@ -6,6 +6,7 @@ ALLOWED_TOOLS="Edit,Write,Read,Bash,Glob,Grep,WebFetch,WebSearch,Agent"
 LOG=".agent-context/setup.log"
 
 # --local <path>: use a local prompt file instead of the remote URL (for testing)
+# --ai-dirs=<dirs>: comma-separated extra AI-doc dirs to treat as migratable (e.g. --ai-dirs=".cursor,.ai-custom")
 PROMPT_INSTRUCTION="Fetch $PROMPT_URL and follow its instructions exactly."
 if [ "${1:-}" = "--local" ]; then
     AGENT_CONTEXT_PROMPT="${2:-}"
@@ -18,6 +19,20 @@ if [ -n "${AGENT_CONTEXT_PROMPT:-}" ]; then
     PROMPT_INSTRUCTION="Read $(realpath "$AGENT_CONTEXT_PROMPT") and follow its instructions exactly."
 fi
 
+AI_DIRS=""
+for arg in "$@"; do
+    case "$arg" in
+        --ai-dirs=*) AI_DIRS="${arg#--ai-dirs=}" ;;
+    esac
+done
+
+if [ -n "$AI_DIRS" ]; then
+    PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION Additional AI directories to treat as migratable (extends built-in defaults): $AI_DIRS"
+fi
+
+SESSION_ID=$(uuidgen 2>/dev/null || python3 -c "import uuid; print(uuid.uuid4())" 2>/dev/null || echo "unknown")
+export CLAUDE_SESSION_ID="$SESSION_ID"
+
 if ! command -v claude &>/dev/null; then
     echo "Error: claude CLI not found. Install it from https://claude.ai/code" >&2
     exit 1
@@ -27,11 +42,15 @@ mkdir -p .agent-context
 > "$LOG"
 
 echo "Starting agent-context setup in $(pwd)..."
+if [ "$SESSION_ID" != "unknown" ]; then
+  echo "Session ID: $SESSION_ID  (run 'claude --resume $SESSION_ID' to resume if needed)"
+fi
 
 AGENT_CONTEXT_SETUP=1 claude -p "$PROMPT_INSTRUCTION" \
     --allowedTools "$ALLOWED_TOOLS" \
     --output-format text \
     --dangerously-skip-permissions \
+    --session-id "$SESSION_ID" \
     < /dev/null > /dev/null &
 CLAUDE_PID=$!
 

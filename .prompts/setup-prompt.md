@@ -13,6 +13,32 @@ A file may only appear in `knowledge-map.md` if ALL of the following are true:
 2. It contains project knowledge — documentation, architecture decisions, conventions, domain facts
 3. It is NOT agent-managed infrastructure (skills, agents, rules, plugins, or any tooling the agent self-indexes)
 
+## File Classification: AI Docs vs Real Docs
+
+This classification is used in UPDATE mode (Migration Cleanup step) and SETUP mode (cleanup and verification phases).
+
+### AI Docs (migratable — safe to delete/replace)
+
+Built-in directories and files always treated as AI docs:
+
+- `.ai/`
+- `.agent-context/` (only migrate away from it when replacing with a newer structure — never delete the current destination)
+- `AGENTS.md` (Agent-Context entry point — never delete during migration, only referenced)
+- `CLAUDE.md` (root)
+- `GEMINI.md` (root)
+- `.claude/CLAUDE.md` (bootstrap pointer — never delete during migration, only referenced)
+- `.cursorrules`
+- `.cursor/rules/`
+- `.github/copilot-instructions.md`
+
+If the prompt was invoked with an `--ai-dirs` argument (injected by `install.sh`), those directories extend this built-in list.
+
+### Real Docs (never modify, move, or delete)
+
+Any file **not** in a built-in AI-doc path or a directory supplied via `--ai-dirs` is automatically a **Real Doc**. Only treat classification as uncertain for files **inside** those candidate AI-managed locations when it is unclear whether they are agent-managed infrastructure or project knowledge; in that case, default to **Real Doc** (conservative) and add it to the `UNRESOLVED` list in the post-migration report.
+
+---
+
 ## Step 0: Interactive Mode Detection (MUST run first, before anything else)
 
 **This is the very first action. Run it immediately before reading or acting on any other step.**
@@ -223,6 +249,84 @@ After all decisions are made, write/update `.agent-context/setup-decisions.json`
 
 Compute SHA256 with `sha256sum <file>` (Linux/Mac) or equivalent. Use today's date for `decided_at`.
 
+## Step 4.5: Migration Cleanup (SETUP and UPDATE)
+
+Run this step in both SETUP and UPDATE mode — it self-skips in 4.5a if no old AI directories are found.
+
+### 4.5a: Detect old AI directories
+
+Check whether any built-in AI-doc directories (other than `.agent-context/` itself) exist:
+
+```bash
+for dir in .ai .cursor/rules; do [ -d "$dir" ] && echo "FOUND: $dir"; done
+for f in CLAUDE.md GEMINI.md .cursorrules .github/copilot-instructions.md; do
+  if [ -f "$f" ]; then
+    # Skip CLAUDE.md if it is bootstrap-only: up to 5 total lines, with all
+    # non-blank lines consisting solely of the @AGENTS.md pointer.
+    if [ "$f" = "CLAUDE.md" ] && [ "$(wc -l < "$f")" -le 5 ] && \
+       grep -q "@AGENTS.md" "$f" && \
+       [ "$(grep -cve '^[[:space:]]*$' "$f")" -eq "$(grep -cxe '[[:space:]]*@AGENTS\.md[[:space:]]*' "$f")" ]; then
+      continue
+    fi
+    echo "FOUND: $f"
+  fi
+done
+AI_DIRS="${AI_DIRS:-}"
+OLD_IFS="$IFS"
+IFS=','
+for extra in $AI_DIRS; do
+  IFS="$OLD_IFS"
+  [ -n "$extra" ] || continue
+  [ -d "$extra" ] && echo "FOUND: $extra"
+  [ -f "$extra" ] && echo "FOUND: $extra"
+  IFS=','
+done
+IFS="$OLD_IFS"
+```
+
+If none found → skip to Step 5.
+
+### 4.5b: Classify all files in old AI directories
+
+For each found old directory/file:
+
+1. Apply the **File Classification** rules from the top of this prompt.
+2. Any file that cannot be classified confidently → add to `UNRESOLVED` list, do NOT touch it (log command in 4.5d).
+3. All confirmed AI-doc files → proceed to deletion.
+
+### 4.5c: Delete old AI directories
+
+Delete only confirmed AI-doc directories and files:
+
+```bash
+# Example — adapt to what was found in 4.5a:
+rm -rf .ai/          # directory
+rm .cursorrules      # flat file
+```
+
+Do NOT delete Real Docs. Do NOT carry over any file contents or path references to the new structure.
+A directory is only safe to delete if **all** of its contents are confirmed AI-docs. If any file inside cannot be confidently classified, skip deletion of that whole directory and add the unclassifiable paths to the `UNRESOLVED` list instead.
+Do NOT delete `.agent-context/` itself — it is the destination of this migration.
+
+### 4.5d: Mark UNRESOLVED files
+
+If any files could not be classified, store them for the post-migration report:
+
+```bash
+# One line per unresolved file:
+echo "[agent-context] UNRESOLVED: <path/to/file>" >> .agent-context/setup.log
+```
+
+If nothing is unresolved, skip this step.
+
+Regardless of whether any UNRESOLVED files exist, write the migration state to the log:
+
+```bash
+echo "[agent-context] MIGRATION_CLEANUP: ran" >> .agent-context/setup.log
+```
+
+---
+
 ## Step 5: Knowledge Re-Sync (UPDATE mode)
 
 After updating shared files (Steps 1–6), re-synchronize all project knowledge:
@@ -267,6 +371,21 @@ For each fact/finding collected in 7a:
 
 ### 7d: knowledge-map.md Update
 
+**If Migration Cleanup (Step 4.5) ran** (check: `grep -q "MIGRATION_CLEANUP: ran" .agent-context/setup.log`):
+
+Regenerate `knowledge-map.md` from scratch; reconcile `setup-decisions.json` by removing stale entries:
+
+1. Empty `.agent-context/knowledge-map.md`; for `.agent-context/setup-decisions.json` keep entries whose source file still exists — only remove entries pointing to deleted paths
+2. Scan all Real Docs currently in the repo (apply **Global Constraint: Knowledge Map Sources**)
+3. Compute fresh SHA256 for each source: `sha256sum <file>`
+4. Rebuild `knowledge-map.md` routing table and Knowledge Sources table from scratch
+5. Ensure entries exist in `setup-decisions.json` for all currently-existing Real Docs; update SHA256 where changed
+6. Scan `.agent-context/skills/` and rebuild `skills/index.md` from what actually exists there
+
+No old paths. No stale hashes. No entries for files that no longer exist.
+
+**If Migration Cleanup did not run** (`MIGRATION_CLEANUP: ran` not found in log)**:**
+
 For each source with `action = "reference"`:
 
 - Update SHA256 and Last Verified if the file has changed
@@ -287,6 +406,21 @@ Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-conte
 ## UPDATE Mode: Done
 
 If in UPDATE mode, skip all remaining phases. Return `ok: true` with a brief summary (e.g. "Updated 0.1.1 → 0.1.2" or "Already up to date" or "User declined update"). Always return `ok: true` — even on failure.
+
+Always output the following at the very end of the UPDATE run. Omit the `UNRESOLVED` block if the list is empty:
+
+```
+Migration complete.
+
+UNRESOLVED (could not be classified — review manually):
+  - <file1>
+  - <file2>
+
+If anything didn't go as expected, resume this session with:
+  claude --resume $CLAUDE_SESSION_ID
+```
+
+`$CLAUDE_SESSION_ID` is exported by `install.sh` before invoking the agent. If unset (fallback scenario), omit the resume line.
 
 ---
 
@@ -563,6 +697,7 @@ Do not modify any source file — the map is a pointer index only.
 
 **Cleanup:**
 
+- Run **Step 4.5: Migration Cleanup** — detect and delete legacy AI directories (`.ai/`, `.cursorrules`, etc.)
 - Delete or empty migrated source files (`.claude/rules/*.md`, etc.)
 - Verify `.agent-context/` is NOT in `.gitignore`
 
@@ -595,6 +730,21 @@ Do not modify any source file — the map is a pointer index only.
 | Migration audit items              | N      | N ✓   |
 
 Inform the user to restart their agent session for the new configuration to take effect.
+
+Output the following at the very end. Omit the `UNRESOLVED` block if the list is empty:
+
+```
+Setup complete.
+
+UNRESOLVED (could not be classified — review manually):
+  - <file1>
+  - <file2>
+
+If anything didn't go as expected, resume this session with:
+  claude --resume $CLAUDE_SESSION_ID
+```
+
+`$CLAUDE_SESSION_ID` is exported by `install.sh` before invoking the agent. If unset (fallback scenario), omit the resume line.
 
 ---
 
