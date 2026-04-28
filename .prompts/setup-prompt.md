@@ -191,6 +191,10 @@ for dest, p in procs:
     if rc != 0:
         print(f'Error: failed to download {dest}', file=sys.stderr)
         fail = 1
+        try:
+            os.unlink(dest + '.tmp')
+        except OSError:
+            pass
     else:
         os.rename(dest + '.tmp', dest)
         print(f'Created {dest}')
