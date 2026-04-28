@@ -101,7 +101,11 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
 3. If the fetch fails or returns no releases:
    - **SETUP:** abort with an informative message — version selection is required
    - **UPDATE:** inform the user that releases could not be checked, skip to Step 4
-4. **UPDATE only:** If the current version already matches the latest stable release → inform the user and skip to Step 4
+4. **UPDATE only:** If the current version already matches the latest stable release:
+   - Inform the user: "Already up to date (vX.Y.Z). Running CLAUDE.md bootstrap check only."
+   - Run only the **CLAUDE.md Bootstrap Check** section from Step 4 (skip the compatibility pattern check)
+   - **Skip Steps 4.5 (Migration Cleanup) and Step 5 (Knowledge Re-Sync) entirely**
+   - Jump directly to **UPDATE Mode: Done**
 5. If `INTERACTIVE_MODE=false`: skip the version prompt entirely, use the latest stable release automatically — do not present a table or ask any question. Then log the mode and target version:
    ```bash
    echo "[agent-context] Mode: UPDATE (0.3.0 → 0.5.0)" >> .agent-context/setup.log
@@ -127,14 +131,36 @@ Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
 | `.prompts/decision-review-prompt.md` | `.agent-context/decision-review-prompt.md` |
 | `.prompts/memory-review-prompt.md`   | `.agent-context/memory-review-prompt.md`   |
 
-Fetch each file with:
+Fetch all files **in parallel** — spawn each curl in the background and wait for all:
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/<source-path>" \
-    -o "<destination>"
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/agent-startup.md" \
+    -o ".agent-context/agent-startup.md" && echo "OK: agent-startup.md" || echo "FAIL: agent-startup.md") &
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/layer0-agent-workflow.md" \
+    -o ".agent-context/layer0-agent-workflow.md" && echo "OK: layer0-agent-workflow.md" || echo "FAIL: layer0-agent-workflow.md") &
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/base-principles.md" \
+    -o ".agent-context/base-principles.md" && echo "OK: base-principles.md" || echo "FAIL: base-principles.md") &
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/.prompts/decision-review-prompt.md" \
+    -o ".agent-context/decision-review-prompt.md" && echo "OK: decision-review-prompt.md" || echo "FAIL: decision-review-prompt.md") &
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/.prompts/memory-review-prompt.md" \
+    -o ".agent-context/memory-review-prompt.md" && echo "OK: memory-review-prompt.md" || echo "FAIL: memory-review-prompt.md") &
+wait
 ```
 
-Write the new version to `.agent-context/.agent-context-version`.
+After all downloads, verify none failed:
+```bash
+# Check each destination file is non-empty; exit non-zero if any failed
+for f in .agent-context/agent-startup.md .agent-context/layer0-agent-workflow.md \
+          .agent-context/base-principles.md .agent-context/decision-review-prompt.md \
+          .agent-context/memory-review-prompt.md; do
+    [ -s "$f" ] || { echo "Error: failed to download $f" >&2; exit 1; }
+done
+```
+
+Write the new version to `.agent-context/.agent-context-version`:
+```bash
+echo "<tag>" > .agent-context/.agent-context-version
+```
 
 ## Step 3: Template Files
 
@@ -144,11 +170,35 @@ List the contents of the `templates/` directory via the GitHub Contents API:
 curl -fsSL "https://api.github.com/repos/lx-wnk/Agent-Context/contents/templates?ref=<tag>"
 ```
 
-This returns a recursive file listing. For each file:
+This returns a JSON array. Parse it and download all missing template files **in parallel**:
 
-- Fetch it from `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/templates/<relative-path>`
-- If the destination file does **NOT** exist → write it
-- If the destination file already exists → skip (project-owned, never overwrite)
+```bash
+# Parse the JSON listing and spawn parallel downloads for files not yet present
+curl -fsSL "https://api.github.com/repos/lx-wnk/Agent-Context/contents/templates?ref=<tag>" | \
+  python3 -c "
+import sys, json, subprocess, os
+files = json.load(sys.stdin)
+procs = []
+for f in files:
+    if f.get('type') != 'file':
+        continue
+    rel = f['path'].removeprefix('templates/')
+    dest = rel
+    if os.path.exists(dest):
+        continue  # project-owned — never overwrite
+    os.makedirs(os.path.dirname(dest) or '.', exist_ok=True)
+    url = 'https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/templates/' + rel
+    procs.append((dest, subprocess.Popen(['curl', '-fsSL', url, '-o', dest])))
+for dest, p in procs:
+    rc = p.wait()
+    if rc != 0:
+        print(f'Error: failed to download {dest}', file=sys.stderr)
+        raise SystemExit(1)
+    print(f'Created {dest}')
+"
+```
+
+If a destination file already exists → skip it (project-owned, never overwrite).
 
 This ensures both first-time setup and updates receive new template files introduced in later versions.
 
