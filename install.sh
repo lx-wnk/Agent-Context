@@ -37,6 +37,10 @@ if [ -n "$AI_DIRS" ]; then
     PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION Additional AI directories to treat as migratable (extends built-in defaults): $AI_DIRS"
 fi
 
+if [ "$FORCE" -eq 1 ]; then
+    PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION Force flag is set: skip any up-to-date version checks and perform a full update regardless of current version."
+fi
+
 update_claude_md() {
     local updated=0
     for loc in ".claude/CLAUDE.md" "CLAUDE.md"; do
@@ -78,7 +82,10 @@ get_latest_version() {
         "import sys,json; d=json.load(sys.stdin); print(d.get('tag_name',''))" 2>/dev/null) || true
     if [ -n "$version" ]; then
         mkdir -p "$CACHE_DIR"
-        echo "$version" > "$CACHE_FILE"
+        local tmp_cache
+        tmp_cache=$(mktemp "$CACHE_DIR/latest-version.XXXXXX")
+        echo "$version" > "$tmp_cache"
+        mv "$tmp_cache" "$CACHE_FILE"
     fi
     echo "$version"
 }
