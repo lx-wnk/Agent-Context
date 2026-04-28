@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if ! command -v curl &>/dev/null; then
+    echo "Error: curl not found. Install curl and try again." >&2
+    exit 1
+fi
+
 PROMPT_URL="https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/.prompts/setup-prompt.md"
 ALLOWED_TOOLS="Edit,Write,Read,Bash,Glob,Grep,WebFetch,WebSearch,Agent"
 LOG=".agent-context/setup.log"
@@ -19,15 +24,70 @@ if [ -n "${AGENT_CONTEXT_PROMPT:-}" ]; then
     PROMPT_INSTRUCTION="Read $(realpath "$AGENT_CONTEXT_PROMPT") and follow its instructions exactly."
 fi
 
+FORCE=0
 AI_DIRS=""
 for arg in "$@"; do
     case "$arg" in
         --ai-dirs=*) AI_DIRS="${arg#--ai-dirs=}" ;;
+        --force) FORCE=1 ;;
     esac
 done
 
 if [ -n "$AI_DIRS" ]; then
     PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION Additional AI directories to treat as migratable (extends built-in defaults): $AI_DIRS"
+fi
+
+update_claude_md() {
+    local updated=0
+    for loc in ".claude/CLAUDE.md" "CLAUDE.md"; do
+        [ -f "$loc" ] || continue
+        if grep -q "@AGENTS.md" "$loc" && [ "$(wc -l < "$loc")" -le 5 ]; then
+            continue
+        fi
+        printf '@AGENTS.md\n' > "$loc"
+        echo "Updated $loc → @AGENTS.md"
+        updated=1
+    done
+    if [ "$updated" -eq 0 ] && [ ! -f ".claude/CLAUDE.md" ] && [ ! -f "CLAUDE.md" ]; then
+        mkdir -p .claude
+        printf '@AGENTS.md\n' > .claude/CLAUDE.md
+        echo "Created .claude/CLAUDE.md → @AGENTS.md"
+    fi
+}
+
+CACHE_FILE="/tmp/.agent-context-latest-version"
+CACHE_TTL=3600
+
+get_latest_version() {
+    # Use cache unless FORCE=1 or cache is stale/missing
+    if [ "${FORCE:-0}" -ne 1 ] && [ -f "$CACHE_FILE" ]; then
+        local cache_age
+        cache_age=$(( $(date +%s) - $(date -r "$CACHE_FILE" +%s 2>/dev/null || echo 0) ))
+        if [ "$cache_age" -lt "$CACHE_TTL" ]; then
+            cat "$CACHE_FILE"
+            return
+        fi
+    fi
+    local api_response version
+    api_response=$(curl -fsSL --max-time 10 \
+        "https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest" 2>/dev/null) || true
+    version=$(echo "$api_response" | python3 -c \
+        "import sys,json; d=json.load(sys.stdin); print(d.get('tag_name',''))" 2>/dev/null) || true
+    if [ -n "$version" ]; then
+        echo "$version" > "$CACHE_FILE"
+    fi
+    echo "$version"
+}
+
+# Fast-path: skip Claude spawn if already up-to-date
+if [ "${FORCE:-0}" -ne 1 ] && [ -f ".agent-context/.agent-context-version" ]; then
+    INSTALLED_VERSION=$(cat ".agent-context/.agent-context-version" | tr -d '[:space:]')
+    LATEST_VERSION=$(get_latest_version)
+    if [ -n "$LATEST_VERSION" ] && [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
+        echo "agent-context is already up to date ($INSTALLED_VERSION). Nothing to do."
+        update_claude_md
+        exit 0
+    fi
 fi
 
 SESSION_ID=$(uuidgen 2>/dev/null || python3 -c "import uuid; print(uuid.uuid4())" 2>/dev/null || echo "unknown")
@@ -81,24 +141,6 @@ show_progress() {
         tail -n +"$((last + 1))" "$LOG"
     elif [ "$on_dot_line" -eq 1 ]; then
         printf "\n"
-    fi
-}
-
-update_claude_md() {
-    local updated=0
-    for loc in ".claude/CLAUDE.md" "CLAUDE.md"; do
-        [ -f "$loc" ] || continue
-        if grep -q "@AGENTS.md" "$loc" && [ "$(wc -l < "$loc")" -le 5 ]; then
-            continue
-        fi
-        printf '@AGENTS.md\n' > "$loc"
-        echo "Updated $loc → @AGENTS.md"
-        updated=1
-    done
-    if [ "$updated" -eq 0 ] && [ ! -f ".claude/CLAUDE.md" ] && [ ! -f "CLAUDE.md" ]; then
-        mkdir -p .claude
-        printf '@AGENTS.md\n' > .claude/CLAUDE.md
-        echo "Created .claude/CLAUDE.md → @AGENTS.md"
     fi
 }
 
