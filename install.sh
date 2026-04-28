@@ -55,15 +55,18 @@ update_claude_md() {
     fi
 }
 
-CACHE_FILE="/tmp/.agent-context-latest-version"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/agent-context"
+CACHE_FILE="$CACHE_DIR/latest-version"
 CACHE_TTL=3600
 
 get_latest_version() {
     # Use cache unless FORCE=1 or cache is stale/missing
-    if [ "${FORCE:-0}" -ne 1 ] && [ -f "$CACHE_FILE" ]; then
-        local cache_age
-        cache_age=$(( $(date +%s) - $(date -r "$CACHE_FILE" +%s 2>/dev/null || echo 0) ))
-        if [ "$cache_age" -lt "$CACHE_TTL" ]; then
+    if [ "$FORCE" -ne 1 ] && [ -f "$CACHE_FILE" ]; then
+        local now mtime cache_age
+        now=$(date +%s)
+        mtime=$(date -r "$CACHE_FILE" +%s 2>/dev/null || echo 0)
+        cache_age=$(( now - mtime ))
+        if [ "$cache_age" -ge 0 ] && [ "$cache_age" -lt "$CACHE_TTL" ]; then
             cat "$CACHE_FILE"
             return
         fi
@@ -74,14 +77,15 @@ get_latest_version() {
     version=$(echo "$api_response" | python3 -c \
         "import sys,json; d=json.load(sys.stdin); print(d.get('tag_name',''))" 2>/dev/null) || true
     if [ -n "$version" ]; then
+        mkdir -p "$CACHE_DIR"
         echo "$version" > "$CACHE_FILE"
     fi
     echo "$version"
 }
 
 # Fast-path: skip Claude spawn if already up-to-date
-if [ "${FORCE:-0}" -ne 1 ] && [ -f ".agent-context/.agent-context-version" ]; then
-    INSTALLED_VERSION=$(cat ".agent-context/.agent-context-version" | tr -d '[:space:]')
+if [ "$FORCE" -ne 1 ] && [ -f ".agent-context/.agent-context-version" ]; then
+    INSTALLED_VERSION=$(tr -d '[:space:]' < ".agent-context/.agent-context-version")
     LATEST_VERSION=$(get_latest_version)
     if [ -n "$LATEST_VERSION" ] && [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
         echo "agent-context is already up to date ($INSTALLED_VERSION). Nothing to do."
