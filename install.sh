@@ -86,6 +86,9 @@ get_latest_version() {
         tmp_cache=$(mktemp "$CACHE_DIR/latest-version.XXXXXX")
         echo "$version" > "$tmp_cache"
         mv "$tmp_cache" "$CACHE_FILE"
+    elif [ -f "$CACHE_FILE" ]; then
+        # API failed — fall back to stale cache rather than returning empty
+        version=$(cat "$CACHE_FILE")
     fi
     echo "$version"
 }
@@ -93,7 +96,7 @@ get_latest_version() {
 # Fast-path: skip Claude spawn if already up-to-date
 if [ "$FORCE" -ne 1 ] && [ -f ".agent-context/.agent-context-version" ]; then
     INSTALLED_VERSION=$(tr -d '[:space:]' < ".agent-context/.agent-context-version")
-    LATEST_VERSION=$(get_latest_version)
+    LATEST_VERSION=$(get_latest_version | tr -d '[:space:]')
     if [ -n "$LATEST_VERSION" ] && [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
         echo "agent-context is already up to date ($INSTALLED_VERSION). Nothing to do."
         update_claude_md
