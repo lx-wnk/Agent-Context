@@ -134,27 +134,23 @@ Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
 Fetch all files **in parallel** — spawn each curl in the background and wait for all:
 
 ```bash
+pids=()
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/agent-startup.md" \
-    -o ".agent-context/agent-startup.md" && echo "OK: agent-startup.md" || echo "FAIL: agent-startup.md") &
+    -o ".agent-context/agent-startup.md.tmp" && mv ".agent-context/agent-startup.md.tmp" ".agent-context/agent-startup.md") & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/layer0-agent-workflow.md" \
-    -o ".agent-context/layer0-agent-workflow.md" && echo "OK: layer0-agent-workflow.md" || echo "FAIL: layer0-agent-workflow.md") &
+    -o ".agent-context/layer0-agent-workflow.md.tmp" && mv ".agent-context/layer0-agent-workflow.md.tmp" ".agent-context/layer0-agent-workflow.md") & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/base-principles.md" \
-    -o ".agent-context/base-principles.md" && echo "OK: base-principles.md" || echo "FAIL: base-principles.md") &
+    -o ".agent-context/base-principles.md.tmp" && mv ".agent-context/base-principles.md.tmp" ".agent-context/base-principles.md") & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/.prompts/decision-review-prompt.md" \
-    -o ".agent-context/decision-review-prompt.md" && echo "OK: decision-review-prompt.md" || echo "FAIL: decision-review-prompt.md") &
+    -o ".agent-context/decision-review-prompt.md.tmp" && mv ".agent-context/decision-review-prompt.md.tmp" ".agent-context/decision-review-prompt.md") & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/.prompts/memory-review-prompt.md" \
-    -o ".agent-context/memory-review-prompt.md" && echo "OK: memory-review-prompt.md" || echo "FAIL: memory-review-prompt.md") &
-wait
-```
+    -o ".agent-context/memory-review-prompt.md.tmp" && mv ".agent-context/memory-review-prompt.md.tmp" ".agent-context/memory-review-prompt.md") & pids+=($!)
 
-After all downloads, verify none failed:
-```bash
-# Check each destination file is non-empty; exit non-zero if any failed
-for f in .agent-context/agent-startup.md .agent-context/layer0-agent-workflow.md \
-          .agent-context/base-principles.md .agent-context/decision-review-prompt.md \
-          .agent-context/memory-review-prompt.md; do
-    [ -s "$f" ] || { echo "Error: failed to download $f" >&2; exit 1; }
+fail=0
+for pid in "${pids[@]}"; do
+    wait "$pid" || fail=1
 done
+[ "$fail" -eq 0 ] || { echo "Error: one or more shared file downloads failed" >&2; exit 1; }
 ```
 
 Write the new version to `.agent-context/.agent-context-version`:
@@ -164,37 +160,42 @@ echo "<tag>" > .agent-context/.agent-context-version
 
 ## Step 3: Template Files
 
-List the contents of the `templates/` directory via the GitHub Contents API:
+List all template files recursively via the GitHub Git Trees API (returns all nested paths in one call):
 
 ```bash
-curl -fsSL "https://api.github.com/repos/lx-wnk/Agent-Context/contents/templates?ref=<tag>"
-```
-
-This returns a JSON array. Parse it and download all missing template files **in parallel**:
-
-```bash
-# Parse the JSON listing and spawn parallel downloads for files not yet present
-curl -fsSL "https://api.github.com/repos/lx-wnk/Agent-Context/contents/templates?ref=<tag>" | \
+curl -fsSL "https://api.github.com/repos/lx-wnk/Agent-Context/git/trees/<tag>?recursive=1" | \
   python3 -c "
 import sys, json, subprocess, os
-files = json.load(sys.stdin)
+
+tree = json.load(sys.stdin)
+blobs = [
+    item for item in tree.get('tree', [])
+    if item.get('type') == 'blob' and item['path'].startswith('templates/')
+]
+
 procs = []
-for f in files:
-    if f.get('type') != 'file':
-        continue
-    rel = f['path'].removeprefix('templates/')
+for item in blobs:
+    # Use slicing instead of removeprefix() for Python 3.6+ compatibility
+    rel = item['path'][len('templates/'):]
     dest = rel
     if os.path.exists(dest):
         continue  # project-owned — never overwrite
     os.makedirs(os.path.dirname(dest) or '.', exist_ok=True)
     url = 'https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/templates/' + rel
-    procs.append((dest, subprocess.Popen(['curl', '-fsSL', url, '-o', dest])))
+    # Write to .tmp first to avoid leaving partial files on network errors
+    procs.append((dest, subprocess.Popen(['curl', '-fsSL', url, '-o', dest + '.tmp'])))
+
+fail = 0
 for dest, p in procs:
     rc = p.wait()
     if rc != 0:
         print(f'Error: failed to download {dest}', file=sys.stderr)
-        raise SystemExit(1)
-    print(f'Created {dest}')
+        fail = 1
+    else:
+        os.rename(dest + '.tmp', dest)
+        print(f'Created {dest}')
+if fail:
+    raise SystemExit(1)
 "
 ```
 
