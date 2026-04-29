@@ -95,7 +95,7 @@ _is_bootstrap_only() {
 _update_claude_md() {
     local dir="$1"
     (
-        cd "$dir"
+        cd "$dir" || exit 1
         local updated=0
         for loc in ".claude/CLAUDE.md" "CLAUDE.md"; do
             [ -f "$loc" ] || continue
@@ -381,6 +381,61 @@ if ! _check_critical_templates "$t"; then
     pass "missing skills/index.md → returns 1"
 else
     fail "missing skills/index.md → returns 1" "returned 0"
+fi
+
+# ---------------------------------------------------------------------------
+# 22–27. Version string validation (_validate_version_string)
+# Mirrors the regex guard in get_latest_version() from install.sh:
+#   [[ "$version" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- version string validation ---"
+
+_validate_version_string() {
+    local v="$1"
+    [[ "$v" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+# 22. canonical tag with v prefix
+if _validate_version_string "v1.2.3"; then
+    pass "v1.2.3 is a valid version tag"
+else
+    fail "v1.2.3 is a valid version tag" "returned false"
+fi
+
+# 23. tag without v prefix
+if _validate_version_string "1.2.3"; then
+    pass "1.2.3 (no v prefix) is a valid version tag"
+else
+    fail "1.2.3 (no v prefix) is a valid version tag" "returned false"
+fi
+
+# 24. two-part version rejected (previously accepted by old regex ^v?[0-9]+\.[0-9])
+if ! _validate_version_string "v1.2"; then
+    pass "v1.2 (two-part) is rejected"
+else
+    fail "v1.2 (two-part) is rejected" "returned true — regex too permissive"
+fi
+
+# 25. trailing garbage rejected
+if ! _validate_version_string "v1.2.3abc"; then
+    pass "v1.2.3abc (trailing garbage) is rejected"
+else
+    fail "v1.2.3abc (trailing garbage) is rejected" "returned true"
+fi
+
+# 26. empty string rejected
+if ! _validate_version_string ""; then
+    pass "empty string is rejected"
+else
+    fail "empty string is rejected" "returned true"
+fi
+
+# 27. pre-release suffix rejected (pre-releases not cached; agent handles them)
+if ! _validate_version_string "v1.2.3-rc1"; then
+    pass "v1.2.3-rc1 (pre-release) is rejected by cache regex"
+else
+    fail "v1.2.3-rc1 (pre-release) is rejected by cache regex" "returned true"
 fi
 
 # ---------------------------------------------------------------------------

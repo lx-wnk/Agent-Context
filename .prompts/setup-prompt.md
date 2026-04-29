@@ -180,6 +180,8 @@ _tmpls=$(printf '%s\n' "$_tree" | awk '
   }
 ')
 
+[ -z "$_tmpls" ] && { echo "Error: no templates parsed from API response — JSON format may have changed" >&2; exit 1; }
+
 _pids=(); _dests=()
 while IFS= read -r _rel; do
   [ -z "$_rel" ] && continue

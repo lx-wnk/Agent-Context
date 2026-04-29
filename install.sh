@@ -119,7 +119,7 @@ get_latest_version() {
         "https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest" 2>/dev/null) || true
     version=$(echo "$api_response" | python3 -c \
         "import sys,json; d=json.load(sys.stdin); print(d.get('tag_name',''))" 2>/dev/null) || true
-    if [ -n "$version" ] && [[ "$version" =~ ^v?[0-9]+\.[0-9] ]]; then
+    if [ -n "$version" ] && [[ "$version" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         if mkdir -p "$CACHE_DIR" 2>/dev/null; then
             local tmp_cache
             if tmp_cache=$(mktemp "$CACHE_DIR/latest-version.XXXXXX" 2>/dev/null); then
