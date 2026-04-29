@@ -46,6 +46,10 @@ Entry point is `AGENTS.md` → all layers load at startup via `@`-includes:
 
 - **Setup & Update**: `.prompts/setup-prompt.md` — single prompt that auto-detects mode. SETUP: full installation with discovery. UPDATE: version check, shared file sync.
 
+## Definition of Done
+
+Before declaring any task complete, verify `README.md` is still accurate: installation steps, example output, repository structure, and behavior descriptions must reflect the current code. Update it if anything has drifted.
+
 ## Key Conventions
 
 - **Formatting**: Prettier with `printWidth: 120`, 2-space indent, `proseWrap: preserve`
