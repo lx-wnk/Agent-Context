@@ -132,15 +132,15 @@ Fetch all files **in parallel** — spawn each curl in the background and wait f
 ```bash
 pids=()
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/agent-startup.md" \
-    -o ".agent-context/agent-startup.md.tmp" && mv ".agent-context/agent-startup.md.tmp" ".agent-context/agent-startup.md") & pids+=($!)
+    -o ".agent-context/agent-startup.md.tmp" && mv ".agent-context/agent-startup.md.tmp" ".agent-context/agent-startup.md" || rm -f ".agent-context/agent-startup.md.tmp") & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/layer0-agent-workflow.md" \
-    -o ".agent-context/layer0-agent-workflow.md.tmp" && mv ".agent-context/layer0-agent-workflow.md.tmp" ".agent-context/layer0-agent-workflow.md") & pids+=($!)
+    -o ".agent-context/layer0-agent-workflow.md.tmp" && mv ".agent-context/layer0-agent-workflow.md.tmp" ".agent-context/layer0-agent-workflow.md" || rm -f ".agent-context/layer0-agent-workflow.md.tmp") & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/base-principles.md" \
-    -o ".agent-context/base-principles.md.tmp" && mv ".agent-context/base-principles.md.tmp" ".agent-context/base-principles.md") & pids+=($!)
+    -o ".agent-context/base-principles.md.tmp" && mv ".agent-context/base-principles.md.tmp" ".agent-context/base-principles.md" || rm -f ".agent-context/base-principles.md.tmp") & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/.prompts/decision-review-prompt.md" \
-    -o ".agent-context/decision-review-prompt.md.tmp" && mv ".agent-context/decision-review-prompt.md.tmp" ".agent-context/decision-review-prompt.md") & pids+=($!)
+    -o ".agent-context/decision-review-prompt.md.tmp" && mv ".agent-context/decision-review-prompt.md.tmp" ".agent-context/decision-review-prompt.md" || rm -f ".agent-context/decision-review-prompt.md.tmp") & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/.prompts/memory-review-prompt.md" \
-    -o ".agent-context/memory-review-prompt.md.tmp" && mv ".agent-context/memory-review-prompt.md.tmp" ".agent-context/memory-review-prompt.md") & pids+=($!)
+    -o ".agent-context/memory-review-prompt.md.tmp" && mv ".agent-context/memory-review-prompt.md.tmp" ".agent-context/memory-review-prompt.md" || rm -f ".agent-context/memory-review-prompt.md.tmp") & pids+=($!)
 
 fail=0
 for pid in "${pids[@]}"; do
@@ -162,7 +162,8 @@ echo "<tag>" > .agent-context/.agent-context-version
 
 ## Step 3: Template Files
 
-List all template files recursively via the GitHub Git Trees API (returns all nested paths in one call):
+List all template files recursively via the GitHub Git Trees API (returns all nested paths in one call).
+The `<tag>` placeholder is used directly as the tree ref — GitHub's API accepts branch/tag names here, not only SHAs (documented: "SHA1 value or ref (branch or tag) name of the tree"):
 
 ```bash
 curl -fsSL "https://api.github.com/repos/lx-wnk/Agent-Context/git/trees/<tag>?recursive=1" | \
@@ -182,8 +183,9 @@ for item in blobs:
     # Only write to known safe destinations — guard against future templates
     # accidentally landing outside .agent-context/ (e.g. templates/README.md
     # would clobber a project README).
-    SAFE_PREFIXES = ('.agent-context/', '.claude/', 'AGENTS.md', 'CLAUDE.md')
-    if not any(rel == p or rel.startswith(p) for p in SAFE_PREFIXES):
+    SAFE_ROOTS = {'AGENTS.md', 'CLAUDE.md'}       # exact-match for root files
+    SAFE_DIRS  = ('.agent-context/', '.claude/')  # prefix-match for directories
+    if rel not in SAFE_ROOTS and not any(rel.startswith(d) for d in SAFE_DIRS):
         print(f'Skipping {rel}: destination outside allowlist', file=sys.stderr)
         continue
     dest = rel

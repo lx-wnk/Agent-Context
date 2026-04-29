@@ -16,19 +16,19 @@ INSTALL_SH="$REPO_ROOT/install.sh"
 # We extract it by reading only the continuation lines (ending with \ or ";"):
 # - the header line: for _tmpl in "..."  \
 # - subsequent lines: spaces + "..." \ or "..."; do
-mapfile -t CRITICAL_LIST < <(
+# mapfile is Bash 4+ only; use a portable read-loop instead.
+CRITICAL_LIST=()
+while IFS= read -r line; do
+  CRITICAL_LIST+=("$line")
+done < <(
   awk '/for _tmpl in /{
-    # extract from this line and keep reading while line ends with backslash
     do {
-      # extract all "..." tokens on the current line
       line = $0
       while (match(line, /"[^"]+"/) > 0) {
         token = substr(line, RSTART+1, RLENGTH-2)
-        # skip tokens that look like shell variable or prose (contain spaces or $)
         if (token !~ /[ $]/) print token
         line = substr(line, RSTART+RLENGTH)
       }
-      # stop when the line ends with "; do" (no trailing backslash)
       if ($0 !~ /\\[[:space:]]*$/) break
     } while ((getline) > 0)
   }' "$INSTALL_SH"
@@ -94,10 +94,12 @@ check_coverage() {
 [ -f "$TEMPLATES_DIR/AGENTS.md" ] && check_coverage "AGENTS.md"
 
 # .agent-context/layer*.md (direct children only)
-while IFS= read -r -d '' f; do
+# Use plain find | sort — no -print0/sort -z to stay Bash 3.2 / BSD portable.
+# layer*.md filenames never contain spaces, so word-splitting is safe here.
+while IFS= read -r f; do
   rel="${f#"$TEMPLATES_DIR/"}"
   check_coverage "$rel"
-done < <(find "$TEMPLATES_DIR/.agent-context" -maxdepth 1 -name "layer*.md" -print0 | sort -z)
+done < <(find "$TEMPLATES_DIR/.agent-context" -maxdepth 1 -name "layer*.md" | sort)
 
 # .agent-context/skills/index.md
 [ -f "$TEMPLATES_DIR/.agent-context/skills/index.md" ] && check_coverage ".agent-context/skills/index.md"
