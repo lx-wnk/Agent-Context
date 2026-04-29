@@ -185,6 +185,10 @@ _tmpls=$(printf '%s\n' "$_tree" | awk '
 _pids=(); _dests=()
 while IFS= read -r _rel; do
   [ -z "$_rel" ] && continue
+  # Reject path traversal and absolute paths before allowlist check.
+  case "$_rel" in
+    *..*|/*|*\\*) echo "Skipping $_rel: unsafe path" >&2; continue ;;
+  esac
   # Only write to known-safe destinations — guards against future templates landing
   # outside .agent-context/ (e.g. templates/README.md would clobber a project README).
   case "$_rel" in

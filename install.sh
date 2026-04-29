@@ -181,7 +181,6 @@ fi
 mkdir -p .agent-context
 > "$LOG"
 
-
 echo "Starting agent-context setup in $(pwd)..."
 if [ "$SESSION_ID" != "unknown" ]; then
     echo "Session ID: $SESSION_ID  (run 'claude --resume $SESSION_ID' to resume if needed)"

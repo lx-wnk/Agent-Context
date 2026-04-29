@@ -29,6 +29,7 @@ Two categories of files, critical to understand before editing:
 
 - **Shared files** (`context/`): Overwritten on every auto-update in target projects. Changes here propagate to all installations.
 - **Template files** (`templates/`): Copied once during setup, never overwritten. These become project-owned files.
+- **Test files** (`tests/`): CI tests verifying `install.sh` behavior and template coverage. Not installed into target projects.
 
 ### Layer System
 
