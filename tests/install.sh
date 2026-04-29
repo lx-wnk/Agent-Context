@@ -76,39 +76,6 @@ assert_exit_0() {
 }
 
 # ---------------------------------------------------------------------------
-# Source the functions under test in isolation.
-# We extract and re-define only the functions we unit-test so we never
-# accidentally trigger the real Claude CLI or network calls.
-# ---------------------------------------------------------------------------
-
-# Source a subset of install.sh: only function definitions and constants,
-# no top-level side-effectful code. We do this via a wrapper that sets the
-# required env stubs.
-_source_functions() {
-    local tmp_dir="$1"
-    # We need to load the cache-path logic and update_claude_md() from install.sh.
-    # We do this by re-running the file with a sentinel to exit before the
-    # top-level execution block. Instead, we use a subshell extraction approach:
-    # source install.sh with stubbed external commands so top-level code is safe.
-    (
-        # Stub claude so the top-level block doesn't actually run it
-        claude() { echo "stubbed-claude"; return 0; }
-        uuidgen() { echo "test-session-id"; }
-        # Prevent the script from calling the real 'claude' binary at top level.
-        # The script exits 0 from the fast-path or falls through to the claude call.
-        # We run with FORCE=0 and no version file to avoid the fast-path, then stub.
-        export PATH="$tmp_dir/bin:$PATH"
-        mkdir -p "$tmp_dir/bin"
-        # Create stub binaries
-        printf '#!/bin/sh\necho "stubbed-claude"\n' > "$tmp_dir/bin/claude"
-        chmod +x "$tmp_dir/bin/claude"
-        # Source just the function definitions (lines 46-132) without executing
-        # the main script body. We do this by extracting those lines.
-        true
-    )
-}
-
-# ---------------------------------------------------------------------------
 # Inline re-implementations for unit testing
 # (mirrors install.sh logic exactly so tests break if the real code changes)
 # ---------------------------------------------------------------------------

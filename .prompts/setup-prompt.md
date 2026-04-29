@@ -101,21 +101,17 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
 3. If the fetch fails or returns no releases:
    - **SETUP:** abort with an informative message — version selection is required
    - **UPDATE:** inform the user that releases could not be checked, skip to Step 4
-4. **UPDATE only:** If the current version already matches the latest stable release **and the invocation did not include "Force flag is set"** **and `.agent-context/.force` does not exist**:
-   - Inform the user: "Already up to date (vX.Y.Z). Running CLAUDE.md bootstrap check only."
-   - Run only the **CLAUDE.md Bootstrap Check** sub-section (under Step 4). Skip everything else under Step 4 (Compatibility Check table, Knowledge Decision Logic, Decision Manifest) and skip Steps 4.5 and 5 entirely.
-   - Jump directly to **UPDATE Mode: Done**
-   - **If "Force flag is set" appears in the invocation OR `.agent-context/.force` exists:** skip this short-circuit entirely and run the full UPDATE flow regardless of version match.
-5. If `INTERACTIVE_MODE=false`: skip the version prompt entirely, use the latest stable release automatically — do not present a table or ask any question. Then log the mode and target version:
+   > **Note:** When invoked via `install.sh`, a shell-level fast-path runs before this agent starts and exits early when everything is up-to-date. If this agent is running, the shell-level check already confirmed a full update is needed (or `--force` was passed). Direct invocation without `install.sh` always runs the full update flow.
+4. If `INTERACTIVE_MODE=false`: skip the version prompt entirely, use the latest stable release automatically — do not present a table or ask any question. Then log the mode and target version:
    ```bash
    echo "[agent-context] Mode: UPDATE (0.3.0 → 0.5.0)" >> .agent-context/setup.log
    # or for SETUP:
    echo "[agent-context] Mode: SETUP (installing 0.5.0)" >> .agent-context/setup.log
    ```
-6. Present the available versions to the user (mark which is current, which is latest stable, and label pre-releases as `(pre-release)`)
-7. Ask the user which version to install — default is `latest stable`
-8. If the user declines → skip to Step 4
-9. Store the selected version tag (e.g. `v0.5.0`) — it is used to build raw file URLs in Steps 2 and 3.
+5. Present the available versions to the user (mark which is current, which is latest stable, and label pre-releases as `(pre-release)`)
+6. Ask the user which version to install — default is `latest stable`
+7. If the user declines → skip to Step 4
+8. Store the selected version tag (e.g. `v0.5.0`) — it is used to build raw file URLs in Steps 2 and 3.
 
 ## Step 2: Install Shared Files
 
@@ -179,6 +175,13 @@ procs = []
 for item in blobs:
     # Use slicing instead of removeprefix() for Python 3.6+ compatibility
     rel = item['path'][len('templates/'):]
+    # Only write to known safe destinations — guard against future templates
+    # accidentally landing outside .agent-context/ (e.g. templates/README.md
+    # would clobber a project README).
+    SAFE_PREFIXES = ('.agent-context/', '.claude/', 'AGENTS.md', 'CLAUDE.md')
+    if not any(rel == p or rel.startswith(p) for p in SAFE_PREFIXES):
+        print(f'Skipping {rel}: destination outside allowlist', file=sys.stderr)
+        continue
     dest = rel
     if os.path.exists(dest):
         continue  # project-owned — never overwrite

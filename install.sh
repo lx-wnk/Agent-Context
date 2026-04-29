@@ -113,7 +113,9 @@ get_latest_version() {
         "import sys,json; d=json.load(sys.stdin); print(d.get('tag_name',''))" 2>/dev/null) || true
     # Fix 3: wrap cache write in guards so failure degrades gracefully to no-cache
     # rather than killing the script under set -e (e.g. /tmp owned by another UID).
-    if [ -n "$version" ]; then
+    # Validate version looks like semver before caching — guards against GitHub returning
+    # a malformed tag_name (e.g. on API errors that still return HTTP 200).
+    if [ -n "$version" ] && [[ "$version" =~ ^v?[0-9]+\.[0-9] ]]; then
         if mkdir -p "$CACHE_DIR" 2>/dev/null; then
             local tmp_cache
             if tmp_cache=$(mktemp "$CACHE_DIR/latest-version.XXXXXX" 2>/dev/null); then
@@ -226,6 +228,9 @@ show_progress() {
     local on_dot_line=0
 
     while kill -0 "$CLAUDE_PID" 2>/dev/null; do
+        # wc -l is correct here: setup.log is always written with printf '%s\n',
+        # so it always has a trailing newline. (update_claude_md uses awk because
+        # CLAUDE.md may lack a trailing newline — a different case.)
         current=$(wc -l < "$LOG" 2>/dev/null || echo 0)
         if [ "$current" -gt "$last" ]; then
             [ "$on_dot_line" -eq 1 ] && printf "\n"
