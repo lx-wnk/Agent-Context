@@ -38,6 +38,8 @@ if [ -n "$AI_DIRS" ]; then
 fi
 
 if [ "$FORCE" -eq 1 ]; then
+    # COUPLING: the exact sentinel string "Force flag is set" is matched verbatim
+    # in setup-prompt.md Step 1. If you rename this sentinel, update that check too.
     PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION Force flag is set: skip any up-to-date version checks and perform a full update regardless of current version."
 fi
 
@@ -45,7 +47,13 @@ update_claude_md() {
     local updated=0
     for loc in ".claude/CLAUDE.md" "CLAUDE.md"; do
         [ -f "$loc" ] || continue
-        if grep -q "@AGENTS.md" "$loc" && [ "$(wc -l < "$loc")" -le 5 ]; then
+        # Skip only if the file is already bootstrap-only: every non-blank line
+        # must consist solely of the @AGENTS.md pointer — no other content.
+        # This matches the guard in setup-prompt.md Step 4.5a exactly; a looser
+        # check (e.g. line count alone) would incorrectly skip files that contain
+        # real conventions alongside the pointer.
+        if grep -q "@AGENTS.md" "$loc" && [ "$(wc -l < "$loc")" -le 5 ] && \
+           [ "$(grep -cve '^[[:space:]]*$' "$loc")" -eq "$(grep -cxe '[[:space:]]*@AGENTS\.md[[:space:]]*' "$loc")" ]; then
             continue
         fi
         printf '@AGENTS.md\n' > "$loc"
@@ -59,7 +67,14 @@ update_claude_md() {
     fi
 }
 
-CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/agent-context"
+# Validate that the cache base is an absolute path before using it.
+# XDG_CACHE_HOME or HOME may be relative/empty on hardened/CI systems;
+# an untrusted value could enable path injection. Fall back to /tmp when unsure.
+_raw_cache_base="${XDG_CACHE_HOME:-$HOME/.cache}"
+case "$_raw_cache_base" in
+    /*) CACHE_DIR="$_raw_cache_base/agent-context" ;;
+    *)  CACHE_DIR="/tmp/agent-context" ;;
+esac
 CACHE_FILE="$CACHE_DIR/latest-version"
 CACHE_TTL=3600
 
@@ -70,6 +85,9 @@ get_latest_version() {
         now=$(date +%s)
         mtime=$(date -r "$CACHE_FILE" +%s 2>/dev/null || echo 0)
         cache_age=$(( now - mtime ))
+        # Guard against clock-skew: cache_age can be negative if the system clock
+        # jumped backward since the cache was written. Treat negative age as stale
+        # (force a fresh fetch) rather than treating it as valid forever.
         if [ "$cache_age" -ge 0 ] && [ "$cache_age" -lt "$CACHE_TTL" ]; then
             cat "$CACHE_FILE"
             return
@@ -87,7 +105,9 @@ get_latest_version() {
         echo "$version" > "$tmp_cache"
         mv "$tmp_cache" "$CACHE_FILE"
     elif [ -f "$CACHE_FILE" ]; then
-        # API failed — fall back to stale cache rather than returning empty
+        # API failed — fall back to stale cache rather than returning empty.
+        # Warn on stderr so the user knows the version check may be outdated.
+        echo "Warning: GitHub API request failed; using stale cached version." >&2
         version=$(cat "$CACHE_FILE")
     fi
     echo "$version"
@@ -97,6 +117,9 @@ get_latest_version() {
 if [ "$FORCE" -ne 1 ] && [ -f ".agent-context/.agent-context-version" ]; then
     INSTALLED_VERSION=$(tr -d '[:space:]' < ".agent-context/.agent-context-version")
     LATEST_VERSION=$(get_latest_version | tr -d '[:space:]')
+    # An empty INSTALLED_VERSION (e.g. truncated or blank version file) intentionally
+    # falls through this guard: the equality check is false, so the full update
+    # flow runs as expected rather than silently claiming "up to date".
     if [ -n "$LATEST_VERSION" ] && [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
         echo "agent-context is already up to date ($INSTALLED_VERSION). Nothing to do."
         update_claude_md

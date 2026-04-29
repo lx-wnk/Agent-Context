@@ -154,6 +154,8 @@ done
 [ "$fail" -eq 0 ] || { echo "Error: one or more shared file downloads failed" >&2; exit 1; }
 ```
 
+> **Important:** If the parallel download block above exits non-zero (any file failed to download), **stop here — do NOT write the version file.** Recording a new version tag in `.agent-context/.agent-context-version` when one or more shared files are missing would leave the installation in an inconsistent state where the version number claims a complete update but the files do not match.
+
 Write the new version to `.agent-context/.agent-context-version`:
 ```bash
 echo "<tag>" > .agent-context/.agent-context-version
