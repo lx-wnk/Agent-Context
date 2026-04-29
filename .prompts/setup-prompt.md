@@ -60,7 +60,7 @@ Set `INTERACTIVE_MODE=true` if the bash output was `interactive` AND `CI` is not
 In non-interactive mode (`INTERACTIVE_MODE=false`), write progress to `.agent-context/setup.log` at the start of each step via a Bash tool call:
 
 ```bash
-echo "[agent-context] Step N/7: <description>" >> .agent-context/setup.log
+echo "[agent-context] Step N/5: <description>" >> .agent-context/setup.log
 ```
 
 Create the log file at the very start (before Step 1) so `tail -f` can attach immediately:
@@ -101,17 +101,17 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
 3. If the fetch fails or returns no releases:
    - **SETUP:** abort with an informative message — version selection is required
    - **UPDATE:** inform the user that releases could not be checked, skip to Step 4
-4. **UPDATE only:** If the current version already matches the latest stable release → inform the user and skip to Step 4
-5. If `INTERACTIVE_MODE=false`: skip the version prompt entirely, use the latest stable release automatically — do not present a table or ask any question. Then log the mode and target version:
+     > **Note:** When invoked via `install.sh`, a shell-level fast-path runs before this agent starts and exits early when everything is up-to-date. If this agent is running, the shell-level check already confirmed a full update is needed (or `--force` was passed). Direct invocation without `install.sh` always runs the full update flow.
+4. If `INTERACTIVE_MODE=false`: skip the version prompt entirely, use the latest stable release automatically — do not present a table or ask any question. Then log the mode and target version:
    ```bash
    echo "[agent-context] Mode: UPDATE (0.3.0 → 0.5.0)" >> .agent-context/setup.log
    # or for SETUP:
    echo "[agent-context] Mode: SETUP (installing 0.5.0)" >> .agent-context/setup.log
    ```
-6. Present the available versions to the user (mark which is current, which is latest stable, and label pre-releases as `(pre-release)`)
-7. Ask the user which version to install — default is `latest stable`
-8. If the user declines → skip to Step 4
-9. Store the selected version tag (e.g. `v0.5.0`) — it is used to build raw file URLs in Steps 2 and 3.
+5. Present the available versions to the user (mark which is current, which is latest stable, and label pre-releases as `(pre-release)`)
+6. Ask the user which version to install — default is `latest stable`
+7. If the user declines → skip to Step 4
+8. Store the selected version tag (e.g. `v0.5.0`) — it is used to build raw file URLs in Steps 2 and 3.
 
 ## Step 2: Install Shared Files
 
@@ -127,28 +127,91 @@ Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
 | `.prompts/decision-review-prompt.md` | `.agent-context/decision-review-prompt.md` |
 | `.prompts/memory-review-prompt.md`   | `.agent-context/memory-review-prompt.md`   |
 
-Fetch each file with:
+Fetch all files **in parallel** — spawn each curl in the background and wait for all:
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/<source-path>" \
-    -o "<destination>"
+pids=()
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/agent-startup.md" \
+    -o ".agent-context/agent-startup.md.tmp" && mv ".agent-context/agent-startup.md.tmp" ".agent-context/agent-startup.md" || { rm -f ".agent-context/agent-startup.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/layer0-agent-workflow.md" \
+    -o ".agent-context/layer0-agent-workflow.md.tmp" && mv ".agent-context/layer0-agent-workflow.md.tmp" ".agent-context/layer0-agent-workflow.md" || { rm -f ".agent-context/layer0-agent-workflow.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/base-principles.md" \
+    -o ".agent-context/base-principles.md.tmp" && mv ".agent-context/base-principles.md.tmp" ".agent-context/base-principles.md" || { rm -f ".agent-context/base-principles.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/.prompts/decision-review-prompt.md" \
+    -o ".agent-context/decision-review-prompt.md.tmp" && mv ".agent-context/decision-review-prompt.md.tmp" ".agent-context/decision-review-prompt.md" || { rm -f ".agent-context/decision-review-prompt.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/.prompts/memory-review-prompt.md" \
+    -o ".agent-context/memory-review-prompt.md.tmp" && mv ".agent-context/memory-review-prompt.md.tmp" ".agent-context/memory-review-prompt.md" || { rm -f ".agent-context/memory-review-prompt.md.tmp"; exit 1; }) & pids+=($!)
+
+fail=0
+for pid in "${pids[@]}"; do
+    wait "$pid" || fail=1
+done
+if [ "$fail" -ne 0 ]; then
+    rm -f .agent-context/*.tmp
+    echo "Error: one or more shared file downloads failed" >&2
+    exit 1
+fi
 ```
 
-Write the new version to `.agent-context/.agent-context-version`.
+> **Important:** If the parallel download block above exits non-zero (any file failed to download), **stop here — do NOT write the version file.** Recording a new version tag in `.agent-context/.agent-context-version` when one or more shared files are missing would leave the installation in an inconsistent state where the version number claims a complete update but the files do not match.
+
+Write the new version to `.agent-context/.agent-context-version`:
+
+```bash
+echo "<tag>" > .agent-context/.agent-context-version
+```
 
 ## Step 3: Template Files
 
-List the contents of the `templates/` directory via the GitHub Contents API:
+List all template files recursively via the GitHub Git Trees API (returns all nested paths in one call).
+The `<tag>` placeholder is used directly as the tree ref — GitHub's API accepts branch/tag names here, not only SHAs (documented: "SHA1 value or ref (branch or tag) name of the tree"). GitHub releases create lightweight tags (pointing directly to commits), so the tree lookup works without extra dereference. Annotated tags (pointing to a tag object) would require a prior `/git/refs/tags/<tag>` call — not used here.
 
 ```bash
-curl -fsSL "https://api.github.com/repos/lx-wnk/Agent-Context/contents/templates?ref=<tag>"
+# Parse blob paths under templates/ with an awk state machine.
+# Relies on GitHub's stable pretty-printed JSON format (one field per line, consistent since 2011).
+_tree=$(curl -fsSL "https://api.github.com/repos/lx-wnk/Agent-Context/git/trees/<tag>?recursive=1")
+_tmpls=$(printf '%s\n' "$_tree" | awk '
+  /"path":/  { p = $0; sub(/.*"path": "/,  "", p); sub(/".*/, "", p); path = p }
+  /"type":/  { t = $0; sub(/.*"type": "/,  "", t); sub(/".*/, "", t); type = t }
+  /^[[:space:]]*\}/ {
+    if (type == "blob" && substr(path, 1, 10) == "templates/")
+      print substr(path, 11)
+    path = ""; type = ""
+  }
+')
+
+[ -z "$_tmpls" ] && { echo "Error: no templates parsed from API response — JSON format may have changed" >&2; exit 1; }
+
+_pids=(); _dests=()
+while IFS= read -r _rel; do
+  [ -z "$_rel" ] && continue
+  # Reject path traversal and absolute paths before allowlist check.
+  case "$_rel" in
+    *..*|/*|*\\*) echo "Skipping $_rel: unsafe path" >&2; continue ;;
+  esac
+  # Only write to known-safe destinations — guards against future templates landing
+  # outside .agent-context/ (e.g. templates/README.md would clobber a project README).
+  case "$_rel" in
+    AGENTS.md|CLAUDE.md) ;;
+    .agent-context/*|.claude/*) ;;
+    *) echo "Skipping $_rel: outside allowlist" >&2; continue ;;
+  esac
+  [ -f "$_rel" ] && continue  # project-owned — never overwrite
+  mkdir -p "$(dirname "$_rel")"
+  _url="https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/templates/$_rel"
+  (curl -fsSL "$_url" -o "$_rel.tmp" && mv "$_rel.tmp" "$_rel" \
+    || { rm -f "$_rel.tmp"; exit 1; }) &
+  _pids+=($!); _dests+=("$_rel")
+done <<< "$_tmpls"
+
+_fail=0
+for _i in "${!_pids[@]}"; do
+  wait "${_pids[$_i]}" || { echo "Error: failed to download ${_dests[$_i]}" >&2; _fail=1; }
+done
+[ "$_fail" -eq 0 ] || { for _d in "${_dests[@]}"; do rm -f "$_d.tmp"; done; exit 1; }
 ```
 
-This returns a recursive file listing. For each file:
-
-- Fetch it from `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/templates/<relative-path>`
-- If the destination file does **NOT** exist → write it
-- If the destination file already exists → skip (project-owned, never overwrite)
+If a destination file already exists → skip it (project-owned, never overwrite).
 
 This ensures both first-time setup and updates receive new template files introduced in later versions.
 
@@ -263,7 +326,7 @@ for f in CLAUDE.md GEMINI.md .cursorrules .github/copilot-instructions.md; do
   if [ -f "$f" ]; then
     # Skip CLAUDE.md if it is bootstrap-only: up to 5 total lines, with all
     # non-blank lines consisting solely of the @AGENTS.md pointer.
-    if [ "$f" = "CLAUDE.md" ] && [ "$(wc -l < "$f")" -le 5 ] && \
+    if [ "$f" = "CLAUDE.md" ] && [ "$(awk 'END{print NR}' "$f")" -le 5 ] && \
        grep -q "@AGENTS.md" "$f" && \
        [ "$(grep -cve '^[[:space:]]*$' "$f")" -eq "$(grep -cxe '[[:space:]]*@AGENTS\.md[[:space:]]*' "$f")" ]; then
       continue
@@ -329,9 +392,9 @@ echo "[agent-context] MIGRATION_CLEANUP: ran" >> .agent-context/setup.log
 
 ## Step 5: Knowledge Re-Sync (UPDATE mode)
 
-After updating shared files (Steps 1–6), re-synchronize all project knowledge:
+After updating shared files (Steps 1–4), re-synchronize all project knowledge:
 
-### 7a: Consolidated Fact Inventory
+### 5a: Consolidated Fact Inventory
 
 Apply the **Global Constraint: Knowledge Map Sources** — run `git ls-files --cached --others --exclude-standard` and only consider files in that output.
 
@@ -345,7 +408,7 @@ Check `.agent-context/setup-decisions.json` for existing decisions — skip sour
 
 For new or changed sources: apply Knowledge Decision Logic (Ack/Nack or plan-file).
 
-### 7b: Routing & Restructuring (additive-only)
+### 5b: Routing & Restructuring (additive-only)
 
 Route facts to their targets — **additive only, never overwrite existing content**:
 
@@ -360,16 +423,16 @@ Route facts to their targets — **additive only, never overwrite existing conte
 
 Keyword check: search target file for 2–3 key terms from the fact. If found → skip. If not found → append.
 
-### 7c: Global Integrity Check
+### 5c: Global Integrity Check
 
-For each fact/finding collected in 7a:
+For each fact/finding collected in 5a:
 
 1. Search for its 2–3 key terms across all `.agent-context/` files and `knowledge-map.md`
 2. If no match found → list as missing
 3. If any facts are missing: report them to the user, do NOT commit — ask how to resolve
 4. If all facts are accounted for → proceed
 
-### 7d: knowledge-map.md Update
+### 5d: knowledge-map.md Update
 
 **If Migration Cleanup (Step 4.5) ran** (check: `grep -q "MIGRATION_CLEANUP: ran" .agent-context/setup.log`):
 
@@ -394,7 +457,7 @@ For each source with `action = "reference"`:
 
 Update `.agent-context/setup-decisions.json` with all new decisions.
 
-### 7e: Token Budget Audit
+### 5e: Token Budget Audit
 
 Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-context/memory/*.md` and report:
 
@@ -750,7 +813,7 @@ If anything didn't go as expected, resume this session with:
 
 ## Error Handling
 
-- **Network failure** (API unreachable, tarball download fails):
+- **Network failure** (API unreachable, raw file or Trees API download fails):
   - **SETUP:** abort — cannot proceed without release files
   - **UPDATE:** skip update, keep existing files, return `ok: true`
 - **Corrupted/incomplete archive**: Do NOT overwrite existing files with partial content. Skip update, return `ok: true`

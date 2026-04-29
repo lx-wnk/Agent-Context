@@ -5,7 +5,8 @@
   "description": "Layered, agent-agnostic context architecture for AI coding agents.",
   "scripts": {
     "prettier:fix": "prettier --write .",
-    "prettier": "prettier --check ."
+    "prettier": "prettier --check .",
+    "test": "bash tests/install.sh && bash tests/check-template-coverage.sh"
   },
   "devDependencies": {
     "prettier": "^3.8.1"

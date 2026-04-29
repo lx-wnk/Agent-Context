@@ -16,9 +16,10 @@ npm run prettier:fix
 
 # Check formatting (CI-style)
 npm run prettier
-```
 
-There are no build, test, or lint commands beyond Prettier.
+# Run all tests
+npm test
+```
 
 ## Architecture
 
@@ -28,6 +29,7 @@ Two categories of files, critical to understand before editing:
 
 - **Shared files** (`context/`): Overwritten on every auto-update in target projects. Changes here propagate to all installations.
 - **Template files** (`templates/`): Copied once during setup, never overwritten. These become project-owned files.
+- **Test files** (`tests/`): CI tests verifying `install.sh` behavior and template coverage. Not installed into target projects.
 
 ### Layer System
 
@@ -45,6 +47,10 @@ Entry point is `AGENTS.md` → all layers load at startup via `@`-includes:
 ### Setup & Update Flow
 
 - **Setup & Update**: `.prompts/setup-prompt.md` — single prompt that auto-detects mode. SETUP: full installation with discovery. UPDATE: version check, shared file sync.
+
+## Definition of Done
+
+Before declaring any task complete, verify `README.md` is still accurate: installation steps, example output, repository structure, and behavior descriptions must reflect the current code. Update it if anything has drifted.
 
 ## Key Conventions
 
