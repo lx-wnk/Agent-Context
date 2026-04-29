@@ -176,8 +176,7 @@ your-project/
 agent-context/
 ├── context/           # Shared agent context (copied to .agent-context/)
 ├── templates/         # Project setup templates (copied once, never overwritten)
-├── scripts/           # CI/dev scripts (template coverage check)
-├── tests/             # Pure-bash unit tests for installer logic
+├── tests/             # Pure-bash tests (unit tests + template coverage check)
 ├── plugins.json       # Base plugin set for Claude Code
 ├── example.md         # Annotated example (Shopware 6 project)
 ├── install.sh         # Installer script (curl one-liner entry point)

@@ -6,7 +6,7 @@
   "scripts": {
     "prettier:fix": "prettier --write .",
     "prettier": "prettier --check .",
-    "template-check": "bash scripts/check-template-coverage.sh"
+    "test": "bash tests/install.sh && bash tests/check-template-coverage.sh"
   },
   "devDependencies": {
     "prettier": "^3.8.1"

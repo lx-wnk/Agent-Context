@@ -16,9 +16,10 @@ npm run prettier:fix
 
 # Check formatting (CI-style)
 npm run prettier
-```
 
-There are no build, test, or lint commands beyond Prettier.
+# Run all tests
+npm test
+```
 
 ## Architecture
 
