@@ -73,7 +73,7 @@ update_claude_md() {
 # Validate that the cache base is an absolute path before using it.
 # XDG_CACHE_HOME or HOME may be relative/empty on hardened/CI systems;
 # an untrusted value could enable path injection. Fall back to /tmp when unsure.
-_raw_cache_base="${XDG_CACHE_HOME:-$HOME/.cache}"
+_raw_cache_base="${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}"
 case "$_raw_cache_base" in
     /*)
         # Fix 8: also reject paths containing '..' segments to fully close path-injection vector
@@ -96,7 +96,9 @@ get_latest_version() {
     if [ "$FORCE" -ne 1 ] && [ -f "$CACHE_FILE" ]; then
         local now mtime cache_age
         now=$(date +%s)
-        mtime=$(date -r "$CACHE_FILE" +%s 2>/dev/null || echo 0)
+        # BSD stat (macOS): stat -f %m; GNU stat (Linux): stat -c %Y.
+        # date -r <file> is not portable: macOS date -r expects a numeric timestamp.
+        mtime=$(stat -f %m "$CACHE_FILE" 2>/dev/null || stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0)
         cache_age=$(( now - mtime ))
         # Guard against clock-skew: cache_age can be negative if the system clock
         # jumped backward since the cache was written. Treat negative age as stale
