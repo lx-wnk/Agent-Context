@@ -12,6 +12,7 @@ LOG=".agent-context/setup.log"
 
 # --local <path>: use a local prompt file instead of the remote URL (for testing)
 # --ai-dirs=<dirs>: comma-separated extra AI-doc dirs to treat as migratable (e.g. --ai-dirs=".cursor,.ai-custom")
+# --force: skip the up-to-date short-circuit and run the full update flow
 PROMPT_INSTRUCTION="Fetch $PROMPT_URL and follow its instructions exactly."
 if [ "${1:-}" = "--local" ]; then
     AGENT_CONTEXT_PROMPT="${2:-}"
@@ -176,6 +177,9 @@ if [ "$FORCE" -ne 1 ] && [ -f ".agent-context/.agent-context-version" ]; then
                 echo "Warning: version check based on stale cached data — run with --force to verify." >&2
             fi
             echo "agent-context is already up to date ($INSTALLED_VERSION). Nothing to do."
+            # This call only matters when neither CLAUDE.md nor .claude/CLAUDE.md exists yet
+            # (fresh install with matching version). In all other cases the bootstrap-only
+            # guard above already proved nothing needs rewriting.
             update_claude_md
             exit 0
         fi
@@ -196,10 +200,13 @@ mkdir -p .agent-context
 
 # Fix 6: write file-based force sentinel so setup-prompt.md can detect force mode
 # deterministically, without relying on the natural-language sentinel string in the prompt.
+# Cleaned up via trap below — survives agent crashes without manual intervention (one extra
+# full-update on the next run, which is the safe fallback).
 if [ "$FORCE" -eq 1 ]; then
     mkdir -p .agent-context
     touch .agent-context/.force
 fi
+trap 'rm -f .agent-context/.force' EXIT
 
 echo "Starting agent-context setup in $(pwd)..."
 if [ "$SESSION_ID" != "unknown" ]; then
@@ -247,9 +254,6 @@ show_progress() {
 show_progress
 wait "$CLAUDE_PID"
 EXIT_CODE=$?
-
-# Fix 6: clean up file-based force sentinel after agent exits.
-rm -f .agent-context/.force
 
 # Fix 4: only run update_claude_md when the agent succeeded. If the agent failed
 # mid-migration, CLAUDE.md content may not yet be routed to layer files — overwriting

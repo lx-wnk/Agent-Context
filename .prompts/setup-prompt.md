@@ -103,8 +103,7 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
    - **UPDATE:** inform the user that releases could not be checked, skip to Step 4
 4. **UPDATE only:** If the current version already matches the latest stable release **and the invocation did not include "Force flag is set"** **and `.agent-context/.force` does not exist**:
    - Inform the user: "Already up to date (vX.Y.Z). Running CLAUDE.md bootstrap check only."
-   - Run only the **CLAUDE.md Bootstrap Check** section from Step 4 (skip the compatibility pattern check)
-   - **Skip Steps 4.5 (Migration Cleanup) and Step 5 (Knowledge Re-Sync) entirely**
+   - Run only the **CLAUDE.md Bootstrap Check** sub-section (under Step 4). Skip everything else under Step 4 (Compatibility Check table, Knowledge Decision Logic, Decision Manifest) and skip Steps 4.5 and 5 entirely.
    - Jump directly to **UPDATE Mode: Done**
    - **If "Force flag is set" appears in the invocation OR `.agent-context/.force` exists:** skip this short-circuit entirely and run the full UPDATE flow regardless of version match.
 5. If `INTERACTIVE_MODE=false`: skip the version prompt entirely, use the latest stable release automatically — do not present a table or ask any question. Then log the mode and target version:
