@@ -107,7 +107,7 @@ done < <(find "$TEMPLATES_DIR/.agent-context" -maxdepth 1 -name "layer*.md" | so
 if [ "$uncovered" -eq 1 ]; then
   echo
   echo "FAIL: one or more core template files are not covered by the critical list in install.sh."
-  echo "      Add the missing entries to the for-loop around line 168 of install.sh."
+  echo "      Add the missing entries to the check_critical_templates() function in install.sh."
   exit 1
 fi
 

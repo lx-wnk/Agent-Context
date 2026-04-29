@@ -22,7 +22,10 @@ if [ -n "${AGENT_CONTEXT_PROMPT:-}" ]; then
         echo "Error: AGENT_CONTEXT_PROMPT file not found: $AGENT_CONTEXT_PROMPT" >&2
         exit 1
     fi
-    PROMPT_INSTRUCTION="Read $(realpath "$AGENT_CONTEXT_PROMPT") and follow its instructions exactly."
+    _abs_prompt=$(realpath "$AGENT_CONTEXT_PROMPT" 2>/dev/null \
+        || python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$AGENT_CONTEXT_PROMPT" 2>/dev/null \
+        || echo "$AGENT_CONTEXT_PROMPT")
+    PROMPT_INSTRUCTION="Read $_abs_prompt and follow its instructions exactly."
 fi
 
 FORCE=0
@@ -54,8 +57,8 @@ is_bootstrap_only() {
 }
 
 # Returns 0 if all critical project-owned template files are present.
-# Adding a new template to templates/ requires a matching entry here and in
-# scripts/check-template-coverage.sh.
+# Adding a new template to templates/ requires a matching entry here.
+# tests/check-template-coverage.sh auto-reads this list — no changes needed there.
 check_critical_templates() {
     for _tmpl in "AGENTS.md" \
                  ".agent-context/layer1-bootstrap.md" \

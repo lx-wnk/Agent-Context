@@ -5,7 +5,7 @@
 # Exit 0 = all tests passed; non-zero = failures reported.
 #
 # These tests exercise the internal logic (cache path validation, update_claude_md,
-# bootstrap-only detection, critical-template guard) without invoking the real claude CLI or GitHub API.
+# bootstrap-only detection, critical-template guard, version string validation) without invoking the real claude CLI or GitHub API.
 # Each test runs in its own temporary directory that is cleaned up on exit.
 
 # Note: we intentionally do NOT use set -e here because individual test assertions
@@ -30,7 +30,7 @@ trap cleanup EXIT
 
 mk_tmp() {
     local d
-    d=$(mktemp -d)
+    d=$(mktemp -d "${TMPDIR:-/tmp}/agent-context.XXXXXX")
     TMP_ROOTS+=("$d")
     echo "$d"
 }
