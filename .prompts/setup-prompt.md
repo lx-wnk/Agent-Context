@@ -164,7 +164,7 @@ echo "<tag>" > .agent-context/.agent-context-version
 ## Step 3: Template Files
 
 List all template files recursively via the GitHub Git Trees API (returns all nested paths in one call).
-The `<tag>` placeholder is used directly as the tree ref — GitHub's API accepts branch/tag names here, not only SHAs (documented: "SHA1 value or ref (branch or tag) name of the tree"):
+The `<tag>` placeholder is used directly as the tree ref — GitHub's API accepts branch/tag names here, not only SHAs (documented: "SHA1 value or ref (branch or tag) name of the tree"). GitHub releases create lightweight tags (pointing directly to commits), so the tree lookup works without extra dereference. Annotated tags (pointing to a tag object) would require a prior `/git/refs/tags/<tag>` call — not used here.
 
 ```bash
 # Parse blob paths under templates/ with an awk state machine.

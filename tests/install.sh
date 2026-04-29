@@ -7,11 +7,16 @@
 # These tests exercise the internal logic (cache path validation, update_claude_md,
 # bootstrap-only detection, critical-template guard, version string validation) without invoking the real claude CLI or GitHub API.
 # Each test runs in its own temporary directory that is cleaned up on exit.
+# Functions are sourced directly from install.sh — no manual re-implementations needed.
 
 # Note: we intentionally do NOT use set -e here because individual test assertions
-# may call functions that return non-zero (e.g. _is_bootstrap_only returning false),
+# may call functions that return non-zero (e.g. is_bootstrap_only returning false),
 # and we want to accumulate all failures rather than aborting on the first one.
 set -uo pipefail
+
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/../install.sh"
+set +e  # install.sh activates set -e; tests intentionally omit it to accumulate failures
 
 PASS=0
 FAIL=0
@@ -76,74 +81,6 @@ assert_exit_0() {
 }
 
 # ---------------------------------------------------------------------------
-# Inline re-implementations for unit testing
-# These mirror install.sh logic. They are independent copies — if you change a
-# function in install.sh, update the corresponding helper here too.
-# ---------------------------------------------------------------------------
-
-# Mirrors is_bootstrap_only() from install.sh
-_is_bootstrap_only() {
-    local file="$1"
-    [ -f "$file" ] || return 1
-    grep -q "@AGENTS.md" "$file" && \
-        [ "$(awk 'END{print NR}' "$file")" -le 5 ] && \
-        [ "$(grep -cve '^[[:space:]]*$' "$file")" -eq \
-          "$(grep -cxe '[[:space:]]*@AGENTS\.md[[:space:]]*' "$file")" ]
-}
-
-# Mirrors update_claude_md() from install.sh (delegates to _is_bootstrap_only)
-_update_claude_md() {
-    local dir="$1"
-    (
-        cd "$dir" || exit 1
-        local updated=0
-        for loc in ".claude/CLAUDE.md" "CLAUDE.md"; do
-            [ -f "$loc" ] || continue
-            if _is_bootstrap_only "$loc"; then
-                continue
-            fi
-            printf '@AGENTS.md\n' > "$loc"
-            updated=1
-        done
-        if [ "$updated" -eq 0 ] && [ ! -f ".claude/CLAUDE.md" ] && [ ! -f "CLAUDE.md" ]; then
-            mkdir -p .claude
-            printf '@AGENTS.md\n' > .claude/CLAUDE.md
-        fi
-    )
-}
-
-# Mirrors the cache path validation logic from install.sh
-_resolve_cache_dir() {
-    local raw="$1"
-    local result
-    case "$raw" in
-        /*)
-            case "$raw" in
-                */..*) result="/tmp/agent-context" ;;
-                *)     result="$raw/agent-context" ;;
-            esac
-            ;;
-        *) result="/tmp/agent-context" ;;
-    esac
-    echo "$result"
-}
-
-# Mirrors the fast-path critical-template check from install.sh.
-# Returns 0 (success) when all critical templates exist, 1 if any are missing.
-# Usage: _check_critical_templates <dir>
-_check_critical_templates() {
-    local dir="$1"
-    for _tmpl in "AGENTS.md" \
-                 ".agent-context/layer1-bootstrap.md" \
-                 ".agent-context/layer2-project-core.md" \
-                 ".agent-context/layer3-guidebook.md" \
-                 ".agent-context/skills/index.md"; do
-        [ -f "$dir/$_tmpl" ] || return 1
-    done
-    return 0
-}
-
-# ---------------------------------------------------------------------------
 # TEST SUITE
 # ---------------------------------------------------------------------------
 
@@ -156,7 +93,7 @@ echo ""
 echo "--- update_claude_md ---"
 
 t=$(mk_tmp)
-_update_claude_md "$t"
+(cd "$t" && update_claude_md)
 if [ -f "$t/.claude/CLAUDE.md" ]; then
     pass "creates .claude/CLAUDE.md when neither CLAUDE.md exists"
 else
@@ -172,7 +109,7 @@ mkdir -p "$t/.claude"
 printf '@AGENTS.md\n' > "$t/.claude/CLAUDE.md"
 _mtime_before=$(date -r "$t/.claude/CLAUDE.md" +%s 2>/dev/null || stat -f %m "$t/.claude/CLAUDE.md" 2>/dev/null || echo 0)
 sleep 1
-_update_claude_md "$t"
+(cd "$t" && update_claude_md)
 _mtime_after=$(date -r "$t/.claude/CLAUDE.md" +%s 2>/dev/null || stat -f %m "$t/.claude/CLAUDE.md" 2>/dev/null || echo 0)
 assert_eq "bootstrap-only .claude/CLAUDE.md is not rewritten" "$_mtime_before" "$_mtime_after"
 
@@ -181,7 +118,7 @@ assert_eq "bootstrap-only .claude/CLAUDE.md is not rewritten" "$_mtime_before" "
 # ---------------------------------------------------------------------------
 t=$(mk_tmp)
 printf 'some real conventions here\n' > "$t/CLAUDE.md"
-_update_claude_md "$t"
+(cd "$t" && update_claude_md)
 assert_file_contains "CLAUDE.md with real content is replaced with @AGENTS.md" "$t/CLAUDE.md" "@AGENTS.md"
 assert_file_not_contains "old content is gone" "$t/CLAUDE.md" "some real conventions"
 
@@ -190,7 +127,7 @@ assert_file_not_contains "old content is gone" "$t/CLAUDE.md" "some real convent
 # ---------------------------------------------------------------------------
 t=$(mk_tmp)
 printf '@AGENTS.md\n# Extra conventions\n' > "$t/CLAUDE.md"
-_update_claude_md "$t"
+(cd "$t" && update_claude_md)
 content=$(cat "$t/CLAUDE.md")
 assert_eq "mixed CLAUDE.md reduced to bootstrap-only" "@AGENTS.md" "$content"
 
@@ -202,7 +139,7 @@ t=$(mk_tmp)
 printf '@AGENTS.md' > "$t/CLAUDE.md"   # no trailing newline
 _mtime_before=$(date -r "$t/CLAUDE.md" +%s 2>/dev/null || stat -f %m "$t/CLAUDE.md" 2>/dev/null || echo 0)
 sleep 1
-_update_claude_md "$t"
+(cd "$t" && update_claude_md)
 _mtime_after=$(date -r "$t/CLAUDE.md" +%s 2>/dev/null || stat -f %m "$t/CLAUDE.md" 2>/dev/null || echo 0)
 assert_eq "@AGENTS.md without trailing newline is still treated as bootstrap-only" "$_mtime_before" "$_mtime_after"
 
@@ -212,36 +149,36 @@ assert_eq "@AGENTS.md without trailing newline is still treated as bootstrap-onl
 echo ""
 echo "--- cache path validation ---"
 
-result=$(_resolve_cache_dir "/home/user/.cache")
+result=$(resolve_cache_dir "/home/user/.cache")
 assert_eq "absolute XDG_CACHE_HOME gets /agent-context appended" "/home/user/.cache/agent-context" "$result"
 
 # ---------------------------------------------------------------------------
 # 7. Cache path validation: relative path → falls back to /tmp/agent-context
 # ---------------------------------------------------------------------------
-result=$(_resolve_cache_dir "relative/path")
+result=$(resolve_cache_dir "relative/path")
 assert_eq "relative cache path falls back to /tmp/agent-context" "/tmp/agent-context" "$result"
 
 # ---------------------------------------------------------------------------
 # 8. Cache path validation: path with .. segment → falls back to /tmp/agent-context
 # ---------------------------------------------------------------------------
-result=$(_resolve_cache_dir "/home/user/../etc")
+result=$(resolve_cache_dir "/home/user/../etc")
 assert_eq "path with .. segment falls back to /tmp/agent-context" "/tmp/agent-context" "$result"
 
 # ---------------------------------------------------------------------------
 # 9. Cache path validation: empty string → falls back to /tmp/agent-context
 # ---------------------------------------------------------------------------
-result=$(_resolve_cache_dir "")
+result=$(resolve_cache_dir "")
 assert_eq "empty cache path falls back to /tmp/agent-context" "/tmp/agent-context" "$result"
 
 # ---------------------------------------------------------------------------
 # 10. Bootstrap-only check: file with only @AGENTS.md → true
 # ---------------------------------------------------------------------------
 echo ""
-echo "--- bootstrap-only check (_is_bootstrap_only) ---"
+echo "--- bootstrap-only check (is_bootstrap_only) ---"
 
 t=$(mk_tmp)
 printf '@AGENTS.md\n' > "$t/test.md"
-if _is_bootstrap_only "$t/test.md"; then
+if is_bootstrap_only "$t/test.md"; then
     pass "@AGENTS.md-only file is bootstrap-only"
 else
     fail "@AGENTS.md-only file is bootstrap-only" "returned false"
@@ -252,7 +189,7 @@ fi
 # ---------------------------------------------------------------------------
 t=$(mk_tmp)
 printf '@AGENTS.md\n# real content\n' > "$t/test.md"
-if ! _is_bootstrap_only "$t/test.md"; then
+if ! is_bootstrap_only "$t/test.md"; then
     pass "file with @AGENTS.md + extra content is NOT bootstrap-only"
 else
     fail "file with @AGENTS.md + extra content is NOT bootstrap-only" "returned true"
@@ -263,7 +200,7 @@ fi
 # ---------------------------------------------------------------------------
 t=$(mk_tmp)
 printf '\n@AGENTS.md\n\n' > "$t/test.md"
-if _is_bootstrap_only "$t/test.md"; then
+if is_bootstrap_only "$t/test.md"; then
     pass "file with blank lines + @AGENTS.md is bootstrap-only"
 else
     fail "file with blank lines + @AGENTS.md is bootstrap-only" "returned false"
@@ -273,7 +210,7 @@ fi
 # 13. Bootstrap-only check: missing file → false (not bootstrap-only)
 # ---------------------------------------------------------------------------
 t=$(mk_tmp)
-if ! _is_bootstrap_only "$t/nonexistent.md"; then
+if ! is_bootstrap_only "$t/nonexistent.md"; then
     pass "missing file is not bootstrap-only"
 else
     fail "missing file is not bootstrap-only" "returned true"
@@ -285,7 +222,7 @@ fi
 # ---------------------------------------------------------------------------
 t=$(mk_tmp)
 printf '@AGENTS.md\n@AGENTS.md\n@AGENTS.md\n@AGENTS.md\n@AGENTS.md\n@AGENTS.md\n' > "$t/test.md"
-if ! _is_bootstrap_only "$t/test.md"; then
+if ! is_bootstrap_only "$t/test.md"; then
     pass "6-line @AGENTS.md-only file exceeds guard and is not bootstrap-only"
 else
     fail "6-line @AGENTS.md-only file exceeds guard and is not bootstrap-only" "returned true"
@@ -302,17 +239,17 @@ t=$(mk_tmp)
 mkdir -p "$t/.claude"
 printf 'real content A\n' > "$t/.claude/CLAUDE.md"
 printf 'real content B\n' > "$t/CLAUDE.md"
-_update_claude_md "$t"
+(cd "$t" && update_claude_md)
 assert_file_contains ".claude/CLAUDE.md overwritten" "$t/.claude/CLAUDE.md" "@AGENTS.md"
 assert_file_not_contains ".claude/CLAUDE.md old content gone" "$t/.claude/CLAUDE.md" "real content A"
 assert_file_contains "CLAUDE.md overwritten" "$t/CLAUDE.md" "@AGENTS.md"
 assert_file_not_contains "CLAUDE.md old content gone" "$t/CLAUDE.md" "real content B"
 
 # ---------------------------------------------------------------------------
-# 16–21. Fast-path critical-template guard (_check_critical_templates)
+# 16–21. Fast-path critical-template guard (check_critical_templates)
 # ---------------------------------------------------------------------------
 echo ""
-echo "--- critical-template guard (_check_critical_templates) ---"
+echo "--- critical-template guard (check_critical_templates) ---"
 
 _mk_complete_install() {
     local dir="$1"
@@ -327,7 +264,7 @@ _mk_complete_install() {
 # 16. All critical templates present → returns 0
 t=$(mk_tmp)
 _mk_complete_install "$t"
-if _check_critical_templates "$t"; then
+if (cd "$t" && check_critical_templates); then
     pass "all critical templates present → returns 0 (fast-path allowed)"
 else
     fail "all critical templates present → returns 0" "returned non-zero"
@@ -337,7 +274,7 @@ fi
 t=$(mk_tmp)
 _mk_complete_install "$t"
 rm "$t/AGENTS.md"
-if ! _check_critical_templates "$t"; then
+if ! (cd "$t" && check_critical_templates); then
     pass "missing AGENTS.md → returns 1 (fast-path blocked)"
 else
     fail "missing AGENTS.md → returns 1" "returned 0 (fast-path not blocked)"
@@ -347,7 +284,7 @@ fi
 t=$(mk_tmp)
 _mk_complete_install "$t"
 rm "$t/.agent-context/layer1-bootstrap.md"
-if ! _check_critical_templates "$t"; then
+if ! (cd "$t" && check_critical_templates); then
     pass "missing layer1-bootstrap.md → returns 1"
 else
     fail "missing layer1-bootstrap.md → returns 1" "returned 0"
@@ -357,7 +294,7 @@ fi
 t=$(mk_tmp)
 _mk_complete_install "$t"
 rm "$t/.agent-context/layer2-project-core.md"
-if ! _check_critical_templates "$t"; then
+if ! (cd "$t" && check_critical_templates); then
     pass "missing layer2-project-core.md → returns 1"
 else
     fail "missing layer2-project-core.md → returns 1" "returned 0"
@@ -367,7 +304,7 @@ fi
 t=$(mk_tmp)
 _mk_complete_install "$t"
 rm "$t/.agent-context/layer3-guidebook.md"
-if ! _check_critical_templates "$t"; then
+if ! (cd "$t" && check_critical_templates); then
     pass "missing layer3-guidebook.md → returns 1"
 else
     fail "missing layer3-guidebook.md → returns 1" "returned 0"
@@ -377,62 +314,57 @@ fi
 t=$(mk_tmp)
 _mk_complete_install "$t"
 rm "$t/.agent-context/skills/index.md"
-if ! _check_critical_templates "$t"; then
+if ! (cd "$t" && check_critical_templates); then
     pass "missing skills/index.md → returns 1"
 else
     fail "missing skills/index.md → returns 1" "returned 0"
 fi
 
 # ---------------------------------------------------------------------------
-# 22–27. Version string validation (_validate_version_string)
-# Mirrors the regex guard in get_latest_version() from install.sh:
+# 22–27. Version string validation (validate_version_string)
+# Tests the extracted validate_version_string() function from install.sh:
 #   [[ "$version" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]
 # ---------------------------------------------------------------------------
 echo ""
 echo "--- version string validation ---"
 
-_validate_version_string() {
-    local v="$1"
-    [[ "$v" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]
-}
-
 # 22. canonical tag with v prefix
-if _validate_version_string "v1.2.3"; then
+if validate_version_string "v1.2.3"; then
     pass "v1.2.3 is a valid version tag"
 else
     fail "v1.2.3 is a valid version tag" "returned false"
 fi
 
 # 23. tag without v prefix
-if _validate_version_string "1.2.3"; then
+if validate_version_string "1.2.3"; then
     pass "1.2.3 (no v prefix) is a valid version tag"
 else
     fail "1.2.3 (no v prefix) is a valid version tag" "returned false"
 fi
 
 # 24. two-part version rejected (previously accepted by old regex ^v?[0-9]+\.[0-9])
-if ! _validate_version_string "v1.2"; then
+if ! validate_version_string "v1.2"; then
     pass "v1.2 (two-part) is rejected"
 else
     fail "v1.2 (two-part) is rejected" "returned true — regex too permissive"
 fi
 
 # 25. trailing garbage rejected
-if ! _validate_version_string "v1.2.3abc"; then
+if ! validate_version_string "v1.2.3abc"; then
     pass "v1.2.3abc (trailing garbage) is rejected"
 else
     fail "v1.2.3abc (trailing garbage) is rejected" "returned true"
 fi
 
 # 26. empty string rejected
-if ! _validate_version_string ""; then
+if ! validate_version_string ""; then
     pass "empty string is rejected"
 else
     fail "empty string is rejected" "returned true"
 fi
 
 # 27. pre-release suffix rejected (pre-releases not cached; agent handles them)
-if ! _validate_version_string "v1.2.3-rc1"; then
+if ! validate_version_string "v1.2.3-rc1"; then
     pass "v1.2.3-rc1 (pre-release) is rejected by cache regex"
 else
     fail "v1.2.3-rc1 (pre-release) is rejected by cache regex" "returned true"
