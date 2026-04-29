@@ -101,7 +101,7 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
 3. If the fetch fails or returns no releases:
    - **SETUP:** abort with an informative message — version selection is required
    - **UPDATE:** inform the user that releases could not be checked, skip to Step 4
-   > **Note:** When invoked via `install.sh`, a shell-level fast-path runs before this agent starts and exits early when everything is up-to-date. If this agent is running, the shell-level check already confirmed a full update is needed (or `--force` was passed). Direct invocation without `install.sh` always runs the full update flow.
+     > **Note:** When invoked via `install.sh`, a shell-level fast-path runs before this agent starts and exits early when everything is up-to-date. If this agent is running, the shell-level check already confirmed a full update is needed (or `--force` was passed). Direct invocation without `install.sh` always runs the full update flow.
 4. If `INTERACTIVE_MODE=false`: skip the version prompt entirely, use the latest stable release automatically — do not present a table or ask any question. Then log the mode and target version:
    ```bash
    echo "[agent-context] Mode: UPDATE (0.3.0 → 0.5.0)" >> .agent-context/setup.log
@@ -156,6 +156,7 @@ fi
 > **Important:** If the parallel download block above exits non-zero (any file failed to download), **stop here — do NOT write the version file.** Recording a new version tag in `.agent-context/.agent-context-version` when one or more shared files are missing would leave the installation in an inconsistent state where the version number claims a complete update but the files do not match.
 
 Write the new version to `.agent-context/.agent-context-version`:
+
 ```bash
 echo "<tag>" > .agent-context/.agent-context-version
 ```
@@ -166,52 +167,42 @@ List all template files recursively via the GitHub Git Trees API (returns all ne
 The `<tag>` placeholder is used directly as the tree ref — GitHub's API accepts branch/tag names here, not only SHAs (documented: "SHA1 value or ref (branch or tag) name of the tree"):
 
 ```bash
-curl -fsSL "https://api.github.com/repos/lx-wnk/Agent-Context/git/trees/<tag>?recursive=1" | \
-  python3 -c "
-import sys, json, subprocess, os
+# Parse blob paths under templates/ with an awk state machine.
+# Relies on GitHub's stable pretty-printed JSON format (one field per line, consistent since 2011).
+_tree=$(curl -fsSL "https://api.github.com/repos/lx-wnk/Agent-Context/git/trees/<tag>?recursive=1")
+_tmpls=$(printf '%s\n' "$_tree" | awk '
+  /"path":/  { p = $0; sub(/.*"path": "/,  "", p); sub(/".*/, "", p); path = p }
+  /"type":/  { t = $0; sub(/.*"type": "/,  "", t); sub(/".*/, "", t); type = t }
+  /^[[:space:]]*\}/ {
+    if (type == "blob" && substr(path, 1, 10) == "templates/")
+      print substr(path, 11)
+    path = ""; type = ""
+  }
+')
 
-tree = json.load(sys.stdin)
-blobs = [
-    item for item in tree.get('tree', [])
-    if item.get('type') == 'blob' and item['path'].startswith('templates/')
-]
+_pids=(); _dests=()
+while IFS= read -r _rel; do
+  [ -z "$_rel" ] && continue
+  # Only write to known-safe destinations — guards against future templates landing
+  # outside .agent-context/ (e.g. templates/README.md would clobber a project README).
+  case "$_rel" in
+    AGENTS.md|CLAUDE.md) ;;
+    .agent-context/*|.claude/*) ;;
+    *) echo "Skipping $_rel: outside allowlist" >&2; continue ;;
+  esac
+  [ -f "$_rel" ] && continue  # project-owned — never overwrite
+  mkdir -p "$(dirname "$_rel")"
+  _url="https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/templates/$_rel"
+  (curl -fsSL "$_url" -o "$_rel.tmp" && mv "$_rel.tmp" "$_rel" \
+    || { rm -f "$_rel.tmp"; exit 1; }) &
+  _pids+=($!); _dests+=("$_rel")
+done <<< "$_tmpls"
 
-procs = []
-for item in blobs:
-    # Use slicing instead of removeprefix() for Python 3.6+ compatibility
-    rel = item['path'][len('templates/'):]
-    # Only write to known safe destinations — guard against future templates
-    # accidentally landing outside .agent-context/ (e.g. templates/README.md
-    # would clobber a project README).
-    SAFE_ROOTS = {'AGENTS.md', 'CLAUDE.md'}       # exact-match for root files
-    SAFE_DIRS  = ('.agent-context/', '.claude/')  # prefix-match for directories
-    if rel not in SAFE_ROOTS and not any(rel.startswith(d) for d in SAFE_DIRS):
-        print(f'Skipping {rel}: destination outside allowlist', file=sys.stderr)
-        continue
-    dest = rel
-    if os.path.exists(dest):
-        continue  # project-owned — never overwrite
-    os.makedirs(os.path.dirname(dest) or '.', exist_ok=True)
-    url = 'https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/templates/' + rel
-    # Write to .tmp first to avoid leaving partial files on network errors
-    procs.append((dest, subprocess.Popen(['curl', '-fsSL', url, '-o', dest + '.tmp'])))
-
-fail = 0
-for dest, p in procs:
-    rc = p.wait()
-    if rc != 0:
-        print(f'Error: failed to download {dest}', file=sys.stderr)
-        fail = 1
-        try:
-            os.unlink(dest + '.tmp')
-        except OSError:
-            pass
-    else:
-        os.rename(dest + '.tmp', dest)
-        print(f'Created {dest}')
-if fail:
-    raise SystemExit(1)
-"
+_fail=0
+for _i in "${!_pids[@]}"; do
+  wait "${_pids[$_i]}" || { echo "Error: failed to download ${_dests[$_i]}" >&2; _fail=1; }
+done
+[ "$_fail" -eq 0 ] || { rm -f .agent-context/*.tmp; exit 1; }
 ```
 
 If a destination file already exists → skip it (project-owned, never overwrite).
