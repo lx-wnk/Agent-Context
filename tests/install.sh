@@ -5,7 +5,7 @@
 # Exit 0 = all tests passed; non-zero = failures reported.
 #
 # These tests exercise the internal logic (cache path validation, update_claude_md,
-# version guards, CACHE_STALE flag) without invoking the real claude CLI or GitHub API.
+# bootstrap-only detection, critical-template guard) without invoking the real claude CLI or GitHub API.
 # Each test runs in its own temporary directory that is cleaned up on exit.
 
 # Note: we intentionally do NOT use set -e here because individual test assertions
@@ -77,10 +77,21 @@ assert_exit_0() {
 
 # ---------------------------------------------------------------------------
 # Inline re-implementations for unit testing
-# (mirrors install.sh logic exactly so tests break if the real code changes)
+# These mirror install.sh logic. They are independent copies — if you change a
+# function in install.sh, update the corresponding helper here too.
 # ---------------------------------------------------------------------------
 
-# Mirrors update_claude_md() from install.sh exactly
+# Mirrors is_bootstrap_only() from install.sh
+_is_bootstrap_only() {
+    local file="$1"
+    [ -f "$file" ] || return 1
+    grep -q "@AGENTS.md" "$file" && \
+        [ "$(awk 'END{print NR}' "$file")" -le 5 ] && \
+        [ "$(grep -cve '^[[:space:]]*$' "$file")" -eq \
+          "$(grep -cxe '[[:space:]]*@AGENTS\.md[[:space:]]*' "$file")" ]
+}
+
+# Mirrors update_claude_md() from install.sh (delegates to _is_bootstrap_only)
 _update_claude_md() {
     local dir="$1"
     (
@@ -88,8 +99,7 @@ _update_claude_md() {
         local updated=0
         for loc in ".claude/CLAUDE.md" "CLAUDE.md"; do
             [ -f "$loc" ] || continue
-            if grep -q "@AGENTS.md" "$loc" && [ "$(awk 'END{print NR}' "$loc")" -le 5 ] && \
-               [ "$(grep -cve '^[[:space:]]*$' "$loc")" -eq "$(grep -cxe '[[:space:]]*@AGENTS\.md[[:space:]]*' "$loc")" ]; then
+            if _is_bootstrap_only "$loc"; then
                 continue
             fi
             printf '@AGENTS.md\n' > "$loc"
@@ -131,16 +141,6 @@ _check_critical_templates() {
         [ -f "$dir/$_tmpl" ] || return 1
     done
     return 0
-}
-
-# Mirrors the fast-path bootstrap-only check from install.sh
-_is_bootstrap_only() {
-    local file="$1"
-    [ -f "$file" ] || return 1
-    grep -q "@AGENTS.md" "$file" && \
-        [ "$(awk 'END{print NR}' "$file")" -le 5 ] && \
-        [ "$(grep -cve '^[[:space:]]*$' "$file")" -eq \
-          "$(grep -cxe '[[:space:]]*@AGENTS\.md[[:space:]]*' "$file")" ]
 }
 
 # ---------------------------------------------------------------------------

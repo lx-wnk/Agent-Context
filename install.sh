@@ -39,8 +39,6 @@ if [ -n "$AI_DIRS" ]; then
 fi
 
 if [ "$FORCE" -eq 1 ]; then
-    # COUPLING: the exact sentinel string "Force flag is set" is matched verbatim
-    # in setup-prompt.md Step 1. If you rename this sentinel, update that check too.
     PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION Force flag is set: skip any up-to-date version checks and perform a full update regardless of current version."
 fi
 
@@ -179,12 +177,6 @@ fi
 mkdir -p .agent-context
 > "$LOG"
 
-# File-based sentinel so setup-prompt.md can detect --force deterministically.
-# Cleaned up via trap — survives agent crashes without requiring manual cleanup.
-if [ "$FORCE" -eq 1 ]; then
-    touch .agent-context/.force
-fi
-trap 'rm -f .agent-context/.force' EXIT
 
 echo "Starting agent-context setup in $(pwd)..."
 if [ "$SESSION_ID" != "unknown" ]; then

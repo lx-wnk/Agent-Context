@@ -132,15 +132,15 @@ Fetch all files **in parallel** — spawn each curl in the background and wait f
 ```bash
 pids=()
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/agent-startup.md" \
-    -o ".agent-context/agent-startup.md.tmp" && mv ".agent-context/agent-startup.md.tmp" ".agent-context/agent-startup.md" || rm -f ".agent-context/agent-startup.md.tmp") & pids+=($!)
+    -o ".agent-context/agent-startup.md.tmp" && mv ".agent-context/agent-startup.md.tmp" ".agent-context/agent-startup.md" || { rm -f ".agent-context/agent-startup.md.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/layer0-agent-workflow.md" \
-    -o ".agent-context/layer0-agent-workflow.md.tmp" && mv ".agent-context/layer0-agent-workflow.md.tmp" ".agent-context/layer0-agent-workflow.md" || rm -f ".agent-context/layer0-agent-workflow.md.tmp") & pids+=($!)
+    -o ".agent-context/layer0-agent-workflow.md.tmp" && mv ".agent-context/layer0-agent-workflow.md.tmp" ".agent-context/layer0-agent-workflow.md" || { rm -f ".agent-context/layer0-agent-workflow.md.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/base-principles.md" \
-    -o ".agent-context/base-principles.md.tmp" && mv ".agent-context/base-principles.md.tmp" ".agent-context/base-principles.md" || rm -f ".agent-context/base-principles.md.tmp") & pids+=($!)
+    -o ".agent-context/base-principles.md.tmp" && mv ".agent-context/base-principles.md.tmp" ".agent-context/base-principles.md" || { rm -f ".agent-context/base-principles.md.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/.prompts/decision-review-prompt.md" \
-    -o ".agent-context/decision-review-prompt.md.tmp" && mv ".agent-context/decision-review-prompt.md.tmp" ".agent-context/decision-review-prompt.md" || rm -f ".agent-context/decision-review-prompt.md.tmp") & pids+=($!)
+    -o ".agent-context/decision-review-prompt.md.tmp" && mv ".agent-context/decision-review-prompt.md.tmp" ".agent-context/decision-review-prompt.md" || { rm -f ".agent-context/decision-review-prompt.md.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/.prompts/memory-review-prompt.md" \
-    -o ".agent-context/memory-review-prompt.md.tmp" && mv ".agent-context/memory-review-prompt.md.tmp" ".agent-context/memory-review-prompt.md" || rm -f ".agent-context/memory-review-prompt.md.tmp") & pids+=($!)
+    -o ".agent-context/memory-review-prompt.md.tmp" && mv ".agent-context/memory-review-prompt.md.tmp" ".agent-context/memory-review-prompt.md" || { rm -f ".agent-context/memory-review-prompt.md.tmp"; exit 1; }) & pids+=($!)
 
 fail=0
 for pid in "${pids[@]}"; do
@@ -202,7 +202,7 @@ _fail=0
 for _i in "${!_pids[@]}"; do
   wait "${_pids[$_i]}" || { echo "Error: failed to download ${_dests[$_i]}" >&2; _fail=1; }
 done
-[ "$_fail" -eq 0 ] || { rm -f .agent-context/*.tmp; exit 1; }
+[ "$_fail" -eq 0 ] || { for _d in "${_dests[@]}"; do rm -f "$_d.tmp"; done; exit 1; }
 ```
 
 If a destination file already exists → skip it (project-owned, never overwrite).
