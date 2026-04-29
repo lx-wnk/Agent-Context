@@ -60,7 +60,7 @@ Set `INTERACTIVE_MODE=true` if the bash output was `interactive` AND `CI` is not
 In non-interactive mode (`INTERACTIVE_MODE=false`), write progress to `.agent-context/setup.log` at the start of each step via a Bash tool call:
 
 ```bash
-echo "[agent-context] Step N/7: <description>" >> .agent-context/setup.log
+echo "[agent-context] Step N/5: <description>" >> .agent-context/setup.log
 ```
 
 Create the log file at the very start (before Step 1) so `tail -f` can attach immediately:
@@ -388,9 +388,9 @@ echo "[agent-context] MIGRATION_CLEANUP: ran" >> .agent-context/setup.log
 
 ## Step 5: Knowledge Re-Sync (UPDATE mode)
 
-After updating shared files (Steps 1–6), re-synchronize all project knowledge:
+After updating shared files (Steps 1–4), re-synchronize all project knowledge:
 
-### 7a: Consolidated Fact Inventory
+### 5a: Consolidated Fact Inventory
 
 Apply the **Global Constraint: Knowledge Map Sources** — run `git ls-files --cached --others --exclude-standard` and only consider files in that output.
 
@@ -404,7 +404,7 @@ Check `.agent-context/setup-decisions.json` for existing decisions — skip sour
 
 For new or changed sources: apply Knowledge Decision Logic (Ack/Nack or plan-file).
 
-### 7b: Routing & Restructuring (additive-only)
+### 5b: Routing & Restructuring (additive-only)
 
 Route facts to their targets — **additive only, never overwrite existing content**:
 
@@ -419,16 +419,16 @@ Route facts to their targets — **additive only, never overwrite existing conte
 
 Keyword check: search target file for 2–3 key terms from the fact. If found → skip. If not found → append.
 
-### 7c: Global Integrity Check
+### 5c: Global Integrity Check
 
-For each fact/finding collected in 7a:
+For each fact/finding collected in 5a:
 
 1. Search for its 2–3 key terms across all `.agent-context/` files and `knowledge-map.md`
 2. If no match found → list as missing
 3. If any facts are missing: report them to the user, do NOT commit — ask how to resolve
 4. If all facts are accounted for → proceed
 
-### 7d: knowledge-map.md Update
+### 5d: knowledge-map.md Update
 
 **If Migration Cleanup (Step 4.5) ran** (check: `grep -q "MIGRATION_CLEANUP: ran" .agent-context/setup.log`):
 
@@ -453,7 +453,7 @@ For each source with `action = "reference"`:
 
 Update `.agent-context/setup-decisions.json` with all new decisions.
 
-### 7e: Token Budget Audit
+### 5e: Token Budget Audit
 
 Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-context/memory/*.md` and report:
 
@@ -809,7 +809,7 @@ If anything didn't go as expected, resume this session with:
 
 ## Error Handling
 
-- **Network failure** (API unreachable, tarball download fails):
+- **Network failure** (API unreachable, raw file or Trees API download fails):
   - **SETUP:** abort — cannot proceed without release files
   - **UPDATE:** skip update, keep existing files, return `ok: true`
 - **Corrupted/incomplete archive**: Do NOT overwrite existing files with partial content. Skip update, return `ok: true`

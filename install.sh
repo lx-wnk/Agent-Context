@@ -143,9 +143,10 @@ get_latest_version() {
 if [ "$FORCE" -ne 1 ] && [ -f ".agent-context/.agent-context-version" ]; then
     INSTALLED_VERSION=$(tr -d '[:space:]' < ".agent-context/.agent-context-version")
     LATEST_VERSION=$(get_latest_version | tr -d '[:space:]')
+    # Strip optional leading 'v' so "v0.5.3" and "0.5.3" compare as equal.
     # An empty INSTALLED_VERSION (e.g. blank version file) intentionally falls through:
     # the equality check is false, so the full update flow runs.
-    if [ -n "$LATEST_VERSION" ] && [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
+    if [ -n "$LATEST_VERSION" ] && [ "${INSTALLED_VERSION#v}" = "${LATEST_VERSION#v}" ]; then
         _needs_agent=0
         for _loc in ".claude/CLAUDE.md" "CLAUDE.md"; do
             if [ -f "$_loc" ] && ! is_bootstrap_only "$_loc"; then
