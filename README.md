@@ -84,11 +84,11 @@ Paste [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) into Claude Code. I
 
 Updates can be triggered manually by fetching the setup prompt from remote and following its instructions:
 
-1. Reads `.agent-context/.agent-context-version` (local) and fetches the latest release tag from the GitHub API (remote)
-2. **If versions differ:** downloads the tarball, overwrites shared files (including the update prompt itself), writes
-   the new version
-3. **If versions match or API fails:** skips silently
-4. Syncs plugins from `plugins.json` into `.claude/settings.json`
+1. Reads `.agent-context/.agent-context-version` (local) and fetches the latest release tag from the GitHub API (remote, cached for 1 hour)
+2. **If already up-to-date and templates intact:** exits immediately — no Claude spawn needed
+3. **If versions differ:** spawns Claude, which downloads shared files in parallel, writes the new version
+4. **If API fails:** falls back to the cached version; warns if the cache is stale
+5. Syncs plugins from `plugins.json` into `.claude/settings.json`
 
 ### What the agent sees at runtime
 
@@ -113,19 +113,22 @@ Run this one-liner from your project root:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/install.sh)"
 ```
 
-The script runs Claude headlessly, shows live progress in your terminal, and exits cleanly when done:
+The script checks whether your project is already up-to-date (TTL-cached, 1 hour). If an update is needed, it spawns Claude headlessly, shows live progress in your terminal, and exits cleanly when done:
 
 ```
 Starting agent-context setup in /your/project...
 ...............
-[agent-context] Step 1/7: Checking version...
-....
 [agent-context] Mode: UPDATE (0.3.0 → 0.5.0)
-[agent-context] Step 2/7: Downloading release 0.5.0...
+[agent-context] Step 1/5: Checking version...
+....
+[agent-context] Step 2/5: Installing shared files...
 ...
+[agent-context] Done.
 ```
 
 Claude analyzes existing documentation, applies quality filters, discovers your tech stack, and creates the architecture. Restart your session afterwards — the new configuration takes effect on the next start.
+
+Pass `--force` to skip the version cache and run a full update regardless of the installed version.
 
 **Requires:** [Claude Code CLI](https://claude.ai/code) installed and authenticated.
 
@@ -173,6 +176,8 @@ your-project/
 agent-context/
 ├── context/           # Shared agent context (copied to .agent-context/)
 ├── templates/         # Project setup templates (copied once, never overwritten)
+├── scripts/           # CI/dev scripts (template coverage check)
+├── tests/             # Pure-bash unit tests for installer logic
 ├── plugins.json       # Base plugin set for Claude Code
 ├── example.md         # Annotated example (Shopware 6 project)
 ├── install.sh         # Installer script (curl one-liner entry point)
@@ -241,7 +246,7 @@ Updates are not file patches. Every `setup-prompt.md` run (SETUP or UPDATE) perf
 
 ## Updates
 
-After creating a [GitHub Release](https://github.com/lx-wnk/Agent-Context/releases), projects update automatically: on the next session start, the agent fetches the setup prompt from remote (UPDATE mode), checks the Releases API, detects the version difference, downloads the release, and overwrites the shared files. The update then performs a full knowledge re-synchronization — scanning all project knowledge sources, routing new facts to optimal targets, and verifying nothing was lost. Project-owned files receive improvements additively; content is never deleted. If the API is unreachable, the agent continues silently.
+After creating a [GitHub Release](https://github.com/lx-wnk/Agent-Context/releases), projects update by re-running the `install.sh` one-liner. The script compares the installed version against the latest release (GitHub Releases API, TTL-cached for 1 hour) — if already up-to-date, it exits immediately without spawning Claude. If a new version is available, Claude downloads the shared files in parallel, overwrites them, and runs a full knowledge re-synchronization: scanning all project knowledge sources, routing new facts to optimal targets, and verifying nothing was lost. Project-owned files receive improvements additively; content is never deleted. If the API is unreachable, the installer falls back to the cached version.
 
 ## Research & References
 
