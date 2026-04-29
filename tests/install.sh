@@ -151,6 +151,21 @@ _resolve_cache_dir() {
     echo "$result"
 }
 
+# Mirrors the fast-path critical-template check from install.sh.
+# Returns 0 (success) when all critical templates exist, 1 if any are missing.
+# Usage: _check_critical_templates <dir>
+_check_critical_templates() {
+    local dir="$1"
+    for _tmpl in "AGENTS.md" \
+                 ".agent-context/layer1-bootstrap.md" \
+                 ".agent-context/layer2-project-core.md" \
+                 ".agent-context/layer3-guidebook.md" \
+                 ".agent-context/skills/index.md"; do
+        [ -f "$dir/$_tmpl" ] || return 1
+    done
+    return 0
+}
+
 # Mirrors the fast-path bootstrap-only check from install.sh
 _is_bootstrap_only() {
     local file="$1"
@@ -325,6 +340,81 @@ assert_file_contains ".claude/CLAUDE.md overwritten" "$t/.claude/CLAUDE.md" "@AG
 assert_file_not_contains ".claude/CLAUDE.md old content gone" "$t/.claude/CLAUDE.md" "real content A"
 assert_file_contains "CLAUDE.md overwritten" "$t/CLAUDE.md" "@AGENTS.md"
 assert_file_not_contains "CLAUDE.md old content gone" "$t/CLAUDE.md" "real content B"
+
+# ---------------------------------------------------------------------------
+# 16–21. Fast-path critical-template guard (_check_critical_templates)
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- critical-template guard (_check_critical_templates) ---"
+
+_mk_complete_install() {
+    local dir="$1"
+    mkdir -p "$dir/.agent-context/skills" "$dir/.agent-context/memory"
+    touch "$dir/AGENTS.md"
+    touch "$dir/.agent-context/layer1-bootstrap.md"
+    touch "$dir/.agent-context/layer2-project-core.md"
+    touch "$dir/.agent-context/layer3-guidebook.md"
+    touch "$dir/.agent-context/skills/index.md"
+}
+
+# 16. All critical templates present → returns 0
+t=$(mk_tmp)
+_mk_complete_install "$t"
+if _check_critical_templates "$t"; then
+    pass "all critical templates present → returns 0 (fast-path allowed)"
+else
+    fail "all critical templates present → returns 0" "returned non-zero"
+fi
+
+# 17. AGENTS.md missing → returns 1
+t=$(mk_tmp)
+_mk_complete_install "$t"
+rm "$t/AGENTS.md"
+if ! _check_critical_templates "$t"; then
+    pass "missing AGENTS.md → returns 1 (fast-path blocked)"
+else
+    fail "missing AGENTS.md → returns 1" "returned 0 (fast-path not blocked)"
+fi
+
+# 18. layer1 missing → returns 1
+t=$(mk_tmp)
+_mk_complete_install "$t"
+rm "$t/.agent-context/layer1-bootstrap.md"
+if ! _check_critical_templates "$t"; then
+    pass "missing layer1-bootstrap.md → returns 1"
+else
+    fail "missing layer1-bootstrap.md → returns 1" "returned 0"
+fi
+
+# 19. layer2 missing → returns 1
+t=$(mk_tmp)
+_mk_complete_install "$t"
+rm "$t/.agent-context/layer2-project-core.md"
+if ! _check_critical_templates "$t"; then
+    pass "missing layer2-project-core.md → returns 1"
+else
+    fail "missing layer2-project-core.md → returns 1" "returned 0"
+fi
+
+# 20. layer3 missing → returns 1
+t=$(mk_tmp)
+_mk_complete_install "$t"
+rm "$t/.agent-context/layer3-guidebook.md"
+if ! _check_critical_templates "$t"; then
+    pass "missing layer3-guidebook.md → returns 1"
+else
+    fail "missing layer3-guidebook.md → returns 1" "returned 0"
+fi
+
+# 21. skills/index.md missing → returns 1
+t=$(mk_tmp)
+_mk_complete_install "$t"
+rm "$t/.agent-context/skills/index.md"
+if ! _check_critical_templates "$t"; then
+    pass "missing skills/index.md → returns 1"
+else
+    fail "missing skills/index.md → returns 1" "returned 0"
+fi
 
 # ---------------------------------------------------------------------------
 # Summary

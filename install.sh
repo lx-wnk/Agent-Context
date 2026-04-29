@@ -156,11 +156,17 @@ if [ "$FORCE" -ne 1 ] && [ -f ".agent-context/.agent-context-version" ]; then
             fi
         done
         # Fix 2: Guard: if critical template files are missing, agent must run to restore them.
-        # Version match alone is not proof of a complete installation.
+        # Version match alone is not proof of a complete installation — a user may have
+        # deleted a project-owned template, or a patch release added templates without
+        # changing the version number stored locally. We check all known critical
+        # project-owned template files here; adding a new template to templates/ must
+        # also add a corresponding entry to this list.
         if [ "$_needs_agent" -eq 0 ]; then
-            for _tmpl in ".agent-context/layer1-bootstrap.md" \
+            for _tmpl in "AGENTS.md" \
+                         ".agent-context/layer1-bootstrap.md" \
                          ".agent-context/layer2-project-core.md" \
-                         ".agent-context/layer3-guidebook.md"; do
+                         ".agent-context/layer3-guidebook.md" \
+                         ".agent-context/skills/index.md"; do
                 [ -f "$_tmpl" ] || { _needs_agent=1; break; }
             done
         fi
