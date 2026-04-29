@@ -101,12 +101,12 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
 3. If the fetch fails or returns no releases:
    - **SETUP:** abort with an informative message — version selection is required
    - **UPDATE:** inform the user that releases could not be checked, skip to Step 4
-4. **UPDATE only:** If the current version already matches the latest stable release **and the invocation did not include "Force flag is set"**:
+4. **UPDATE only:** If the current version already matches the latest stable release **and the invocation did not include "Force flag is set"** **and `.agent-context/.force` does not exist**:
    - Inform the user: "Already up to date (vX.Y.Z). Running CLAUDE.md bootstrap check only."
    - Run only the **CLAUDE.md Bootstrap Check** section from Step 4 (skip the compatibility pattern check)
    - **Skip Steps 4.5 (Migration Cleanup) and Step 5 (Knowledge Re-Sync) entirely**
    - Jump directly to **UPDATE Mode: Done**
-   - **If "Force flag is set" appears in the invocation:** skip this short-circuit entirely and run the full UPDATE flow regardless of version match.
+   - **If "Force flag is set" appears in the invocation OR `.agent-context/.force` exists:** skip this short-circuit entirely and run the full UPDATE flow regardless of version match.
 5. If `INTERACTIVE_MODE=false`: skip the version prompt entirely, use the latest stable release automatically — do not present a table or ask any question. Then log the mode and target version:
    ```bash
    echo "[agent-context] Mode: UPDATE (0.3.0 → 0.5.0)" >> .agent-context/setup.log
@@ -321,7 +321,7 @@ for f in CLAUDE.md GEMINI.md .cursorrules .github/copilot-instructions.md; do
   if [ -f "$f" ]; then
     # Skip CLAUDE.md if it is bootstrap-only: up to 5 total lines, with all
     # non-blank lines consisting solely of the @AGENTS.md pointer.
-    if [ "$f" = "CLAUDE.md" ] && [ "$(wc -l < "$f")" -le 5 ] && \
+    if [ "$f" = "CLAUDE.md" ] && [ "$(awk 'END{print NR}' "$f")" -le 5 ] && \
        grep -q "@AGENTS.md" "$f" && \
        [ "$(grep -cve '^[[:space:]]*$' "$f")" -eq "$(grep -cxe '[[:space:]]*@AGENTS\.md[[:space:]]*' "$f")" ]; then
       continue

@@ -52,7 +52,9 @@ update_claude_md() {
         # This matches the guard in setup-prompt.md Step 4.5a exactly; a looser
         # check (e.g. line count alone) would incorrectly skip files that contain
         # real conventions alongside the pointer.
-        if grep -q "@AGENTS.md" "$loc" && [ "$(wc -l < "$loc")" -le 5 ] && \
+        # Fix 5: use awk 'END{print NR}' instead of wc -l to correctly count lines
+        # in files without a trailing newline (wc -l undercounts by 1 in that case).
+        if grep -q "@AGENTS.md" "$loc" && [ "$(awk 'END{print NR}' "$loc")" -le 5 ] && \
            [ "$(grep -cve '^[[:space:]]*$' "$loc")" -eq "$(grep -cxe '[[:space:]]*@AGENTS\.md[[:space:]]*' "$loc")" ]; then
             continue
         fi
@@ -72,11 +74,21 @@ update_claude_md() {
 # an untrusted value could enable path injection. Fall back to /tmp when unsure.
 _raw_cache_base="${XDG_CACHE_HOME:-$HOME/.cache}"
 case "$_raw_cache_base" in
-    /*) CACHE_DIR="$_raw_cache_base/agent-context" ;;
+    /*)
+        # Fix 8: also reject paths containing '..' segments to fully close path-injection vector
+        case "$_raw_cache_base" in
+            */..*) CACHE_DIR="/tmp/agent-context" ;;
+            *)     CACHE_DIR="$_raw_cache_base/agent-context" ;;
+        esac
+        ;;
     *)  CACHE_DIR="/tmp/agent-context" ;;
 esac
 CACHE_FILE="$CACHE_DIR/latest-version"
 CACHE_TTL=3600
+
+# Fix 7: declare CACHE_STALE as a global before get_latest_version is defined.
+# get_latest_version sets this to 1 (without local) when it falls back to stale cache.
+CACHE_STALE=0
 
 get_latest_version() {
     # Use cache unless FORCE=1 or cache is stale/missing
@@ -98,20 +110,29 @@ get_latest_version() {
         "https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest" 2>/dev/null) || true
     version=$(echo "$api_response" | python3 -c \
         "import sys,json; d=json.load(sys.stdin); print(d.get('tag_name',''))" 2>/dev/null) || true
+    # Fix 3: wrap cache write in guards so failure degrades gracefully to no-cache
+    # rather than killing the script under set -e (e.g. /tmp owned by another UID).
     if [ -n "$version" ]; then
-        mkdir -p "$CACHE_DIR"
-        local tmp_cache
-        tmp_cache=$(mktemp "$CACHE_DIR/latest-version.XXXXXX")
-        echo "$version" > "$tmp_cache"
-        mv "$tmp_cache" "$CACHE_FILE"
+        if mkdir -p "$CACHE_DIR" 2>/dev/null; then
+            local tmp_cache
+            if tmp_cache=$(mktemp "$CACHE_DIR/latest-version.XXXXXX" 2>/dev/null); then
+                echo "$version" > "$tmp_cache" && mv "$tmp_cache" "$CACHE_FILE" || rm -f "$tmp_cache"
+            fi
+        fi
     elif [ -f "$CACHE_FILE" ]; then
         # API failed — fall back to stale cache rather than returning empty.
         # Warn on stderr so the user knows the version check may be outdated.
         echo "Warning: GitHub API request failed; using stale cached version." >&2
+        # Fix 7: set global flag (intentional global side-effect, no 'local') so
+        # the fast-path can warn the user that the "up to date" verdict may be stale.
+        CACHE_STALE=1
         version=$(cat "$CACHE_FILE")
     fi
     echo "$version"
 }
+
+# Fix 1 & 2 & 7: expanded fast-path with CLAUDE.md content guard and template file guard.
+# Fix 7: CACHE_STALE is declared above (before get_latest_version) and set inside it.
 
 # Fast-path: skip Claude spawn if already up-to-date
 if [ "$FORCE" -ne 1 ] && [ -f ".agent-context/.agent-context-version" ]; then
@@ -121,9 +142,38 @@ if [ "$FORCE" -ne 1 ] && [ -f ".agent-context/.agent-context-version" ]; then
     # falls through this guard: the equality check is false, so the full update
     # flow runs as expected rather than silently claiming "up to date".
     if [ -n "$LATEST_VERSION" ] && [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
-        echo "agent-context is already up to date ($INSTALLED_VERSION). Nothing to do."
-        update_claude_md
-        exit 0
+        # Fix 1: Guard: if any CLAUDE.md has real content, the agent must run first
+        # to migrate it before the bootstrap pointer can safely overwrite the file.
+        _needs_agent=0
+        for _loc in ".claude/CLAUDE.md" "CLAUDE.md"; do
+            [ -f "$_loc" ] || continue
+            if ! { grep -q "@AGENTS.md" "$_loc" && \
+                   [ "$(awk 'END{print NR}' "$_loc")" -le 5 ] && \
+                   [ "$(grep -cve '^[[:space:]]*$' "$_loc")" -eq \
+                     "$(grep -cxe '[[:space:]]*@AGENTS\.md[[:space:]]*' "$_loc")" ]; }; then
+                _needs_agent=1
+                break
+            fi
+        done
+        # Fix 2: Guard: if critical template files are missing, agent must run to restore them.
+        # Version match alone is not proof of a complete installation.
+        if [ "$_needs_agent" -eq 0 ]; then
+            for _tmpl in ".agent-context/layer1-bootstrap.md" \
+                         ".agent-context/layer2-project-core.md" \
+                         ".agent-context/layer3-guidebook.md"; do
+                [ -f "$_tmpl" ] || { _needs_agent=1; break; }
+            done
+        fi
+        if [ "$_needs_agent" -eq 0 ]; then
+            # Fix 7: warn when the "up to date" verdict is based on stale cached data.
+            if [ "$CACHE_STALE" -eq 1 ]; then
+                echo "Warning: version check based on stale cached data — run with --force to verify." >&2
+            fi
+            echo "agent-context is already up to date ($INSTALLED_VERSION). Nothing to do."
+            update_claude_md
+            exit 0
+        fi
+        # Fall through: CLAUDE.md has real content to migrate, or template files are missing.
     fi
 fi
 
@@ -137,6 +187,13 @@ fi
 
 mkdir -p .agent-context
 > "$LOG"
+
+# Fix 6: write file-based force sentinel so setup-prompt.md can detect force mode
+# deterministically, without relying on the natural-language sentinel string in the prompt.
+if [ "$FORCE" -eq 1 ]; then
+    mkdir -p .agent-context
+    touch .agent-context/.force
+fi
 
 echo "Starting agent-context setup in $(pwd)..."
 if [ "$SESSION_ID" != "unknown" ]; then
@@ -184,7 +241,14 @@ show_progress() {
 show_progress
 wait "$CLAUDE_PID"
 EXIT_CODE=$?
-update_claude_md
+
+# Fix 6: clean up file-based force sentinel after agent exits.
+rm -f .agent-context/.force
+
+# Fix 4: only run update_claude_md when the agent succeeded. If the agent failed
+# mid-migration, CLAUDE.md content may not yet be routed to layer files — overwriting
+# it here would destroy that content.
+[ "$EXIT_CODE" -eq 0 ] && update_claude_md
 
 if ! grep -q "^\[agent-context\]" "$LOG" 2>/dev/null; then
     echo "Warning: no progress was logged — Claude may have exited early or encountered an error."
