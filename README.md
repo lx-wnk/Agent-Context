@@ -41,7 +41,6 @@ agent-context Repo (source)              Project / User (target)
 context/agent-startup.md          →──    .agent-context/agent-startup.md (overwritable)
 context/layer0-agent-workflow.md  →──    .agent-context/layer0-agent-workflow.md (overwritable)
 context/base-principles.md        →──    .agent-context/base-principles.md (overwritable)
-plugins.json                      →──    .agent-context/plugins.json (overwritable)
 templates/*                       →──    AGENTS.md, layer1-3, memory/ (project-owned)
 ```
 
@@ -88,7 +87,6 @@ Updates can be triggered manually by fetching the setup prompt from remote and f
 2. **If already up-to-date and templates intact:** exits immediately — no Claude spawn needed
 3. **If versions differ:** spawns Claude, which downloads shared files in parallel, writes the new version
 4. **If API fails:** falls back to the cached version; warns if the cache is stale
-5. Syncs plugins from `plugins.json` into `.claude/settings.json`
 
 ### What the agent sees at runtime
 
@@ -151,10 +149,8 @@ your-project/
     ├── layer2-project-core.md             ← Dev principles + critical rules
     ├── layer3-guidebook.md                ← Task routing, skills, memory
     ├── .agent-context-version              ← Installed version (written by setup/update)
-    ├── plugins.json                       ← Plugin configuration (shared)
     ├── decisions.json                     ← Architectural decisions (structured)
     ├── knowledge-map.md                   ← Universal knowledge pointer index (auto-maintained)
-    ├── setup-decisions.json               ← Decision manifest for idempotent re-runs
     ├── memory-review-prompt.md            ← Memory review prompt (shared)
     ├── decision-review-prompt.md          ← Decision review prompt (shared)
     ├── skills/
