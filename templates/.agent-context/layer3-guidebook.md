@@ -39,15 +39,7 @@ External knowledge sources and task-based routing to project docs, architecture 
 
 ## Memory Files
 
-| File                    | Purpose                                   | Load           |
-| ----------------------- | ----------------------------------------- | -------------- |
-| `memory/lessons.md`     | Hard-won lessons                          | Session start  |
-| `memory/preferences.md` | Agent behavior preferences                | Session start  |
-| `memory/todo.md`        | Active task plan (local-only, gitignored) | Session start  |
-| `memory/index.md`       | Memory file catalog                       | When uncertain |
-| `decisions.json`        | Architectural decisions                   | On-demand      |
-| `memory/people.md`      | Team & stakeholders                       | On-demand      |
-| `memory/user.md`        | User profile                              | On-demand      |
+Catalog (file → purpose → when to load) lives in `memory/index.md`. Architectural decisions: `decisions.json`.
 
 ## Save As You Go (Not After)
 
