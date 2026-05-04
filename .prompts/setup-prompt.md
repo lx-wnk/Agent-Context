@@ -390,6 +390,61 @@ echo "[agent-context] MIGRATION_CLEANUP: ran" >> .agent-context/setup.log
 
 ---
 
+## Step 4.6: Memory Layout Migration (UPDATE only)
+
+This step migrates existing projects to the new memory layout: `memory/log.md` is removed, `memory/todo.md` becomes local-only. The step is idempotent — re-running on an already-migrated project is a no-op.
+
+### 4.6a: Remove `memory/log.md` if present
+
+If `.agent-context/memory/log.md` exists in the working tree:
+
+```bash
+if git ls-files --error-unmatch .agent-context/memory/log.md >/dev/null 2>&1; then
+  git rm -f .agent-context/memory/log.md
+  echo "Removed memory/log.md — cross-session activity now lives in Git history."
+elif [ -f .agent-context/memory/log.md ]; then
+  rm -f .agent-context/memory/log.md
+  echo "Removed memory/log.md — cross-session activity now lives in Git history."
+fi
+```
+
+### 4.6b: Untrack `memory/todo.md` if currently tracked
+
+If `.agent-context/memory/todo.md` is tracked by git, untrack it (preserving the working-tree copy) and add the gitignore block:
+
+```bash
+if git ls-files --error-unmatch .agent-context/memory/todo.md >/dev/null 2>&1; then
+  git rm --cached .agent-context/memory/todo.md
+  echo "memory/todo.md is now local-only. Your existing content is preserved but no longer tracked."
+fi
+```
+
+### 4.6c: Ensure the gitignore block is present
+
+Append the agent-context gitignore block to the consumer's `.gitignore` if (and only if) the marker `###> agent-context (transient working state) ###` is not already present. This makes the operation idempotent across re-runs.
+
+```bash
+GITIGNORE_MARKER="###> agent-context (transient working state) ###"
+if [ ! -f .gitignore ] || ! grep -qF "$GITIGNORE_MARKER" .gitignore; then
+  # Ensure the file ends with a newline before appending, so the marker starts on its own line.
+  if [ -s .gitignore ] && [ "$(tail -c 1 .gitignore | wc -l)" -eq 0 ]; then
+    printf '\n' >> .gitignore
+  fi
+  cat >> .gitignore <<'EOF'
+###> agent-context (transient working state) ###
+# Per-session task plan, kept locally to avoid merge conflicts across branches.
+/.agent-context/memory/todo.md
+###< agent-context ###
+EOF
+fi
+```
+
+### Idempotency
+
+All three substeps are guarded by existence/tracking/marker checks — running this step twice produces no further changes. There is no separate marker file; the absence of `memory/log.md`, the untracked status of `memory/todo.md`, and the presence of the gitignore marker collectively encode "migration done".
+
+---
+
 ## Step 5: Knowledge Re-Sync (UPDATE mode)
 
 After updating shared files (Steps 1–4), re-synchronize all project knowledge:
@@ -522,10 +577,9 @@ AGENTS.md                                PROJECT — customize freely
     decisions.md                         Legacy stub (migrated to decisions.json)
     index.md                             Memory file catalog
     lessons.md
-    log.md                               Append-only activity log
     people.md
     preferences.md
-    todo.md
+    todo.md                              (local-only, gitignored)
     user.md
 ```
 
@@ -769,7 +823,7 @@ Do not modify any source file — the map is a pointer index only.
 1. `AGENTS.md` exists with identity and layer references
 2. No `TODO` placeholders remain (except intentional ones)
 3. `wc -l AGENTS.md` < 45 lines
-4. Check `.agent-context/memory/*.md` line counts — domain stubs < 15 lines each (skip `index.md` and `log.md`)
+4. Check `.agent-context/memory/*.md` line counts — domain stubs < 15 lines each (skip `index.md` and `todo.md`)
 5. **Token Budget Audit** — run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-context/memory/*.md` and report:
    - Layer files ≥ 50 lines: flag as bloated
    - `knowledge-map.md` ≥ 100 lines: flag for cleanup
@@ -778,7 +832,7 @@ Do not modify any source file — the map is a pointer index only.
 6. No duplicated content across files
 7. `.claude/CLAUDE.md` points to `@AGENTS.md`
 8. **Migration audit checklist from Phase S3.5 is 100% checked off**
-9. `.agent-context/memory/log.md` and `.agent-context/memory/index.md` exist
+9. `.agent-context/memory/index.md` exists
 10. `.agent-context/memory-review-prompt.md` exists
 
 **Summary:**
@@ -791,6 +845,25 @@ Do not modify any source file — the map is a pointer index only.
 | Number of target files (incl. map) | —      | Y     |
 | `knowledge-map.md` entries         | —      | N     |
 | Migration audit items              | N      | N ✓   |
+
+**Gitignore for transient memory state:**
+
+Append the agent-context gitignore block to the consumer's `.gitignore` so that newly created `memory/todo.md` is local-only from the start. The block is idempotent — guarded by the marker check, re-runs are a no-op:
+
+```bash
+GITIGNORE_MARKER="###> agent-context (transient working state) ###"
+if [ ! -f .gitignore ] || ! grep -qF "$GITIGNORE_MARKER" .gitignore; then
+  if [ -s .gitignore ] && [ "$(tail -c 1 .gitignore | wc -l)" -eq 0 ]; then
+    printf '\n' >> .gitignore
+  fi
+  cat >> .gitignore <<'EOF'
+###> agent-context (transient working state) ###
+# Per-session task plan, kept locally to avoid merge conflicts across branches.
+/.agent-context/memory/todo.md
+###< agent-context ###
+EOF
+fi
+```
 
 Inform the user to restart their agent session for the new configuration to take effect.
 

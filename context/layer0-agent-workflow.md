@@ -37,7 +37,6 @@ When a `memory/<domain>.md` stub reaches 15 lines, expand it into a directory:
 | User profile detail         | `memory/user.md`                                                                   |
 | Agent behavior preference   | `memory/preferences.md`                                                            |
 | Team member / stakeholder   | `memory/people.md`                                                                 |
-| Significant session event   | `memory/log.md` (append)                                                           |
 
 ## Self-Improvement Loop
 
@@ -59,9 +58,9 @@ If you're unsure whether something is worth saving, ask: "Would a future session
 
 ### Session Routine
 
-- **Session start**: read `memory/lessons.md` + `memory/preferences.md` + `memory/todo.md` for relevant context and the active task plan
+- **Session start**: read `memory/lessons.md` + `memory/preferences.md`; if `memory/todo.md` exists (local-only, gitignored), read it for the active task plan
 - **During session**: triggers are handled inline (see directive above)
-- **Session end**: review whether any triggers fired but were missed; if a significant decision or discovery occurred, append a one-line entry to `memory/log.md`
+- **Session end**: review whether any triggers fired but were missed and persist them. Cross-session activity history lives in Git history and external session logs (e.g., Obsidian) — not in repo memory
 - **After 3+ memory updates**: scan for contradictions with existing entries before closing
 
 ### Knowledge Map Triggers
