@@ -850,7 +850,15 @@ Do not modify any source file — the map is a pointer index only.
 
 **Gitignore for transient memory state:**
 
-Append the agent-context gitignore block to the consumer's `.gitignore` so that newly created `memory/todo.md` is local-only from the start. The block is idempotent — guarded by the marker check, re-runs are a no-op:
+Make `memory/todo.md` local-only. If the file is already tracked (e.g., a prior abandoned setup or a project that pre-tracked the path), untrack it first — same semantics as Step 4.6b for UPDATE mode:
+
+```bash
+if git ls-files --error-unmatch .agent-context/memory/todo.md >/dev/null 2>&1; then
+  git rm -f --cached .agent-context/memory/todo.md
+fi
+```
+
+Then append the agent-context gitignore block to the consumer's `.gitignore` so the file stays untracked. The block is idempotent — guarded by the marker check, re-runs are a no-op:
 
 ```bash
 GITIGNORE_MARKER="###> agent-context (transient working state) ###"
