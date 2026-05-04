@@ -410,11 +410,13 @@ fi
 
 ### 4.6b: Untrack `memory/todo.md` if currently tracked
 
-If `.agent-context/memory/todo.md` is tracked by git, untrack it (preserving the working-tree copy) and add the gitignore block:
+If `.agent-context/memory/todo.md` is tracked by git, untrack it (preserving the working-tree copy). The gitignore block that prevents future tracking is added in Step 4.6c.
+
+`-f` is used so untracking succeeds even when the index has diverged from both HEAD and the working tree (e.g., staged-and-then-edited todo.md):
 
 ```bash
 if git ls-files --error-unmatch .agent-context/memory/todo.md >/dev/null 2>&1; then
-  git rm --cached .agent-context/memory/todo.md
+  git rm -f --cached .agent-context/memory/todo.md
   echo "memory/todo.md is now local-only. Your existing content is preserved but no longer tracked."
 fi
 ```
