@@ -160,9 +160,8 @@ your-project/
         ├── lessons.md                     ← Hard-won lessons
         ├── people.md                      ← Team members & stakeholders
         ├── preferences.md                 ← Agent behavior preferences
-        ├── todo.md                        ← Current task plan
+        ├── todo.md                        ← Active task plan (local-only, gitignored)
         ├── user.md                        ← Primary user profile
-        ├── log.md                         ← Chronological activity log
         └── index.md                       ← Memory file catalog
 ```
 

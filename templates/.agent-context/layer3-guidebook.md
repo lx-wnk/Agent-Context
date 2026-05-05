@@ -4,7 +4,7 @@
 
 ## Before You Start Any Task
 
-1. Follow Layer 0 Session Routine (loads `memory/lessons.md`, `memory/preferences.md`, `memory/todo.md`)
+1. Follow Layer 0 Session Routine (loads `memory/lessons.md`, `memory/preferences.md`; loads `memory/todo.md` if it exists — local-only, gitignored)
 2. If you're unsure which memory files exist or are relevant: read `memory/index.md`
 
 Skip files that are empty or contain only comments.
@@ -39,16 +39,7 @@ External knowledge sources and task-based routing to project docs, architecture 
 
 ## Memory Files
 
-| File                    | Purpose                    | Load           |
-| ----------------------- | -------------------------- | -------------- |
-| `memory/lessons.md`     | Hard-won lessons           | Session start  |
-| `memory/preferences.md` | Agent behavior preferences | Session start  |
-| `memory/todo.md`        | Current task plan          | Session start  |
-| `memory/index.md`       | Memory file catalog        | When uncertain |
-| `memory/log.md`         | Chronological activity log | On-demand      |
-| `decisions.json`        | Architectural decisions    | On-demand      |
-| `memory/people.md`      | Team & stakeholders        | On-demand      |
-| `memory/user.md`        | User profile               | On-demand      |
+Catalog (file → purpose → when to load) lives in `memory/index.md`. Architectural decisions: `decisions.json`.
 
 ## Save As You Go (Not After)
 
