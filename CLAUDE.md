@@ -27,7 +27,7 @@ npm test
 
 Two categories of files, critical to understand before editing:
 
-- **Shared files** (`context/`, incl. `context/bin/` and `context/hooks/`): Overwritten on every auto-update in target projects. Changes here propagate to all installations.
+- **Shared files** (`context/`, incl. `context/bin/`, `context/hooks/`, and `context/skills/`): Overwritten on every auto-update in target projects. Changes here propagate to all installations. Includes the `discovery-map` skill and the `check-map-budget.sh` cap validator.
 - **Template files** (`templates/`): Copied once during setup, never overwritten. These become project-owned files (incl. `hooks.conf`, `budget.conf`).
 - **Test files** (`tests/`): CI tests verifying `install.sh` behavior, template coverage, token budget, memory-prune, and hooks. Not installed into target projects.
 
@@ -59,5 +59,6 @@ Before declaring any task complete, verify `README.md` is still accurate: instal
 - **Formatting**: Prettier with `printWidth: 120`, 2-space indent, `proseWrap: preserve`
 - **Context minimization**: Only include information not discoverable from source code. Based on ETH Zurich (2026) research showing auto-generated context reduces agent performance ~3%.
 - **Memory routing**: General convention → layer 2, domain fact → `memory/<domain>.md`, heavy reference (>30 lines) → `skills/`, gotcha → `memory/lessons.md`, decision → `decisions.json`
+- **Discovery map**: `/discover` (discovery-map skill) builds an on-demand `map.json` + `memory/<node>.md` notes; pulled lazily, never `@`-included; size-capped by `check-map-budget.sh` (caps in `budget.conf`).
 - **PR template**: `.github/pull_request_template.md` — Summary, Changes, Notes sections
 - **Documentation language**: `docs/best-practices-agent-creation.md` is in German
