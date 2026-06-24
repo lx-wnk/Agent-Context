@@ -44,8 +44,8 @@ are pulled only when a task needs them.
    hold a full scan yourself.
 3. Merge results. Write:
    - `.agent-context/map.json` — nodes (id, label, globs, note pointer, watermark, stale)
-     + edges (from, to, rel, why). One node per line. Set each node's `watermark` to the
-     current HEAD sha of its globs: `git log -n 1 --format=%H -- <glob>`.
+     - edges (from, to, rel, why). One node per line. Set each node's `watermark` to the
+       current HEAD sha of its globs: `git log -n 1 --format=%H -- <glob>`.
    - `memory/<node>.md` — the curated depth note for each node (only meaningful things).
    - Append routing rows to `.agent-context/knowledge-map.md` Task Routing table
      (`Working on <area> → memory/<node>.md`), following the row-edit convention in

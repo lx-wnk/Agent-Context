@@ -16,20 +16,20 @@
 
 ## File Structure
 
-| File | Action | Responsibility |
-| ---- | ------ | -------------- |
-| `templates/.agent-context/budget.conf` | Modify | Add map-cap keys (`MAP_FILE`, `MAP_MAX_TOTAL_BYTES`, `MAP_MAX_NODES`, `MAP_MAX_NODE_LINE_BYTES`) |
-| `context/bin/check-map-budget.sh` | Create (shared) | Deterministic cap validator for `map.json` — bytes / node-count / longest-line proxies |
-| `tests/check-map-budget-unit.sh` | Create | Fixture-driven unit tests for the validator |
-| `context/skills/discovery-map.md` | Create (shared) | The discovery Skill: fan-out, watermark incremental, writes map.json + notes + knowledge-map rows + cap self-check |
-| `templates/.agent-context/skills/index.md` | Modify | Register the discovery-map skill row |
-| `templates/.agent-context/layer3-guidebook.md` | Modify | Routing row: unknown-subsystem / onboarding → discovery-map |
-| `.prompts/setup-prompt.md` | Modify | Wire both shared files (skill + validator) into Step 2 download table + parallel curl block + mkdir/chmod |
-| `package.json` | Modify | Add `bash tests/check-map-budget-unit.sh` to the `test` script |
-| `README.md` | Modify | New "On-demand Discovery Map" section + comparison vs auto-graph tools |
-| `CLAUDE.md` | Modify | Architecture table + artifact + shared-files note |
+| File                                           | Action          | Responsibility                                                                                                     |
+| ---------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `templates/.agent-context/budget.conf`         | Modify          | Add map-cap keys (`MAP_FILE`, `MAP_MAX_TOTAL_BYTES`, `MAP_MAX_NODES`, `MAP_MAX_NODE_LINE_BYTES`)                   |
+| `context/bin/check-map-budget.sh`              | Create (shared) | Deterministic cap validator for `map.json` — bytes / node-count / longest-line proxies                             |
+| `tests/check-map-budget-unit.sh`               | Create          | Fixture-driven unit tests for the validator                                                                        |
+| `context/skills/discovery-map.md`              | Create (shared) | The discovery Skill: fan-out, watermark incremental, writes map.json + notes + knowledge-map rows + cap self-check |
+| `templates/.agent-context/skills/index.md`     | Modify          | Register the discovery-map skill row                                                                               |
+| `templates/.agent-context/layer3-guidebook.md` | Modify          | Routing row: unknown-subsystem / onboarding → discovery-map                                                        |
+| `.prompts/setup-prompt.md`                     | Modify          | Wire both shared files (skill + validator) into Step 2 download table + parallel curl block + mkdir/chmod          |
+| `package.json`                                 | Modify          | Add `bash tests/check-map-budget-unit.sh` to the `test` script                                                     |
+| `README.md`                                    | Modify          | New "On-demand Discovery Map" section + comparison vs auto-graph tools                                             |
+| `CLAUDE.md`                                    | Modify          | Architecture table + artifact + shared-files note                                                                  |
 
-**Not touched:** `templates/.agent-context/decisions.json` stays `[]` (project-owned template). `install.sh` `check_critical_templates()` unchanged (no new *template* — `budget.conf` is already guarded; the new files are *shared*, guarded via setup-prompt download list).
+**Not touched:** `templates/.agent-context/decisions.json` stays `[]` (project-owned template). `install.sh` `check_critical_templates()` unchanged (no new _template_ — `budget.conf` is already guarded; the new files are _shared_, guarded via setup-prompt download list).
 
 ---
 
@@ -41,15 +41,21 @@ One node per line inside `"nodes"` so longest-line is a per-node size proxy.
 {
   "generated": "2026-06-24",
   "nodes": [
-    {"id":"auth","label":"Authentication & Sessions","globs":["src/auth/**"],"note":"memory/auth.md","watermark":"<sha>","stale":false}
+    {
+      "id": "auth",
+      "label": "Authentication & Sessions",
+      "globs": ["src/auth/**"],
+      "note": "memory/auth.md",
+      "watermark": "<sha>",
+      "stale": false,
+    },
   ],
-  "edges": [
-    {"from":"billing","to":"auth","rel":"depends-on","why":"shared user ctx"}
-  ]
+  "edges": [{ "from": "billing", "to": "auth", "rel": "depends-on", "why": "shared user ctx" }],
 }
 ```
 
 Caps (deterministic, no JSON parser):
+
 - `MAP_MAX_TOTAL_BYTES` — whole file (`wc -c`). Small on purpose → forces hierarchy on big repos.
 - `MAP_MAX_NODES` — count of `"id":` occurrences.
 - `MAP_MAX_NODE_LINE_BYTES` — longest line length (awk), proxy for a single node's size.
@@ -59,6 +65,7 @@ Caps (deterministic, no JSON parser):
 ## Task 1: Add map-cap keys to budget.conf
 
 **Files:**
+
 - Modify: `templates/.agent-context/budget.conf` (append a new section at end)
 
 - [ ] **Step 1: Append the cap section**
@@ -103,6 +110,7 @@ git commit -m "feat(discovery-map): add map size caps to budget.conf"
 ## Task 2: Create the cap validator (TDD)
 
 **Files:**
+
 - Test: `tests/check-map-budget-unit.sh`
 - Create: `context/bin/check-map-budget.sh`
 
@@ -306,6 +314,7 @@ git commit -m "feat(discovery-map): add deterministic map cap validator + unit t
 ## Task 3: Wire the unit test into npm test
 
 **Files:**
+
 - Modify: `package.json` (the `test` script)
 
 - [ ] **Step 1: Append the test to the chain**
@@ -335,6 +344,7 @@ git commit -m "test(discovery-map): run map-budget unit tests in npm test"
 ## Task 4: Author the discovery-map skill
 
 **Files:**
+
 - Create: `context/skills/discovery-map.md`
 
 This is agent-judgment work, so it ships as a Skill (markdown instructions), not a shell script. No automated test — it is verified by the wiring tests (Task 6) and by README/DoD.
@@ -343,7 +353,7 @@ This is agent-judgment work, so it ships as a Skill (markdown instructions), not
 
 Create `context/skills/discovery-map.md` with this exact content:
 
-````markdown
+```markdown
 ---
 name: discovery-map
 triggers:
@@ -390,8 +400,8 @@ are pulled only when a task needs them.
    hold a full scan yourself.
 3. Merge results. Write:
    - `.agent-context/map.json` — nodes (id, label, globs, note pointer, watermark, stale)
-     + edges (from, to, rel, why). One node per line. Set each node's `watermark` to the
-     current HEAD sha of its globs: `git log -n 1 --format=%H -- <glob>`.
+     - edges (from, to, rel, why). One node per line. Set each node's `watermark` to the
+       current HEAD sha of its globs: `git log -n 1 --format=%H -- <glob>`.
    - `memory/<node>.md` — the curated depth note for each node (only meaningful things).
    - Append routing rows to `.agent-context/knowledge-map.md` Task Routing table
      (`Working on <area> → memory/<node>.md`), following the row-edit convention in
@@ -413,7 +423,7 @@ Read `.agent-context/map.json` (small) → pick the 1–2 relevant nodes for the
 read only those `memory/<node>.md`. Never read all notes. This scoped read IS the query.
 If a node is `stale`, treat its note as possibly outdated and consider re-running discovery
 for that node.
-````
+```
 
 - [ ] **Step 2: Verify frontmatter parses and the cap-gate reference is correct**
 
@@ -432,6 +442,7 @@ git commit -m "feat(discovery-map): add the on-demand discovery skill"
 ## Task 5: Register the skill in index + layer3 routing
 
 **Files:**
+
 - Modify: `templates/.agent-context/skills/index.md`
 - Modify: `templates/.agent-context/layer3-guidebook.md`
 
@@ -440,8 +451,8 @@ git commit -m "feat(discovery-map): add the on-demand discovery skill"
 In `templates/.agent-context/skills/index.md`, add a data row to the `| Skill | Triggers | Description |` table (replace the empty body, keeping the header):
 
 ```markdown
-| Skill | Triggers | Description |
-| ----- | -------- | ----------- |
+| Skill           | Triggers                                                                 | Description                                                                                            |
+| --------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
 | `discovery-map` | "discover/map the project", "/discover", onboarding, "where does X live" | On-demand concept map; fan-out discovery into a tiny `map.json` + `memory/<node>.md`. Never always-on. |
 ```
 
@@ -450,8 +461,8 @@ In `templates/.agent-context/skills/index.md`, add a data row to the `| Skill | 
 In `templates/.agent-context/layer3-guidebook.md`, under `## Load By Task Type`, add a real data row to the table (it currently has only a header + commented examples):
 
 ```markdown
-| Working on... | Read first |
-| ------------- | ---------- |
+| Working on...                                           | Read first                                                                                  |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | Unfamiliar subsystem / onboarding / "where does X live" | Run `/discover` (discovery-map skill), then `map.json` → pick node → its `memory/<node>.md` |
 ```
 
@@ -472,6 +483,7 @@ git commit -m "feat(discovery-map): register skill in index and layer3 routing"
 ## Task 6: Wire shared files into setup-prompt download (+ coverage)
 
 **Files:**
+
 - Modify: `.prompts/setup-prompt.md` (Step 2 download table, mkdir line, parallel curl block)
 
 The skill and validator are SHARED (auto-updated), so they must be downloaded during setup.
@@ -482,8 +494,8 @@ The skill and validator are SHARED (auto-updated), so they must be downloaded du
 In `.prompts/setup-prompt.md`, in the `| Source path | Destination |` table (currently ending at the `subagent-scope.sh` row), add two rows:
 
 ```markdown
-| `context/bin/check-map-budget.sh`      | `.agent-context/bin/check-map-budget.sh`      |
-| `context/skills/discovery-map.md`      | `.agent-context/skills/discovery-map.md`      |
+| `context/bin/check-map-budget.sh` | `.agent-context/bin/check-map-budget.sh` |
+| `context/skills/discovery-map.md` | `.agent-context/skills/discovery-map.md` |
 ```
 
 - [ ] **Step 2: Ensure the skills dir is created before download**
@@ -510,10 +522,12 @@ In the parallel curl block (the `& pids+=($!)` jobs), add these two jobs alongsi
 - [ ] **Step 4: Verify every downloaded shared file has a matching table row and curl job**
 
 Run:
+
 ```bash
 grep -c "check-map-budget.sh" .prompts/setup-prompt.md
 grep -c "discovery-map.md" .prompts/setup-prompt.md
 ```
+
 Expected: `check-map-budget.sh` appears at least 3 times (table + curl url + dest), `discovery-map.md` at least 3 times. Confirm the destination dir `.agent-context/skills` is in the `mkdir -p` line: `grep "mkdir -p .agent-context" .prompts/setup-prompt.md` shows `skills`.
 
 - [ ] **Step 5: Run the wiring/coverage tests**
@@ -533,6 +547,7 @@ git commit -m "feat(discovery-map): wire skill + validator into setup-prompt dow
 ## Task 7: Positioning — README
 
 **Files:**
+
 - Modify: `README.md` (insert a new section after `## Example`, before `## Key Principles`)
 
 - [ ] **Step 1: Insert the Discovery Map section**
@@ -554,13 +569,13 @@ small index, picks the 1–2 relevant nodes, and reads only those notes — so e
 
 ### How it differs from auto-graph tools
 
-| | Auto-graph tools (e.g. Graphify) | Agent-Context discovery map |
-| --- | --- | --- |
-| Loading | Graph available, can grow unwieldy (>5000 nodes) | On-demand only; top index byte-capped in CI |
-| Content | Mechanical symbol/call graph from parsers | Agent judgment — non-obvious facts, not what's greppable |
-| Scaling | Graph grows with the codebase | Top index stays flat; depth lazy underneath, hierarchical split |
-| Cost control | Re-extraction, external API for non-code | Incremental by git watermark; no extra runtime deps |
-| Enforcement | — | Caps in `budget.conf`, enforced by `check-map-budget.sh` + CI |
+|              | Auto-graph tools (e.g. Graphify)                 | Agent-Context discovery map                                     |
+| ------------ | ------------------------------------------------ | --------------------------------------------------------------- |
+| Loading      | Graph available, can grow unwieldy (>5000 nodes) | On-demand only; top index byte-capped in CI                     |
+| Content      | Mechanical symbol/call graph from parsers        | Agent judgment — non-obvious facts, not what's greppable        |
+| Scaling      | Graph grows with the codebase                    | Top index stays flat; depth lazy underneath, hierarchical split |
+| Cost control | Re-extraction, external API for non-code         | Incremental by git watermark; no extra runtime deps             |
+| Enforcement  | —                                                | Caps in `budget.conf`, enforced by `check-map-budget.sh` + CI   |
 ```
 
 - [ ] **Step 2: Update Repository Structure if it lists files**
@@ -584,6 +599,7 @@ git commit -m "docs(discovery-map): document on-demand discovery map + compariso
 ## Task 8: Positioning — CLAUDE.md
 
 **Files:**
+
 - Modify: `CLAUDE.md` (Architecture + shared-files description)
 
 - [ ] **Step 1: Note the new shared files**
@@ -660,4 +676,7 @@ git commit -m "docs(discovery-map): final DoD pass — README/baseline accuracy"
 - **Dependency-free** → validator uses `wc`/`grep`/`awk` only; no jq/python.
 - **Naming consistency:** validator file `check-map-budget.sh`, conf keys `MAP_MAX_TOTAL_BYTES` / `MAP_MAX_NODES` / `MAP_MAX_NODE_LINE_BYTES` / `MAP_FILE`, skill `discovery-map`, command `/discover` — used identically across all tasks.
 - **Open items from spec deferred here, now decided:** caps = 16384 B / 60 nodes / 400 B line (Task 1); trigger = `/discover` + keyword triggers (Task 4 frontmatter); node partitioning = agent-decided, seeded from `discovery-digest.sh` (Task 4 step 1).
+
+```
+
 ```

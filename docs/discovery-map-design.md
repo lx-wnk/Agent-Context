@@ -63,14 +63,12 @@ Approach A is isolated (one responsibility), separately triggerable, scales via 
       "id": "auth",
       "label": "Authentication & Sessions",
       "globs": ["src/auth/**", "middleware/session*"],
-      "note": "memory/auth.md",      // pointer to depth
-      "watermark": "<commit-sha>",   // staleness anchor (HEAD when node last discovered)
-      "stale": false
-    }
+      "note": "memory/auth.md", // pointer to depth
+      "watermark": "<commit-sha>", // staleness anchor (HEAD when node last discovered)
+      "stale": false,
+    },
   ],
-  "edges": [
-    { "from": "billing", "to": "auth", "rel": "depends-on", "why": "shared user ctx" }
-  ]
+  "edges": [{ "from": "billing", "to": "auth", "rel": "depends-on", "why": "shared user ctx" }],
 }
 ```
 
