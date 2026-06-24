@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# tests/check-map-budget-unit.sh — unit tests for the discovery-map cap validator.
+#
+# Verifies the deterministic caps (total bytes, node count, longest line) and the
+# conf-driven path. No JSON parser is used — caps are byte/line/count proxies.
+
+set -uo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ENGINE="$REPO_ROOT/context/bin/check-map-budget.sh"
+
+PASS=0
+FAIL=0
+TMP_ROOTS=()
+cleanup() { for d in "${TMP_ROOTS[@]:-}"; do [ -d "$d" ] && rm -rf "$d"; done; }
+trap cleanup EXIT
+mk_tmp() { local d; d=$(mktemp -d "${TMPDIR:-/tmp}/mapbudget.XXXXXX"); TMP_ROOTS+=("$d"); echo "$d"; }
+pass() { printf "  PASS  %s\n" "$1"; PASS=$((PASS + 1)); }
+fail() { printf "  FAIL  %s\n    => %s\n" "$1" "$2"; FAIL=$((FAIL + 1)); }
+
+# Write a conf with generous caps unless overridden by args: write_conf DIR [TOTAL] [NODES] [LINE]
+write_conf() {
+    local d="$1" total="${2:-100000}" nodes="${3:-100}" line="${4:-100000}"
+    cat > "$d/budget.conf" <<EOF
+MAP_FILE="$d/map.json"
+MAP_MAX_TOTAL_BYTES=$total
+MAP_MAX_NODES=$nodes
+MAP_MAX_NODE_LINE_BYTES=$line
+EOF
+}
+
+# A valid 2-node map, one node per line.
+write_map() {
+    local d="$1"
+    cat > "$d/map.json" <<'EOF'
+{
+  "generated": "2026-06-24",
+  "nodes": [
+    {"id":"auth","label":"Auth","globs":["src/auth/**"],"note":"memory/auth.md","watermark":"abc","stale":false},
+    {"id":"billing","label":"Billing","globs":["src/billing/**"],"note":"memory/billing.md","watermark":"def","stale":false}
+  ],
+  "edges": [
+    {"from":"billing","to":"auth","rel":"depends-on","why":"shared user ctx"}
+  ]
+}
+EOF
+}
+
+echo "=== map-budget validator unit tests ==="
+echo ""
+
+# 1. Valid map within all caps → exit 0.
+t=$(mk_tmp); write_conf "$t"; write_map "$t"
+if bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1; then pass "valid map within caps exits 0"; else fail "valid map within caps exits 0" "exited non-zero"; fi
+
+# 2. Node count over cap → exit 1.
+t=$(mk_tmp); write_conf "$t" 100000 1 100000; write_map "$t"
+if bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1; then fail "node-count over cap exits non-zero" "exited 0"; else pass "node-count over cap exits non-zero"; fi
+
+# 3. Total bytes over cap → exit 1.
+t=$(mk_tmp); write_conf "$t" 10 100 100000; write_map "$t"
+if bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1; then fail "total-bytes over cap exits non-zero" "exited 0"; else pass "total-bytes over cap exits non-zero"; fi
+
+# 4. Longest line over cap → exit 1.
+t=$(mk_tmp); write_conf "$t" 100000 100 50; write_map "$t"
+if bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1; then fail "longest-line over cap exits non-zero" "exited 0"; else pass "longest-line over cap exits non-zero"; fi
+
+# 5. Missing map file → usage/config error exit 2.
+t=$(mk_tmp); write_conf "$t"
+code=0; bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1 || code=$?
+[ "$code" -eq 2 ] && pass "missing map file exits 2" || fail "missing map file exits 2" "got exit $code"
+
+# 6. Explicit --map arg overrides conf MAP_FILE.
+t=$(mk_tmp); write_conf "$t" 100000 100 100000; write_map "$t"
+mv "$t/map.json" "$t/other.json"
+if bash "$ENGINE" --conf "$t/budget.conf" --map "$t/other.json" --quiet >/dev/null 2>&1; then pass "--map overrides conf MAP_FILE"; else fail "--map overrides conf MAP_FILE" "exited non-zero"; fi
+
+echo ""
+echo "================================================"
+TOTAL=$((PASS + FAIL))
+printf "Results: %d/%d passed\n" "$PASS" "$TOTAL"
+[ "$FAIL" -eq 0 ] && { echo "ALL PASSED"; exit 0; } || { echo "FAILED"; exit 1; }
