@@ -160,7 +160,8 @@ your-project/
     ├── bin/                               ← Shared tooling (auto-updated)
     │   ├── check-token-budget.sh          ← Always-on budget audit
     │   ├── memory-prune.sh                ← Memory decay / archive
-    │   └── discovery-digest.sh            ← Deterministic discovery inventory
+    │   ├── discovery-digest.sh            ← Deterministic discovery inventory
+    │   └── check-map-budget.sh            ← Discovery-map cap gate
     ├── hooks/                             ← Shared hook scripts (auto-updated)
     │   ├── lib.sh
     │   ├── pre-protect-secrets.sh          ← PreToolUse: block secret writes
@@ -168,7 +169,8 @@ your-project/
     │   ├── stop-test-gate.sh               ← Stop: test gate
     │   └── subagent-scope.sh               ← SubagentStop: scope check
     ├── skills/
-    │   └── index.md                       ← Skill registry (on-demand)
+    │   ├── index.md                       ← Skill registry (on-demand)
+    │   └── discovery-map.md               ← On-demand discovery skill
     └── memory/
         ├── decisions.md                   ← Legacy stub (migrated to decisions.json)
         ├── lessons.md                     ← Hard-won lessons

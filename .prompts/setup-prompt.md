@@ -701,6 +701,7 @@ AGENTS.md                                PROJECT — customize freely
     check-token-budget.sh                🔒 SHARED — always-on budget gate (auto-updated)
     memory-prune.sh                      🔒 SHARED — memory decay/archive (auto-updated)
     discovery-digest.sh                  🔒 SHARED — deterministic discovery inventory (auto-updated)
+    check-map-budget.sh                  🔒 SHARED — discovery-map cap gate (auto-updated)
   hooks/
     lib.sh                               🔒 SHARED — hook helpers (auto-updated)
     pre-protect-secrets.sh               🔒 SHARED — PreToolUse secret block (auto-updated)
@@ -717,6 +718,7 @@ AGENTS.md                                PROJECT — customize freely
   layer3-guidebook.md                    PROJECT — customize freely
   skills/
     index.md                             PROJECT — skill registry
+    discovery-map.md                     🔒 SHARED — on-demand discovery skill (auto-updated)
   memory/                                PROJECT — customize freely
     decisions.md                         Legacy stub (migrated to decisions.json)
     index.md                             Memory file catalog
