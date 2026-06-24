@@ -19,9 +19,9 @@ QUIET=0
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        --conf) CONF="${2:-}"; shift 2 ;;
+        --conf) [ "$#" -ge 2 ] || { echo "Error: --conf requires an argument" >&2; exit 2; }; CONF="$2"; shift 2 ;;
         --conf=*) CONF="${1#--conf=}"; shift ;;
-        --map) MAP_OVERRIDE="${2:-}"; shift 2 ;;
+        --map)  [ "$#" -ge 2 ] || { echo "Error: --map requires an argument"  >&2; exit 2; }; MAP_OVERRIDE="$2"; shift 2 ;;
         --map=*) MAP_OVERRIDE="${1#--map=}"; shift ;;
         --quiet) QUIET=1; shift ;;
         -*) echo "Unknown option: $1" >&2; exit 2 ;;
@@ -40,7 +40,7 @@ fi
 [ -n "$MAP_OVERRIDE" ] && MAP_FILE="$MAP_OVERRIDE"
 
 for v in MAP_MAX_TOTAL_BYTES MAP_MAX_NODES MAP_MAX_NODE_LINE_BYTES; do
-    eval "val=\${$v}"
+    val="${!v}"
     if ! [[ "$val" =~ ^[0-9]+$ ]]; then
         echo "Error: $v must be an integer, got '$val'." >&2
         exit 2

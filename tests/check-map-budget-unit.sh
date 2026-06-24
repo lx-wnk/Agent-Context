@@ -14,7 +14,7 @@ FAIL=0
 TMP_ROOTS=()
 cleanup() { for d in "${TMP_ROOTS[@]:-}"; do [ -d "$d" ] && rm -rf "$d"; done; }
 trap cleanup EXIT
-mk_tmp() { local d; d=$(mktemp -d "${TMPDIR:-/tmp}/mapbudget.XXXXXX"); TMP_ROOTS+=("$d"); echo "$d"; }
+mk_tmp() { mktemp -d "${TMPDIR:-/tmp}/mapbudget.XXXXXX"; }
 pass() { printf "  PASS  %s\n" "$1"; PASS=$((PASS + 1)); }
 fail() { printf "  FAIL  %s\n    => %s\n" "$1" "$2"; FAIL=$((FAIL + 1)); }
 
@@ -50,30 +50,44 @@ echo "=== map-budget validator unit tests ==="
 echo ""
 
 # 1. Valid map within all caps → exit 0.
-t=$(mk_tmp); write_conf "$t"; write_map "$t"
+t=$(mk_tmp); TMP_ROOTS+=("$t"); write_conf "$t"; write_map "$t"
 if bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1; then pass "valid map within caps exits 0"; else fail "valid map within caps exits 0" "exited non-zero"; fi
 
 # 2. Node count over cap → exit 1.
-t=$(mk_tmp); write_conf "$t" 100000 1 100000; write_map "$t"
-if bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1; then fail "node-count over cap exits non-zero" "exited 0"; else pass "node-count over cap exits non-zero"; fi
+t=$(mk_tmp); TMP_ROOTS+=("$t"); write_conf "$t" 100000 1 100000; write_map "$t"
+code=0; bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1 || code=$?
+[ "$code" -eq 1 ] && pass "node-count over cap exits 1" || fail "node-count over cap exits 1" "got exit $code"
 
 # 3. Total bytes over cap → exit 1.
-t=$(mk_tmp); write_conf "$t" 10 100 100000; write_map "$t"
-if bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1; then fail "total-bytes over cap exits non-zero" "exited 0"; else pass "total-bytes over cap exits non-zero"; fi
+t=$(mk_tmp); TMP_ROOTS+=("$t"); write_conf "$t" 10 100 100000; write_map "$t"
+code=0; bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1 || code=$?
+[ "$code" -eq 1 ] && pass "total-bytes over cap exits 1" || fail "total-bytes over cap exits 1" "got exit $code"
 
 # 4. Longest line over cap → exit 1.
-t=$(mk_tmp); write_conf "$t" 100000 100 50; write_map "$t"
-if bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1; then fail "longest-line over cap exits non-zero" "exited 0"; else pass "longest-line over cap exits non-zero"; fi
+t=$(mk_tmp); TMP_ROOTS+=("$t"); write_conf "$t" 100000 100 50; write_map "$t"
+code=0; bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1 || code=$?
+[ "$code" -eq 1 ] && pass "longest-line over cap exits 1" || fail "longest-line over cap exits 1" "got exit $code"
 
 # 5. Missing map file → usage/config error exit 2.
-t=$(mk_tmp); write_conf "$t"
+t=$(mk_tmp); TMP_ROOTS+=("$t"); write_conf "$t"
 code=0; bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1 || code=$?
 [ "$code" -eq 2 ] && pass "missing map file exits 2" || fail "missing map file exits 2" "got exit $code"
 
 # 6. Explicit --map arg overrides conf MAP_FILE.
-t=$(mk_tmp); write_conf "$t" 100000 100 100000; write_map "$t"
+t=$(mk_tmp); TMP_ROOTS+=("$t"); write_conf "$t" 100000 100 100000; write_map "$t"
 mv "$t/map.json" "$t/other.json"
 if bash "$ENGINE" --conf "$t/budget.conf" --map "$t/other.json" --quiet >/dev/null 2>&1; then pass "--map overrides conf MAP_FILE"; else fail "--map overrides conf MAP_FILE" "exited non-zero"; fi
+
+# 7. Non-integer cap in conf → exit 2.
+t=$(mk_tmp); TMP_ROOTS+=("$t"); write_map "$t"
+cat > "$t/budget.conf" <<EOF
+MAP_FILE="$t/map.json"
+MAP_MAX_TOTAL_BYTES=100000
+MAP_MAX_NODES=notanumber
+MAP_MAX_NODE_LINE_BYTES=100000
+EOF
+code=0; bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1 || code=$?
+[ "$code" -eq 2 ] && pass "non-integer cap exits 2" || fail "non-integer cap exits 2" "got exit $code"
 
 echo ""
 echo "================================================"
