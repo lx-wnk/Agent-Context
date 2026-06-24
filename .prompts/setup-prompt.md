@@ -131,16 +131,18 @@ Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
 | `context/bin/check-token-budget.sh`    | `.agent-context/bin/check-token-budget.sh`    |
 | `context/bin/memory-prune.sh`          | `.agent-context/bin/memory-prune.sh`          |
 | `context/bin/discovery-digest.sh`      | `.agent-context/bin/discovery-digest.sh`      |
+| `context/bin/check-map-budget.sh`      | `.agent-context/bin/check-map-budget.sh`      |
+| `context/skills/discovery-map.md`      | `.agent-context/skills/discovery-map.md`      |
 | `context/hooks/lib.sh`                 | `.agent-context/hooks/lib.sh`                 |
 | `context/hooks/pre-protect-secrets.sh` | `.agent-context/hooks/pre-protect-secrets.sh` |
 | `context/hooks/post-format.sh`         | `.agent-context/hooks/post-format.sh`         |
 | `context/hooks/stop-test-gate.sh`      | `.agent-context/hooks/stop-test-gate.sh`      |
 | `context/hooks/subagent-scope.sh`      | `.agent-context/hooks/subagent-scope.sh`      |
 
-Fetch all files **in parallel** — spawn each curl in the background and wait for all. Create `.agent-context/bin/` and `.agent-context/hooks/` first (`mkdir -p .agent-context/bin .agent-context/hooks`) and `chmod +x` the scripts under `bin/` and `hooks/` after download:
+Fetch all files **in parallel** — spawn each curl in the background and wait for all. Create `.agent-context/bin/`, `.agent-context/hooks/`, and `.agent-context/skills/` first (`mkdir -p .agent-context/bin .agent-context/hooks .agent-context/skills`) and `chmod +x` the scripts under `bin/` and `hooks/` after download:
 
 ```bash
-mkdir -p .agent-context/bin .agent-context/hooks
+mkdir -p .agent-context/bin .agent-context/hooks .agent-context/skills
 pids=()
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/agent-startup.md" \
     -o ".agent-context/agent-startup.md.tmp" && mv ".agent-context/agent-startup.md.tmp" ".agent-context/agent-startup.md" || { rm -f ".agent-context/agent-startup.md.tmp"; exit 1; }) & pids+=($!)
@@ -162,6 +164,10 @@ pids=()
     -o ".agent-context/bin/memory-prune.sh.tmp" && mv ".agent-context/bin/memory-prune.sh.tmp" ".agent-context/bin/memory-prune.sh" || { rm -f ".agent-context/bin/memory-prune.sh.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/discovery-digest.sh" \
     -o ".agent-context/bin/discovery-digest.sh.tmp" && mv ".agent-context/bin/discovery-digest.sh.tmp" ".agent-context/bin/discovery-digest.sh" || { rm -f ".agent-context/bin/discovery-digest.sh.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/check-map-budget.sh" \
+    -o ".agent-context/bin/check-map-budget.sh.tmp" && mv ".agent-context/bin/check-map-budget.sh.tmp" ".agent-context/bin/check-map-budget.sh" || { rm -f ".agent-context/bin/check-map-budget.sh.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/skills/discovery-map.md" \
+    -o ".agent-context/skills/discovery-map.md.tmp" && mv ".agent-context/skills/discovery-map.md.tmp" ".agent-context/skills/discovery-map.md" || { rm -f ".agent-context/skills/discovery-map.md.tmp"; exit 1; }) & pids+=($!)
 for _hook in lib.sh pre-protect-secrets.sh post-format.sh stop-test-gate.sh subagent-scope.sh; do
   (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/hooks/$_hook" \
       -o ".agent-context/hooks/$_hook.tmp" && mv ".agent-context/hooks/$_hook.tmp" ".agent-context/hooks/$_hook" || { rm -f ".agent-context/hooks/$_hook.tmp"; exit 1; }) & pids+=($!)
@@ -172,7 +178,7 @@ for pid in "${pids[@]}"; do
     wait "$pid" || fail=1
 done
 if [ "$fail" -ne 0 ]; then
-    rm -f .agent-context/*.tmp .agent-context/bin/*.tmp .agent-context/hooks/*.tmp
+    rm -f .agent-context/*.tmp .agent-context/bin/*.tmp .agent-context/hooks/*.tmp .agent-context/skills/*.tmp
     echo "Error: one or more shared file downloads failed" >&2
     exit 1
 fi
