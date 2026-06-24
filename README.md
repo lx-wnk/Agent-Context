@@ -2,7 +2,7 @@
 
 A project-based setup and memory-handling system for Claude Code. Optimized for structuring project knowledge so that Claude always has the right context at the right time — without bloating the context window.
 
-Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides a layered architecture: all layers (0-3) are loaded at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~200-250 lines. Detailed reference (skills, memory files) is pulled in on-demand based on the task at hand. Auto-updates keep shared infrastructure current across all your projects.
+Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides a layered architecture: all layers (0-3) are loaded at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~150-200 lines. Detailed reference (skills, memory files) is pulled in on-demand based on the task at hand. Auto-updates keep shared infrastructure current across all your projects.
 
 ## The Problem
 
@@ -29,7 +29,7 @@ AGENTS.md                          (~35 lines — identity, quick rules)
   skills/                          (full reference, loaded on-demand)
 ```
 
-**Baseline:** ~200-250 lines (AGENTS.md + all layers). Full reference (skills, memory): loaded only when trigger keywords match.
+**Baseline:** ~150-200 lines (AGENTS.md + all layers). Full reference (skills, memory): loaded only when trigger keywords match.
 
 Auto-updates are built in: the agent fetches the setup prompt from remote, which auto-detects UPDATE mode, checks for new releases via the GitHub Releases API, and updates shared files. Project-owned files are never overwritten.
 
@@ -77,7 +77,7 @@ Paste [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) into Claude Code. I
 2. Copies **shared files** from `context/` → `.agent-context/` (overwritable)
 3. Creates **project-owned files** from `templates/` → `AGENTS.md`, layers 1-3, memory stubs (never overwritten)
 4. Writes the release version to `.agent-context/.agent-context-version`
-5. Discovers your tech stack and fills in the TODO placeholders
+5. Discovers your tech stack and fills in the TODO placeholders — and **distills** the non-obvious gold from your docs (hard invariants, architecture decisions, complex subsystems) into `memory/`, `decisions.json`, and skills, so it loads by task routing rather than sitting unread. A deterministic discovery digest (`bin/discovery-digest.sh`) orients the scan so no doc is missed. Memory stubs that stay empty after setup are expected — runtime-accumulated knowledge (lessons, preferences) fills as you work.
 
 ### Every Session (automatic)
 
@@ -99,7 +99,7 @@ AGENTS.md                               ← Agent reads this first
   @.agent-context/layer3-guidebook      ← Task routing → memory/skills on-demand
 ```
 
-Total baseline: ~200-250 lines. Heavy reference (skills, memory) is loaded only when the task matches.
+Total baseline: ~150-200 lines. Heavy reference (skills, memory) is loaded only when the task matches.
 
 ## Installation
 
@@ -145,6 +145,8 @@ your-project/
     ├── agent-startup.md                   ← Startup info (shared)
     ├── layer0-agent-workflow.md            ← Universal agent workflow (shared)
     ├── base-principles.md                 ← Dev principles (shared)
+    ├── agent-delegation.md                ← Delegation protocol, on-demand (shared)
+    ├── memory-maintenance.md              ← Memory restructuring, on-demand (shared)
     ├── layer1-bootstrap.md                ← Project identity, Docker, domains
     ├── layer2-project-core.md             ← Dev principles + critical rules
     ├── layer3-guidebook.md                ← Task routing, skills, memory
@@ -153,6 +155,18 @@ your-project/
     ├── knowledge-map.md                   ← Universal knowledge pointer index (auto-maintained)
     ├── memory-review-prompt.md            ← Memory review prompt (shared)
     ├── decision-review-prompt.md          ← Decision review prompt (shared)
+    ├── hooks.conf                         ← Hook toggles + toolchain (project-owned)
+    ├── budget.conf                        ← Token-budget config (project-owned)
+    ├── bin/                               ← Shared tooling (auto-updated)
+    │   ├── check-token-budget.sh          ← Always-on budget audit
+    │   ├── memory-prune.sh                ← Memory decay / archive
+    │   └── discovery-digest.sh            ← Deterministic discovery inventory
+    ├── hooks/                             ← Shared hook scripts (auto-updated)
+    │   ├── lib.sh
+    │   ├── pre-protect-secrets.sh          ← PreToolUse: block secret writes
+    │   ├── post-format.sh                  ← PostToolUse: auto-format
+    │   ├── stop-test-gate.sh               ← Stop: test gate
+    │   └── subagent-scope.sh               ← SubagentStop: scope check
     ├── skills/
     │   └── index.md                       ← Skill registry (on-demand)
     └── memory/
@@ -170,8 +184,11 @@ your-project/
 ```
 agent-context/
 ├── context/           # Shared agent context (copied to .agent-context/)
+│   ├── bin/           #   Shared tooling: token-budget gate, memory-prune
+│   └── hooks/         #   Shared hook scripts (lib + 4 hooks)
 ├── templates/         # Project setup templates (copied once, never overwritten)
-├── tests/             # Pure-bash tests (unit tests + template coverage check)
+├── tests/             # Pure-bash tests (install, coverage, budget, prune, hooks)
+├── .github/workflows/ # CI: prettier, shell tests, token-budget gate
 ├── plugins.json       # Base plugin set for Claude Code
 ├── example.md         # Annotated example (Shopware 6 project)
 ├── install.sh         # Installer script (curl one-liner entry point)
@@ -237,6 +254,46 @@ Updates are not file patches. Every `setup-prompt.md` run (SETUP or UPDATE) perf
 ### 5. Self-maintaining knowledge map
 
 `knowledge-map.md` is the single routing index for all project knowledge — both internal (agent-context) and external (docs, architecture files, API specs). Agents update it immediately when sources change, following the same non-negotiable rule as `lessons.md` updates. The map always reflects current project reality.
+
+## Enforcement & Hygiene
+
+The layered context is advisory — these add deterministic, OS-level guardrails on top. All are optional, project-overridable, and never overwrite project-owned files.
+
+### Deterministic Hooks
+
+Four Claude Code hooks ship as shared scripts in `.agent-context/hooks/`, governed by the project-owned `.agent-context/hooks.conf`:
+
+| Hook                     | Event        | Default | What it does                                                      |
+| ------------------------ | ------------ | ------- | ----------------------------------------------------------------- |
+| `pre-protect-secrets.sh` | PreToolUse   | on\*    | Blocks writes to `.env`/secret files (exit 2) — `PROTECTED_GLOBS` |
+| `post-format.sh`         | PostToolUse  | on\*    | Runs `FORMAT_CMD` on the edited file                              |
+| `stop-test-gate.sh`      | Stop         | warn    | Runs `TEST_CMD`; `warn` reports failures, `block` forces a fix    |
+| `subagent-scope.sh`      | SubagentStop | off     | Flags a subagent that wrote outside `ALLOWED_SUBAGENT_PATHS`      |
+
+\* Per-hook flags only take effect once the master switch is on. **`HOOKS_ENABLED=0` by default** — nothing fires until you opt in. To enable: set `HOOKS_ENABLED=1` in `.agent-context/hooks.conf` and fill in `FORMAT_CMD` / `TEST_CMD` for your toolchain. The scripts read the conf for all behavior, so you customize without editing shared code; for deeper changes, point `.claude/settings.json` at your own script. Hooks need no extra dependencies (`jq` is used when present, with a pure-shell fallback).
+
+### Token Budget
+
+`.agent-context/bin/check-token-budget.sh` counts the **effective instruction lines** of the always-on closure (the files `@`-included from `AGENTS.md`) and fails if they exceed `MAX_EFFECTIVE_LINES` in `budget.conf` (default 200). The repo's own CI (`.github/workflows/ci.yml`) enforces a tighter limit on the shared baseline so a release can't silently bloat what every install loads. Run it yourself any time:
+
+```bash
+bash .agent-context/bin/check-token-budget.sh
+```
+
+### Memory Decay
+
+Dated memory entries carry a TTL (`(2026-01-15) ttl:90d`). `.agent-context/bin/memory-prune.sh` archives expired entries into `memory/archive/<ISO-week>.md` — dry-run by default, never deletes:
+
+```bash
+bash .agent-context/bin/memory-prune.sh           # preview what would move
+bash .agent-context/bin/memory-prune.sh --apply   # archive expired entries
+```
+
+`ttl:infinite` (architecture/security) never expires. **When does memory go stale?** A lesson tagged `ttl:90d` is considered stale 90 days after its date; gotchas/quirks default to 90d, sprint-specific notes to 30d, and durable architecture/security facts to `infinite`. Stale context actively misleads — pruning keeps the live set trustworthy while preserving history in the archive.
+
+### Portable Skills
+
+Skills follow the open [Agent Skills standard](docs/skill-standard.md) (`skills/<name>/SKILL.md` with `name` + `description` frontmatter), making `.agent-context/skills/` portable across Claude Code, Codex, Cursor, and Gemini. Legacy flat `skills/<name>.md` files remain valid.
 
 ## Updates
 
