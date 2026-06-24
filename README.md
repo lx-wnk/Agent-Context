@@ -222,6 +222,28 @@ Specialist agents (`ac-*`) are distributed as the [`agents@lx-wnk`](https://gith
 
 See [`example.md`](example.md) for a complete annotated walkthrough of a Shopware 6 project. Each file is described in prose — shared files link back to `context/`, project-owned files explain what they contain and why.
 
+## On-demand Discovery Map
+
+For large or unfamiliar codebases, run `/discover` (the `discovery-map` skill). Fan-out
+discovery subagents inspect each subsystem and record **meaningful, non-obvious things**
+— gotchas, why-decisions, surprising couplings — into a tiny `map.json` (navigation) plus
+curated `memory/<node>.md` notes (depth). Re-runs are incremental: only subsystems whose
+files changed (by git watermark) are re-discovered.
+
+The map is **pulled on demand, never loaded at startup**. The consuming agent reads the
+small index, picks the 1–2 relevant nodes, and reads only those notes — so even a
+10k-file repo costs the always-on baseline nothing.
+
+### How it differs from auto-graph tools
+
+|              | Auto-graph tools (e.g. Graphify)                 | Agent-Context discovery map                                     |
+| ------------ | ------------------------------------------------ | --------------------------------------------------------------- |
+| Loading      | Graph available, can grow unwieldy (>5000 nodes) | On-demand only; top index byte-capped in CI                     |
+| Content      | Mechanical symbol/call graph from parsers        | Agent judgment — non-obvious facts, not what's greppable        |
+| Scaling      | Graph grows with the codebase                    | Top index stays flat; depth lazy underneath, hierarchical split |
+| Cost control | Re-extraction, external API for non-code         | Incremental by git watermark; no extra runtime deps             |
+| Enforcement  | —                                                | Caps in `budget.conf`, enforced by `check-map-budget.sh` + CI   |
+
 ## Key Principles
 
 ### 1. "Can the agent discover this by reading the code?"
