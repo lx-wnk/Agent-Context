@@ -6,7 +6,7 @@
   "scripts": {
     "prettier:fix": "prettier --write .",
     "prettier": "prettier --check .",
-    "test": "bash tests/install.sh && bash tests/check-template-coverage.sh && bash tests/check-token-budget-unit.sh && bash tests/check-token-budget.sh && bash tests/check-memory-prune-unit.sh && bash tests/check-hooks-unit.sh && bash tests/check-discovery-digest-unit.sh"
+    "test": "bash tests/install.sh && bash tests/check-template-coverage.sh && bash tests/check-token-budget-unit.sh && bash tests/check-token-budget.sh && bash tests/check-memory-prune-unit.sh && bash tests/check-hooks-unit.sh && bash tests/check-discovery-digest-unit.sh && bash tests/check-map-budget-unit.sh"
   },
   "devDependencies": {
     "prettier": "^3.8.1"
