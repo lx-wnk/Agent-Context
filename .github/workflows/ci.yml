@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dev dependencies
+        run: npm ci || npm install
+
+      - name: Prettier check
+        run: npm run prettier
+
+      - name: Shell unit tests + template coverage
+        run: npm test
+
+      - name: Token-budget gate (always-on baseline)
+        run: bash tests/check-token-budget.sh
