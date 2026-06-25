@@ -14,11 +14,15 @@ file="$(hook_field '.tool_input.file_path' 'file_path')"
 
 # FORMAT_CMD receives the file path as an argument. {} is substituted if present,
 # otherwise the path is appended — supports both "prettier --write {}" and "prettier --write".
-if printf '%s' "$FORMAT_CMD" | grep -q '{}'; then
-    cmd="${FORMAT_CMD//\{\}/$file}"
-    eval "$cmd" >/dev/null 2>&1 || echo "agent-context: format command failed on $file (non-blocking)." >&2
-else
-    # shellcheck disable=SC2086
-    $FORMAT_CMD "$file" >/dev/null 2>&1 || echo "agent-context: format command failed on $file (non-blocking)." >&2
-fi
+# Build argv by word-splitting FORMAT_CMD; a {} token becomes the file path as a SINGLE
+# argument (so paths with spaces survive), otherwise the path is appended. No eval — the
+# raw path is never re-parsed by the shell.
+read -ra _fmt_parts <<< "$FORMAT_CMD"
+_argv=()
+_has_placeholder=0
+for _p in "${_fmt_parts[@]}"; do
+    if [ "$_p" = "{}" ]; then _argv+=("$file"); _has_placeholder=1; else _argv+=("$_p"); fi
+done
+[ "$_has_placeholder" -eq 1 ] || _argv+=("$file")
+"${_argv[@]}" >/dev/null 2>&1 || echo "agent-context: format command failed on $file (non-blocking)." >&2
 exit 0

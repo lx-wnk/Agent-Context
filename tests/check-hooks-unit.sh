@@ -60,6 +60,12 @@ printf 'HOOKS_ENABLED=1\nFORMAT_ON_EDIT=1\nFORMAT_CMD="cp {} %s"\n' "$marker" > 
 run_hook "$HOOKS/post-format.sh" "$t/fmt.conf" "{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"$target\"}}"
 [ -f "$marker" ] && pass "FORMAT_CMD runs on edited file" || fail "FORMAT_CMD runs on edited file" "marker not created"
 
+target_sp="$t/has space.txt"; marker_sp="$t/fmt-spaced.marker"
+printf 'content\n' > "$target_sp"
+printf 'HOOKS_ENABLED=1\nFORMAT_ON_EDIT=1\nFORMAT_CMD="cp {} %s"\n' "$marker_sp" > "$t/fmt-spaced.conf"
+run_hook "$HOOKS/post-format.sh" "$t/fmt-spaced.conf" "{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"$target_sp\"}}"
+[ -f "$marker_sp" ] && pass "format handles path with spaces (no eval breakage)" || fail "spaced path format" "marker not created"
+
 printf 'HOOKS_ENABLED=1\nFORMAT_ON_EDIT=0\nFORMAT_CMD="cp {} %s.off"\n' "$marker" > "$t/fmtoff.conf"
 run_hook "$HOOKS/post-format.sh" "$t/fmtoff.conf" "{\"tool_input\":{\"file_path\":\"$target\"}}"
 [ ! -f "$marker.off" ] && pass "FORMAT_ON_EDIT=0 → no formatting" || fail "FORMAT_ON_EDIT=0 → no formatting" "ran anyway"
