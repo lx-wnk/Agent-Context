@@ -19,7 +19,7 @@ jobs:
           node-version: 20
 
       - name: Install dev dependencies
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Prettier check
         run: npm run prettier
