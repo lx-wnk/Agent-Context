@@ -34,4 +34,13 @@ FILES=(
     "$REPO_ROOT/templates/.claude/CLAUDE.md"
 )
 
+# Release gate: every shipped always-on file MUST exist. The shared engine only WARNS on a
+# missing file (installs may omit optional layers); here a gap in the closure the framework
+# controls is a hard failure so CI cannot go green on an incomplete list.
+missing=0
+for f in "${FILES[@]}"; do
+    [ -f "$f" ] || { echo "FAIL: shipped always-on file missing: ${f#"$REPO_ROOT"/}" >&2; missing=1; }
+done
+[ "$missing" -eq 0 ] || { echo "Repo-side budget gate requires every shipped always-on file to exist." >&2; exit 1; }
+
 exec bash "$ENGINE" --max "$MAX" "${FILES[@]}"
