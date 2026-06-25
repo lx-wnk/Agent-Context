@@ -18,10 +18,19 @@ esac
 transcript="$(hook_field '.transcript_path' 'transcript_path')"
 [ -n "$transcript" ] && [ -f "$transcript" ] || exit 0
 
-# Collect every file_path the subagent touched. grep is robust enough for the JSONL transcript;
-# we only need the set of paths, not full JSON fidelity.
-touched="$(grep -oE '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' "$transcript" 2>/dev/null \
-    | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | sort -u)"
+# Collect only the paths the subagent WROTE — Write/Edit/MultiEdit tool calls. A plain
+# file_path scan would also catch Read/Grep events and raise false scope violations.
+# jq walks the tool_use blocks correctly; the grep fallback narrows to lines that name a
+# write tool before pulling file_path.
+if command -v jq >/dev/null 2>&1; then
+    touched="$(jq -r 'recurse | objects
+        | select(.type? == "tool_use" and ((.name?) == "Write" or (.name?) == "Edit" or (.name?) == "MultiEdit"))
+        | .input.file_path // empty' "$transcript" 2>/dev/null | sort -u)"
+else
+    touched="$(grep -E '"name"[[:space:]]*:[[:space:]]*"(Write|Edit|MultiEdit)"' "$transcript" 2>/dev/null \
+        | grep -oE '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' \
+        | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | sort -u)"
+fi
 [ -n "$touched" ] || exit 0
 
 violations=""

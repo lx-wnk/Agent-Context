@@ -113,11 +113,16 @@ run_hook "$HOOKS/stop-test-gate.sh" "$t/pass.conf" '{"hook_event_name":"Stop"}'
 echo "--- subagent-scope (SubagentStop) ---"
 t=$(mk_tmp)
 tr="$t/transcript.jsonl"
-printf '{"type":"assistant","tool_input":{"file_path":"src/ok.js"}}\n{"type":"assistant","tool_input":{"file_path":"config/secret.yml"}}\n' > "$tr"
+cat > "$tr" <<'JSONL'
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"src/ok.js","content":"x"}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{"file_path":"config/secret.yml"}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"config/reads-are-fine.yml"}}]}}
+JSONL
 printf 'HOOKS_ENABLED=1\nSUBAGENT_SCOPE="warn"\nALLOWED_SUBAGENT_PATHS="src/*"\n' > "$t/scope-warn.conf"
 run_hook "$HOOKS/subagent-scope.sh" "$t/scope-warn.conf" "{\"transcript_path\":\"$tr\"}"
-{ [ "$RC" -eq 0 ] && printf '%s' "$ERR" | grep -q "config/secret.yml"; } \
-    && pass "warn mode: out-of-scope write reported to stderr" || fail "scope warn" "rc=$RC err=$ERR"
+{ [ "$RC" -eq 0 ] && printf '%s' "$ERR" | grep -q "config/secret.yml" \
+    && ! printf '%s' "$ERR" | grep -q "reads-are-fine.yml"; } \
+    && pass "warn: out-of-scope WRITE flagged, READ ignored" || fail "scope warn" "rc=$RC err=$ERR"
 
 printf 'HOOKS_ENABLED=1\nSUBAGENT_SCOPE="block"\nALLOWED_SUBAGENT_PATHS="src/*"\n' > "$t/scope-block.conf"
 run_hook "$HOOKS/subagent-scope.sh" "$t/scope-block.conf" "{\"transcript_path\":\"$tr\"}"
