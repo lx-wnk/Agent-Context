@@ -20,13 +20,16 @@ esac
 # Avoid re-entrant blocking: if we are already inside a stop-hook continuation, do not block again.
 stop_active="$(hook_field '.stop_hook_active' 'stop_hook_active')"
 
-if eval "$TEST_CMD" >/tmp/agent-context-testgate.$$ 2>&1; then
-    rm -f "/tmp/agent-context-testgate.$$"
+# Unique temp file (mktemp, not a predictable /tmp/...$$ path) + guaranteed cleanup on exit, so a
+# multi-user box can't pre-create or symlink the path to clobber files or leak captured test output.
+tmpout="$(mktemp "${TMPDIR:-/tmp}/agent-context-testgate.XXXXXX")" || exit 0
+trap 'rm -f "$tmpout"' EXIT
+
+if eval "$TEST_CMD" >"$tmpout" 2>&1; then
     exit 0
 fi
 
-output="$(tail -n 40 "/tmp/agent-context-testgate.$$" 2>/dev/null)"
-rm -f "/tmp/agent-context-testgate.$$"
+output="$(tail -n 40 "$tmpout" 2>/dev/null)"
 
 if [ "${STOP_GATE:-warn}" = "block" ] && [ "$stop_active" != "true" ]; then
     emit_block_decision "Test gate failed (TEST_CMD: $TEST_CMD). Fix the failing tests before ending the run. Last output: $output"
