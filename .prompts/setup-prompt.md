@@ -96,6 +96,8 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
 
 ## Step 1: Version Selection
 
+> **Local source mode:** If your launching instruction contains `LOCAL SOURCE MODE` (set by `install.sh --local-source <path>`), SKIP this entire step — do not query the GitHub releases API and do not pick a version. Take the target version from `<path>/CHANGELOG.md` (latest entry). In Steps 2 and 3, copy every file from `<path>/<relative-path>` instead of fetching from GitHub (do not build any `<tag>` URL).
+
 1. Read `.agent-context/.agent-context-version` (default `0.0.0` if missing)
 2. Fetch the release list from `https://api.github.com/repos/lx-wnk/Agent-Context/releases`
 3. If the fetch fails or returns no releases:

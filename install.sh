@@ -118,12 +118,39 @@ main() {
     LOG=".agent-context/setup.log"
 
     # --local <path>: use a local prompt file instead of the remote URL (for testing)
+    # --local-source <path> | --local-source=<path> | env AGENT_CONTEXT_SOURCE: install every shared
+    #   file and template from a local clone instead of downloading from GitHub. Implies the local
+    #   prompt and a forced run (never a no-op). For local development/testing against a branch.
     # --ai-dirs=<dirs>: comma-separated extra AI-doc dirs to treat as migratable (e.g. --ai-dirs=".cursor,.ai-custom")
     # --force: skip the up-to-date short-circuit and run the full update flow
     PROMPT_INSTRUCTION="Fetch $PROMPT_URL and follow its instructions exactly."
     if [ "${1:-}" = "--local" ]; then
         AGENT_CONTEXT_PROMPT="${2:-}"
     fi
+    if [ "${1:-}" = "--local-source" ]; then
+        AGENT_CONTEXT_SOURCE="${2:-}"
+    fi
+    for arg in "$@"; do
+        case "$arg" in
+            --local-source=*) AGENT_CONTEXT_SOURCE="${arg#--local-source=}" ;;
+        esac
+    done
+
+    # Local-source mode: derive the local prompt + force a run, then validate the source dir.
+    if [ -n "${AGENT_CONTEXT_SOURCE:-}" ]; then
+        if [ ! -d "$AGENT_CONTEXT_SOURCE" ]; then
+            echo "Error: AGENT_CONTEXT_SOURCE directory not found: $AGENT_CONTEXT_SOURCE" >&2
+            exit 1
+        fi
+        _abs_source=$(realpath "$AGENT_CONTEXT_SOURCE" 2>/dev/null || (cd "$AGENT_CONTEXT_SOURCE" && pwd))
+        if [ ! -f "$_abs_source/.prompts/setup-prompt.md" ]; then
+            echo "Error: not an Agent-Context clone (no .prompts/setup-prompt.md): $_abs_source" >&2
+            exit 1
+        fi
+        [ -n "${AGENT_CONTEXT_PROMPT:-}" ] || AGENT_CONTEXT_PROMPT="$_abs_source/.prompts/setup-prompt.md"
+        FORCE=1
+    fi
+
     if [ -n "${AGENT_CONTEXT_PROMPT:-}" ]; then
         if [ ! -f "$AGENT_CONTEXT_PROMPT" ]; then
             echo "Error: AGENT_CONTEXT_PROMPT file not found: $AGENT_CONTEXT_PROMPT" >&2
@@ -133,6 +160,11 @@ main() {
             || (cd "$(dirname "$AGENT_CONTEXT_PROMPT")" && echo "$(pwd)/$(basename "$AGENT_CONTEXT_PROMPT")") 2>/dev/null \
             || echo "$AGENT_CONTEXT_PROMPT")
         PROMPT_INSTRUCTION="Read $_abs_prompt and follow its instructions exactly."
+    fi
+
+    # Tell the agent to source everything locally instead of downloading.
+    if [ -n "${AGENT_CONTEXT_SOURCE:-}" ]; then
+        PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION LOCAL SOURCE MODE: do NOT download from GitHub. Install every shared file (Step 2) and every template (Step 3) by copying from the local clone at $_abs_source using the same relative paths (e.g. copy $_abs_source/context/bin/check-map-budget.sh to .agent-context/bin/check-map-budget.sh). Skip the remote version lookup and all <tag> URL building; take the target version from $_abs_source/CHANGELOG.md (latest entry)."
     fi
 
     AI_DIRS=""

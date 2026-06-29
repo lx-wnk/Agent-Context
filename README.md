@@ -217,26 +217,19 @@ This runs as part of `npm test`, so CI guards it on every change.
 
 The smoke test above runs in isolation. To see how Agent-Context actually installs into a **real
 codebase** — real files to discover, an existing `.claude/` to merge, layers filled from your stack —
-run the installer inside that project. `install.sh` installs into the current directory, so `cd` into
-the target first. Point it at your local clone's prompt with `AGENT_CONTEXT_PROMPT` so the prompt
-logic is your branch's, not the released one.
-
-The shared files it downloads still come from the **latest release tag** unless you pin the ref — so
-to test unreleased branch work, substitute `<tag>` with your branch name first:
+run the installer inside that project with `--local-source` pointing at your clone. It installs every
+shared file and template **from your local working tree** instead of downloading (no release tag, no
+ref pinning), uses your branch's prompt, and forces a run (bypassing the "already up to date"
+short-circuit). `install.sh` installs into the current directory, so `cd` into the target first:
 
 ```bash
-# 1. Pin the download ref to your branch (only needed for unreleased work).
-REF=feat/my-branch
-sed "s|<tag>|$REF|g" ~/code/Agent-Context/.prompts/setup-prompt.md > /tmp/ac-setup.md
-
-# 2. Run the installer INSIDE the target project (it installs into the current directory).
-#    The pinned <tag> means version selection is moot — point the agent at REF if it asks.
 cd ~/code/my-other-project
-AGENT_CONTEXT_PROMPT=/tmp/ac-setup.md bash ~/code/Agent-Context/install.sh
+bash ~/code/Agent-Context/install.sh --local-source ~/code/Agent-Context
 ```
 
-For an already-released version, skip the pin entirely: `cd` into the project and run the normal
-[install one-liner](#installation). Replace the example paths with your local clone and target project.
+`--local-source <path>` (or the env var `AGENT_CONTEXT_SOURCE=<path>`) is the one knob — it implies the
+local prompt and a forced run. Replace the example paths with your clone and target project. For an
+already-released version, drop the flag and use the normal [install one-liner](#installation).
 
 ## Agents
 
