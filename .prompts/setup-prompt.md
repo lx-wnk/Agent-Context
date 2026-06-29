@@ -90,7 +90,7 @@ Write `[agent-context] Done.` as the final log line — not as a numbered step.
 1. If `.agent-context/.agent-context-version` exists → **UPDATE** mode
 2. Otherwise → **SETUP** mode
 
-> **Launch directives** (from `install.sh`): If your launching instruction contains `FORCE / FULL REDISCOVERY`, run the **full SETUP-depth discovery even in UPDATE mode** — re-scan the entire codebase and rebuild the knowledge inventory from scratch, do not just reconcile deltas; merge into existing memory/decisions/knowledge-map and never delete a still-valid fact. If it contains `BUILD DISCOVERY MAP`, then after the install/update completes, run the `discovery-map` skill (`.agent-context/skills/discovery-map.md`) to build `map.json` + per-node notes.
+> **Launch directive** (from `install.sh`): If your launching instruction contains `FORCE / FULL REDISCOVERY`, run the **full SETUP-depth discovery even in UPDATE mode** — re-scan the entire codebase and rebuild the knowledge inventory from scratch, do not just reconcile deltas; merge into existing memory/decisions/knowledge-map and never delete a still-valid fact. (The discovery **map** — `map.json` + per-node notes — is built separately by the interactive `/discover` command, not here.)
 
 If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode, do NOT log the mode here — log it in Step 1 once the target version is known.
 

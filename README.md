@@ -126,7 +126,7 @@ Starting agent-context setup in /your/project...
 
 Claude analyzes existing documentation, applies quality filters, discovers your tech stack, and creates the architecture. Restart your session afterwards — the new configuration takes effect on the next start.
 
-Pass `--force` for a **full from-scratch rediscovery**: it re-scans the entire codebase at setup depth even on an existing install and merges into your knowledge without deleting still-valid facts (a normal update only reconciles deltas). Pass `--discover` to also build the [discovery map](#on-demand-discovery-map) (`map.json` + per-node notes) at the end of the run.
+Pass `--force` for a **full from-scratch rediscovery**: it re-scans the entire codebase at setup depth even on an existing install and merges into your knowledge without deleting still-valid facts (a normal update only reconciles deltas). Pass `--discover` to check for a [discovery map](#on-demand-discovery-map) after the run and, if none exists, point you to the interactive `/discover` command — the headless installer does not build the map itself (a rich map needs fan-out discovery, which runs reliably only in an interactive session).
 
 **Requires:** [Claude Code CLI](https://claude.ai/code) installed and authenticated.
 
@@ -243,8 +243,9 @@ See [`example.md`](example.md) for a complete annotated walkthrough of a Shopwar
 
 For large or unfamiliar codebases, build a discovery map. In Claude Code, type `/discover`
 (installed as a slash command at `.claude/commands/discover.md`); with any other agent, just
-ask to "discover the project" and the `discovery-map` skill is loaded via skill routing; or pass
-`--discover` to `install.sh` to build it as part of an install. Fan-out discovery subagents inspect
+ask to "discover the project" and the `discovery-map` skill is loaded via skill routing. (Running
+`install.sh --discover` does not build the map itself — it just points you here afterwards, because
+fan-out discovery needs an interactive session.) Fan-out discovery subagents inspect
 each subsystem and record **meaningful, non-obvious things** — gotchas, why-decisions, surprising
 couplings — into a tiny `map.json` (navigation) plus curated `memory/<node>.md` notes (depth).
 Re-runs are incremental: only subsystems whose files changed (by git watermark) are re-discovered.

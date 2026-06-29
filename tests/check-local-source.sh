@@ -94,12 +94,11 @@ cap5="$(mk_tmp)/cap"
 { [ -f "$cap5" ] && tr '\0' '\n' < "$cap5" | grep -q "FULL REDISCOVERY"; } \
     && pass "--force injects the FULL REDISCOVERY directive" || fail "--force directive" "not in prompt"
 
-# 6. --discover injects the build-discovery-map directive.
+# 6. --discover does NOT build headless — it hands off to the interactive /discover when no map exists.
 TGT=$(mk_tmp)
-cap6="$(mk_tmp)/cap"
-( cd "$TGT" && CAPTURE="$cap6" PATH="$STUB:$PATH" bash "$INSTALL" --discover >/dev/null 2>&1 )
-{ [ -f "$cap6" ] && tr '\0' '\n' < "$cap6" | grep -q "BUILD DISCOVERY MAP"; } \
-    && pass "--discover injects the BUILD DISCOVERY MAP directive" || fail "--discover directive" "not in prompt"
+out6="$( cd "$TGT" && PATH="$STUB:$PATH" bash "$INSTALL" --discover 2>&1 )"
+printf '%s' "$out6" | grep -q "No discovery map was built" \
+    && pass "--discover hands off to interactive /discover (no fake build)" || fail "--discover hand-off" "no hand-off message in output"
 
 echo ""
 echo "================================================"

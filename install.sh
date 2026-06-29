@@ -122,7 +122,8 @@ main() {
     # --ai-dirs=<dirs>: comma-separated extra AI-doc dirs to treat as migratable (e.g. --ai-dirs=".cursor,.ai-custom")
     # --force: full from-scratch rediscovery — re-scan the whole codebase at SETUP depth even on an
     #   existing install, merging into existing knowledge without deleting still-valid facts
-    # --discover: after install, run the discovery-map skill to build map.json + per-node notes
+    # --discover: after install, check for a discovery map and, if absent, hand off to the interactive
+    #   /discover command (a rich map needs fan-out discovery, which is not run by this headless installer)
     PROMPT_INSTRUCTION="Fetch $PROMPT_URL and follow its instructions exactly."
     LOCAL_PROMPT=""
     if [ "${1:-}" = "--local-source" ]; then
@@ -171,9 +172,6 @@ main() {
         PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION FORCE / FULL REDISCOVERY: skip all up-to-date checks and, even on an existing install, run a complete from-scratch discovery — re-scan the entire codebase and rebuild the knowledge inventory at SETUP depth, do not merely reconcile deltas. Merge into the existing memory/decisions/knowledge-map; never delete a still-valid fact (move it, don't lose it)."
     fi
 
-    if [ "$DISCOVER" -eq 1 ]; then
-        PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION BUILD DISCOVERY MAP: after the install/update completes, run the discovery-map skill (.agent-context/skills/discovery-map.md) to build .agent-context/map.json and the per-node memory/<node>.md notes, then run .agent-context/bin/check-map-budget.sh to confirm the caps."
-    fi
 
     # Fast-path: skip Claude spawn if already up-to-date.
     # Guards: version match alone is not proof of a complete installation — a CLAUDE.md with
@@ -279,6 +277,19 @@ main() {
     if ! grep -q "^\[agent-context\]" "$LOG" 2>/dev/null; then
         echo "Warning: no progress was logged — Claude may have exited early or encountered an error."
         echo "Use --local-source <clone> for a local install, or check that 'claude' is authenticated."
+    fi
+
+    # --discover is a hand-off, not a headless build: a rich map needs fan-out discovery, which runs
+    # reliably only in an interactive session. Report the truth instead of faking progress.
+    if [ "$DISCOVER" -eq 1 ]; then
+        if [ -f ".agent-context/map.json" ]; then
+            echo "Discovery map present: .agent-context/map.json"
+        else
+            echo ""
+            echo "No discovery map was built — a rich map needs fan-out discovery, which runs reliably"
+            echo "only in an interactive agent session, not this one-shot installer."
+            echo "  -> Open this project in Claude Code and run:  /discover"
+        fi
     fi
 
     rm -f "$LOG"
