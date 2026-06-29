@@ -27,7 +27,7 @@ npm test
 
 Two categories of files, critical to understand before editing:
 
-- **Shared files** (`context/`, incl. `context/bin/`, `context/hooks/`, and `context/skills/`): Overwritten on every auto-update in target projects. Changes here propagate to all installations. Includes the `discovery-map` skill and the `check-map-budget.sh` cap validator.
+- **Shared files** (`context/`, incl. `context/bin/`, `context/hooks/`, `context/skills/`, and `context/commands/`): Overwritten on every auto-update in target projects. Changes here propagate to all installations. Includes the `discovery-map` skill, the `check-map-budget.sh` cap validator, and the `discover` Claude Code slash command (`context/commands/discover.md` → `.claude/commands/discover.md`).
 - **Template files** (`templates/`): Copied once during setup, never overwritten. These become project-owned files (incl. `hooks.conf`, `budget.conf`).
 - **Test files** (`tests/`): CI tests verifying `install.sh` behavior, template coverage, token budget, memory-prune, hooks, and an offline install smoke test (`check-install-smoke.sh`, derived from the setup-prompt download table). Not installed into target projects.
 
@@ -59,6 +59,7 @@ Before declaring any task complete, verify `README.md` is still accurate: instal
 - **Formatting**: Prettier with `printWidth: 120`, 2-space indent, `proseWrap: preserve`
 - **Context minimization**: Only include information not discoverable from source code. Based on ETH Zurich (2026) research showing auto-generated context reduces agent performance ~3%.
 - **Memory routing**: General convention → layer 2, domain fact → `memory/<domain>.md`, heavy reference (>30 lines) → `skills/`, gotcha → `memory/lessons.md`, decision → `decisions.json`
-- **Discovery map**: `/discover` (discovery-map skill) builds an on-demand `map.json` + `memory/<node>.md` notes; pulled lazily, never `@`-included; size-capped by `check-map-budget.sh` (caps in `budget.conf`).
+- **Discovery map**: the `discovery-map` skill builds an on-demand `map.json` + `memory/<node>.md` notes; pulled lazily, never `@`-included; size-capped by `check-map-budget.sh` (caps in `budget.conf`). Invoke via the `/discover` slash command (Claude Code), a natural-language trigger ("discover the project") for other agents, or `install.sh --discover`.
+- **Install flags**: `install.sh --force` = full from-scratch rediscovery (re-scan at SETUP depth, merge non-destructively); `--discover` = also build the discovery map; `--local-source <path>` (env `AGENT_CONTEXT_SOURCE`) = install from a local clone instead of downloading.
 - **PR template**: `.github/pull_request_template.md` — Summary, Changes, Notes sections
 - **Documentation language**: `docs/best-practices-agent-creation.md` is in German

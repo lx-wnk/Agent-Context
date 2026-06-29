@@ -90,6 +90,8 @@ Write `[agent-context] Done.` as the final log line — not as a numbered step.
 1. If `.agent-context/.agent-context-version` exists → **UPDATE** mode
 2. Otherwise → **SETUP** mode
 
+> **Launch directives** (from `install.sh`): If your launching instruction contains `FORCE / FULL REDISCOVERY`, run the **full SETUP-depth discovery even in UPDATE mode** — re-scan the entire codebase and rebuild the knowledge inventory from scratch, do not just reconcile deltas; merge into existing memory/decisions/knowledge-map and never delete a still-valid fact. If it contains `BUILD DISCOVERY MAP`, then after the install/update completes, run the `discovery-map` skill (`.agent-context/skills/discovery-map.md`) to build `map.json` + per-node notes.
+
 If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode, do NOT log the mode here — log it in Step 1 once the target version is known.
 
 ---
@@ -135,16 +137,17 @@ Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
 | `context/bin/discovery-digest.sh`      | `.agent-context/bin/discovery-digest.sh`      |
 | `context/bin/check-map-budget.sh`      | `.agent-context/bin/check-map-budget.sh`      |
 | `context/skills/discovery-map.md`      | `.agent-context/skills/discovery-map.md`      |
+| `context/commands/discover.md`         | `.claude/commands/discover.md`                |
 | `context/hooks/lib.sh`                 | `.agent-context/hooks/lib.sh`                 |
 | `context/hooks/pre-protect-secrets.sh` | `.agent-context/hooks/pre-protect-secrets.sh` |
 | `context/hooks/post-format.sh`         | `.agent-context/hooks/post-format.sh`         |
 | `context/hooks/stop-test-gate.sh`      | `.agent-context/hooks/stop-test-gate.sh`      |
 | `context/hooks/subagent-scope.sh`      | `.agent-context/hooks/subagent-scope.sh`      |
 
-Fetch all files **in parallel** — spawn each curl in the background and wait for all. Create `.agent-context/bin/`, `.agent-context/hooks/`, and `.agent-context/skills/` first (`mkdir -p .agent-context/bin .agent-context/hooks .agent-context/skills`) and `chmod +x` the scripts under `bin/` and `hooks/` after download:
+Fetch all files **in parallel** — spawn each curl in the background and wait for all. Create `.agent-context/bin/`, `.agent-context/hooks/`, `.agent-context/skills/`, and `.claude/commands/` first (`mkdir -p .agent-context/bin .agent-context/hooks .agent-context/skills .claude/commands`) and `chmod +x` the scripts under `bin/` and `hooks/` after download:
 
 ```bash
-mkdir -p .agent-context/bin .agent-context/hooks .agent-context/skills
+mkdir -p .agent-context/bin .agent-context/hooks .agent-context/skills .claude/commands
 pids=()
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/agent-startup.md" \
     -o ".agent-context/agent-startup.md.tmp" && mv ".agent-context/agent-startup.md.tmp" ".agent-context/agent-startup.md" || { rm -f ".agent-context/agent-startup.md.tmp"; exit 1; }) & pids+=($!)
@@ -170,6 +173,8 @@ pids=()
     -o ".agent-context/bin/check-map-budget.sh.tmp" && mv ".agent-context/bin/check-map-budget.sh.tmp" ".agent-context/bin/check-map-budget.sh" || { rm -f ".agent-context/bin/check-map-budget.sh.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/skills/discovery-map.md" \
     -o ".agent-context/skills/discovery-map.md.tmp" && mv ".agent-context/skills/discovery-map.md.tmp" ".agent-context/skills/discovery-map.md" || { rm -f ".agent-context/skills/discovery-map.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/commands/discover.md" \
+    -o ".claude/commands/discover.md.tmp" && mv ".claude/commands/discover.md.tmp" ".claude/commands/discover.md" || { rm -f ".claude/commands/discover.md.tmp"; exit 1; }) & pids+=($!)
 for _hook in lib.sh pre-protect-secrets.sh post-format.sh stop-test-gate.sh subagent-scope.sh; do
   (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/hooks/$_hook" \
       -o ".agent-context/hooks/$_hook.tmp" && mv ".agent-context/hooks/$_hook.tmp" ".agent-context/hooks/$_hook" || { rm -f ".agent-context/hooks/$_hook.tmp"; exit 1; }) & pids+=($!)

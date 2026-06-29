@@ -120,7 +120,9 @@ main() {
     # --local-source <path> (or env AGENT_CONTEXT_SOURCE): install every shared file and template from
     #   a local clone instead of downloading from GitHub. Implies a forced run. For local dev/testing.
     # --ai-dirs=<dirs>: comma-separated extra AI-doc dirs to treat as migratable (e.g. --ai-dirs=".cursor,.ai-custom")
-    # --force: skip the up-to-date short-circuit and run the full update flow
+    # --force: full from-scratch rediscovery — re-scan the whole codebase at SETUP depth even on an
+    #   existing install, merging into existing knowledge without deleting still-valid facts
+    # --discover: after install, run the discovery-map skill to build map.json + per-node notes
     PROMPT_INSTRUCTION="Fetch $PROMPT_URL and follow its instructions exactly."
     LOCAL_PROMPT=""
     if [ "${1:-}" = "--local-source" ]; then
@@ -152,10 +154,12 @@ main() {
     fi
 
     AI_DIRS=""
+    DISCOVER=0
     for arg in "$@"; do
         case "$arg" in
             --ai-dirs=*) AI_DIRS="${arg#--ai-dirs=}" ;;
             --force) FORCE=1 ;;
+            --discover) DISCOVER=1 ;;
         esac
     done
 
@@ -164,7 +168,11 @@ main() {
     fi
 
     if [ "$FORCE" -eq 1 ]; then
-        PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION Force flag is set: skip any up-to-date version checks and perform a full update regardless of current version."
+        PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION FORCE / FULL REDISCOVERY: skip all up-to-date checks and, even on an existing install, run a complete from-scratch discovery — re-scan the entire codebase and rebuild the knowledge inventory at SETUP depth, do not merely reconcile deltas. Merge into the existing memory/decisions/knowledge-map; never delete a still-valid fact (move it, don't lose it)."
+    fi
+
+    if [ "$DISCOVER" -eq 1 ]; then
+        PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION BUILD DISCOVERY MAP: after the install/update completes, run the discovery-map skill (.agent-context/skills/discovery-map.md) to build .agent-context/map.json and the per-node memory/<node>.md notes, then run .agent-context/bin/check-map-budget.sh to confirm the caps."
     fi
 
     # Fast-path: skip Claude spawn if already up-to-date.
