@@ -200,7 +200,23 @@ agent-context/
 
 ## Development & Contributing
 
-To test local changes to `.prompts/setup-prompt.md` without creating a release, set `AGENT_CONTEXT_PROMPT` to your local clone's prompt file. The installer script will use it instead of fetching from GitHub.
+### Offline install smoke test (no network, no release, no agent)
+
+The fastest way to verify your changes install cleanly. It derives the shared-file list from the
+`setup-prompt.md` download table, copies everything from your working tree into a throwaway target,
+and runs the installed gates — so it also catches a new shared file you forgot to wire into the table:
+
+```bash
+bash tests/check-install-smoke.sh            # temp dir, auto-removed
+bash tests/check-install-smoke.sh /tmp/ac    # keep the installed tree to inspect it
+```
+
+This runs as part of `npm test`, so CI guards it on every change.
+
+### Full agent dry-run against your branch
+
+To exercise the real download/agent path before cutting a release, set `AGENT_CONTEXT_PROMPT` to your
+local clone's prompt file. The installer script will use it instead of fetching from GitHub.
 
 ```bash
 # Set once for your shell session

@@ -29,7 +29,7 @@ Two categories of files, critical to understand before editing:
 
 - **Shared files** (`context/`, incl. `context/bin/`, `context/hooks/`, and `context/skills/`): Overwritten on every auto-update in target projects. Changes here propagate to all installations. Includes the `discovery-map` skill and the `check-map-budget.sh` cap validator.
 - **Template files** (`templates/`): Copied once during setup, never overwritten. These become project-owned files (incl. `hooks.conf`, `budget.conf`).
-- **Test files** (`tests/`): CI tests verifying `install.sh` behavior, template coverage, token budget, memory-prune, and hooks. Not installed into target projects.
+- **Test files** (`tests/`): CI tests verifying `install.sh` behavior, template coverage, token budget, memory-prune, hooks, and an offline install smoke test (`check-install-smoke.sh`, derived from the setup-prompt download table). Not installed into target projects.
 
 When adding a new **shared** file, wire it into `.prompts/setup-prompt.md` Step 2 (download list + parallel curl block). When adding a new **core template**, update `check_critical_templates()` in `install.sh`. Both are guarded by `tests/`.
 
