@@ -117,26 +117,17 @@ main() {
     ALLOWED_TOOLS="Edit,Write,Read,Bash,Glob,Grep,WebFetch,WebSearch,Agent"
     LOG=".agent-context/setup.log"
 
-    # --local <path>: use a local prompt file instead of the remote URL (for testing)
-    # --local-source <path> | --local-source=<path> | env AGENT_CONTEXT_SOURCE: install every shared
-    #   file and template from a local clone instead of downloading from GitHub. Implies the local
-    #   prompt and a forced run (never a no-op). For local development/testing against a branch.
+    # --local-source <path> (or env AGENT_CONTEXT_SOURCE): install every shared file and template from
+    #   a local clone instead of downloading from GitHub. Implies a forced run. For local dev/testing.
     # --ai-dirs=<dirs>: comma-separated extra AI-doc dirs to treat as migratable (e.g. --ai-dirs=".cursor,.ai-custom")
     # --force: skip the up-to-date short-circuit and run the full update flow
     PROMPT_INSTRUCTION="Fetch $PROMPT_URL and follow its instructions exactly."
-    if [ "${1:-}" = "--local" ]; then
-        AGENT_CONTEXT_PROMPT="${2:-}"
-    fi
+    LOCAL_PROMPT=""
     if [ "${1:-}" = "--local-source" ]; then
         AGENT_CONTEXT_SOURCE="${2:-}"
     fi
-    for arg in "$@"; do
-        case "$arg" in
-            --local-source=*) AGENT_CONTEXT_SOURCE="${arg#--local-source=}" ;;
-        esac
-    done
 
-    # Local-source mode: derive the local prompt + force a run, then validate the source dir.
+    # Local-source mode: validate the clone, force a run, and read its prompt locally.
     if [ -n "${AGENT_CONTEXT_SOURCE:-}" ]; then
         if [ ! -d "$AGENT_CONTEXT_SOURCE" ]; then
             echo "Error: AGENT_CONTEXT_SOURCE directory not found: $AGENT_CONTEXT_SOURCE" >&2
@@ -147,19 +138,12 @@ main() {
             echo "Error: not an Agent-Context clone (no .prompts/setup-prompt.md): $_abs_source" >&2
             exit 1
         fi
-        [ -n "${AGENT_CONTEXT_PROMPT:-}" ] || AGENT_CONTEXT_PROMPT="$_abs_source/.prompts/setup-prompt.md"
+        LOCAL_PROMPT="$_abs_source/.prompts/setup-prompt.md"
         FORCE=1
     fi
 
-    if [ -n "${AGENT_CONTEXT_PROMPT:-}" ]; then
-        if [ ! -f "$AGENT_CONTEXT_PROMPT" ]; then
-            echo "Error: AGENT_CONTEXT_PROMPT file not found: $AGENT_CONTEXT_PROMPT" >&2
-            exit 1
-        fi
-        _abs_prompt=$(realpath "$AGENT_CONTEXT_PROMPT" 2>/dev/null \
-            || (cd "$(dirname "$AGENT_CONTEXT_PROMPT")" && echo "$(pwd)/$(basename "$AGENT_CONTEXT_PROMPT")") 2>/dev/null \
-            || echo "$AGENT_CONTEXT_PROMPT")
-        PROMPT_INSTRUCTION="Read $_abs_prompt and follow its instructions exactly."
+    if [ -n "$LOCAL_PROMPT" ]; then
+        PROMPT_INSTRUCTION="Read $LOCAL_PROMPT and follow its instructions exactly."
     fi
 
     # Tell the agent to source everything locally instead of downloading.
@@ -286,7 +270,7 @@ main() {
 
     if ! grep -q "^\[agent-context\]" "$LOG" 2>/dev/null; then
         echo "Warning: no progress was logged — Claude may have exited early or encountered an error."
-        echo "Set AGENT_CONTEXT_PROMPT to a local prompt file, or check that 'claude' is authenticated."
+        echo "Use --local-source <clone> for a local install, or check that 'claude' is authenticated."
     fi
 
     rm -f "$LOG"
