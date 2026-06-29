@@ -213,24 +213,30 @@ bash tests/check-install-smoke.sh /tmp/ac    # keep the installed tree to inspec
 
 This runs as part of `npm test`, so CI guards it on every change.
 
-### Full agent dry-run against your branch
+### Full agent dry-run in another project
 
-To exercise the real download/agent path before cutting a release, set `AGENT_CONTEXT_PROMPT` to your
-local clone's prompt file. The installer script will use it instead of fetching from GitHub.
+The smoke test above runs in isolation. To see how Agent-Context actually installs into a **real
+codebase** — real files to discover, an existing `.claude/` to merge, layers filled from your stack —
+run the installer inside that project. `install.sh` installs into the current directory, so `cd` into
+the target first. Point it at your local clone's prompt with `AGENT_CONTEXT_PROMPT` so the prompt
+logic is your branch's, not the released one.
+
+The shared files it downloads still come from the **latest release tag** unless you pin the ref — so
+to test unreleased branch work, substitute `<tag>` with your branch name first:
 
 ```bash
-# Set once for your shell session
-export AGENT_CONTEXT_PROMPT=/path/to/your/Agent-Context/.prompts/setup-prompt.md
+# 1. Pin the download ref to your branch (only needed for unreleased work).
+REF=feat/my-branch
+sed "s|<tag>|$REF|g" ~/code/Agent-Context/.prompts/setup-prompt.md > /tmp/ac-setup.md
 
-# Then run the installer in any target project
-/bin/bash -c /path/to/your/Agent-Context/install.sh
-
-# Or inline
-AGENT_CONTEXT_PROMPT=/path/to/your/Agent-Context/.prompts/setup-prompt.md \
-    /bin/bash -c /path/to/your/Agent-Context/install.sh
+# 2. Run the installer INSIDE the target project (it installs into the current directory).
+#    The pinned <tag> means version selection is moot — point the agent at REF if it asks.
+cd ~/code/my-other-project
+AGENT_CONTEXT_PROMPT=/tmp/ac-setup.md bash ~/code/Agent-Context/install.sh
 ```
 
-Replace `/path/to/your/Agent-Context` with the path to your local clone. No changes to release logic required.
+For an already-released version, skip the pin entirely: `cd` into the project and run the normal
+[install one-liner](#installation). Replace the example paths with your local clone and target project.
 
 ## Agents
 
