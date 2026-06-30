@@ -89,6 +89,37 @@ EOF
 code=0; bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1 || code=$?
 [ "$code" -eq 2 ] && pass "non-integer cap exits 2" || fail "non-integer cap exits 2" "got exit $code"
 
+# 7. A long globs array is EXEMPT from the longest-line cap (globs must never be truncated by it).
+t=$(mk_tmp); TMP_ROOTS+=("$t")
+cat > "$t/budget.conf" <<EOF
+MAP_FILE="$t/map.json"
+MAP_MAX_TOTAL_BYTES=100000
+MAP_MAX_NODES=100
+MAP_MAX_NODE_LINE_BYTES=120
+EOF
+cat > "$t/map.json" <<'EOF'
+{
+  "generated": "2026-06-30",
+  "nodes": [
+    {"id":"big","label":"Big","globs":["a/**","b/**","c/**","d/**","e/**","f/**","g/**","h/**","i/**","j/**","k/**","l/**","m/**","n/**"],"note":"memory/big.md","watermark":"abc","stale":false}
+  ],
+  "edges": []
+}
+EOF
+if bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1; then pass "long globs array is exempt from the line cap"; else fail "globs exempt from line cap" "long globs tripped the per-line cap"; fi
+
+# 8. A long LABEL (prose bloat) still trips the line cap.
+cat > "$t/map-label.json" <<'EOF'
+{
+  "generated": "2026-06-30",
+  "nodes": [
+    {"id":"big","label":"This is a deliberately very very very very very very very very very long label that exceeds the small per-node line cap on its own","globs":["a/**"],"note":"memory/big.md","watermark":"abc","stale":false}
+  ],
+  "edges": []
+}
+EOF
+if bash "$ENGINE" --conf "$t/budget.conf" --map "$t/map-label.json" --quiet >/dev/null 2>&1; then fail "long label still trips the line cap" "long label passed the cap"; else pass "long label still trips the line cap"; fi
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))

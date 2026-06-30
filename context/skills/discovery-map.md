@@ -20,6 +20,13 @@ are pulled only when a task needs them.
 
 - `map.json` and `memory/<node>.md` load in NO layer. They are read on demand only.
 - Keep `map.json` structural, not prose: one node per line, no narrative.
+- **`label` describes the subsystem only** — a short human name. NEVER put the glob list (or
+  "see note", "lists all N globs") in the label. The full glob set lives in the node's `globs`
+  array and may be repeated in the note.
+- **`globs` must be complete** — never truncate, abbreviate, or drop globs to satisfy a cap. The
+  per-node line cap does not count globs, so a node may carry as many as it genuinely owns. If the
+  whole map exceeds the total-byte cap, split a node into finer nodes or go hierarchical — do not
+  shorten globs.
 - After writing, you MUST run the cap gate:
   `bash .agent-context/bin/check-map-budget.sh`
   If it FAILS, split the largest area into `memory/<area>/map.json` (hierarchy) and
