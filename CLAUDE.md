@@ -27,7 +27,7 @@ npm test
 
 Two categories of files, critical to understand before editing:
 
-- **Shared files** (`context/`, incl. `context/bin/`, `context/hooks/`, `context/skills/`, and `context/commands/`): Overwritten on every auto-update in target projects. Changes here propagate to all installations. Includes the `discovery-map` skill, the `check-map-budget.sh` cap validator, and the `discover` Claude Code slash command (`context/commands/discover.md` → `.claude/commands/discover.md`).
+- **Shared files** (`context/`, incl. `context/bin/`, `context/hooks/`, `context/skills/`, and `context/commands/`): Overwritten on every auto-update in target projects. Changes here propagate to all installations. Includes the `discovery-map` skill, the `check-map-budget.sh` cap validator, and the Claude Code slash commands in `context/commands/` (`discover`, `memory-review`, `decision-review` → `.claude/commands/`) — thin wrappers that invoke the matching skill/review prompt.
 - **Template files** (`templates/`): Copied once during setup, never overwritten. These become project-owned files (incl. `hooks.conf`, `budget.conf`).
 - **Test files** (`tests/`): CI tests verifying `install.sh` behavior, template coverage, token budget, memory-prune, hooks, and an offline install smoke test (`check-install-smoke.sh`, derived from the setup-prompt download table). Not installed into target projects.
 

@@ -138,6 +138,8 @@ Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
 | `context/bin/check-map-budget.sh`      | `.agent-context/bin/check-map-budget.sh`      |
 | `context/skills/discovery-map.md`      | `.agent-context/skills/discovery-map.md`      |
 | `context/commands/discover.md`         | `.claude/commands/discover.md`                |
+| `context/commands/memory-review.md`    | `.claude/commands/memory-review.md`           |
+| `context/commands/decision-review.md`  | `.claude/commands/decision-review.md`         |
 | `context/hooks/lib.sh`                 | `.agent-context/hooks/lib.sh`                 |
 | `context/hooks/pre-protect-secrets.sh` | `.agent-context/hooks/pre-protect-secrets.sh` |
 | `context/hooks/post-format.sh`         | `.agent-context/hooks/post-format.sh`         |
@@ -175,6 +177,10 @@ pids=()
     -o ".agent-context/skills/discovery-map.md.tmp" && mv ".agent-context/skills/discovery-map.md.tmp" ".agent-context/skills/discovery-map.md" || { rm -f ".agent-context/skills/discovery-map.md.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/commands/discover.md" \
     -o ".claude/commands/discover.md.tmp" && mv ".claude/commands/discover.md.tmp" ".claude/commands/discover.md" || { rm -f ".claude/commands/discover.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/commands/memory-review.md" \
+    -o ".claude/commands/memory-review.md.tmp" && mv ".claude/commands/memory-review.md.tmp" ".claude/commands/memory-review.md" || { rm -f ".claude/commands/memory-review.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/commands/decision-review.md" \
+    -o ".claude/commands/decision-review.md.tmp" && mv ".claude/commands/decision-review.md.tmp" ".claude/commands/decision-review.md" || { rm -f ".claude/commands/decision-review.md.tmp"; exit 1; }) & pids+=($!)
 for _hook in lib.sh pre-protect-secrets.sh post-format.sh stop-test-gate.sh subagent-scope.sh; do
   (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/hooks/$_hook" \
       -o ".agent-context/hooks/$_hook.tmp" && mv ".agent-context/hooks/$_hook.tmp" ".agent-context/hooks/$_hook" || { rm -f ".agent-context/hooks/$_hook.tmp"; exit 1; }) & pids+=($!)
