@@ -1,5 +1,9 @@
 # Agent Context Architecture
 
+[![License: MIT](https://img.shields.io/github/license/lx-wnk/Agent-Context)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/lx-wnk/Agent-Context)](https://github.com/lx-wnk/Agent-Context/releases/latest)
+[![CI](https://github.com/lx-wnk/Agent-Context/actions/workflows/ci.yml/badge.svg)](https://github.com/lx-wnk/Agent-Context/actions/workflows/ci.yml)
+
 A project-based setup and memory-handling system for Claude Code. Optimized for structuring project knowledge so that Claude always has the right context at the right time — without bloating the context window.
 
 Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides a layered architecture: all layers (0-3) are loaded at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~150-200 lines. Detailed reference (skills, memory files) is pulled in on-demand based on the task at hand. Auto-updates keep shared infrastructure current across all your projects.
