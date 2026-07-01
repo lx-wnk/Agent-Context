@@ -45,6 +45,35 @@ Auto-updates are built in: the agent fetches the setup prompt from remote, which
 
 ## Architecture
 
+The core idea in one picture — a small baseline loads at startup, and everything heavy is pulled only when a task actually needs it:
+
+```mermaid
+flowchart TD
+    Start([Session start]) --> AG[AGENTS.md]
+    AG -->|"@-includes"| Base["Always-on baseline (~150–200 lines):<br/>agent-startup · layer0 · layer1 · layer2 · layer3<br/>· knowledge-map · skills index"]
+    Base --> Task{Task begins}
+    Task --> Route["Layer 0 / Layer 3 routing:<br/>what does THIS task need?"]
+
+    Route -->|skill trigger| Skill["skills/&lt;name&gt;.md"]
+    Route -->|domain keyword| Mem["memory/&lt;domain&gt;.md"]
+    Route -->|external source| Doc["doc via knowledge-map"]
+    Route -->|unfamiliar subsystem| Map["map.json → 1–2 nodes → memory/&lt;node&gt;.md"]
+
+    Skill --> Act([Act with just-enough context])
+    Mem --> Act
+    Doc --> Act
+    Map --> Act
+
+    subgraph OnDemand ["pulled on demand · never at startup"]
+        Skill
+        Mem
+        Doc
+        Map
+    end
+```
+
+The file-ownership view — what the framework ships vs. what your project owns:
+
 ```
 agent-context Repo (source)              Project / User (target)
 ─────────────────────────────            ──────────────────────────
