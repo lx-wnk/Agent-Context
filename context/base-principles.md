@@ -27,4 +27,4 @@
 - Place critical constraints at the beginning of context files — models lose accuracy in the middle of long contexts
 - Prefer concrete rules over general principles — LLMs already know KISS/YAGNI/DRY/SOLID
 - Knowledge compounds — integrate new facts into existing entries; don't append raw notes that may contradict existing content
-- Review memory files periodically — stale context actively misleads (read `memory-review-prompt.md`)
+- Review memory files periodically — stale context actively misleads (run `/memory-review`, or read `memory-review-prompt.md`)

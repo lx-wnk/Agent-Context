@@ -90,11 +90,15 @@ Write `[agent-context] Done.` as the final log line — not as a numbered step.
 1. If `.agent-context/.agent-context-version` exists → **UPDATE** mode
 2. Otherwise → **SETUP** mode
 
+> **Launch directive** (from `install.sh`): If your launching instruction contains `FORCE / FULL REDISCOVERY`, run the **full SETUP-depth discovery even in UPDATE mode** — re-scan the entire codebase and rebuild the knowledge inventory from scratch, do not just reconcile deltas; merge into existing memory/decisions/knowledge-map and never delete a still-valid fact. (The discovery **map** — `map.json` + per-node notes — is built separately by the interactive `/discover` command, not here.)
+
 If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode, do NOT log the mode here — log it in Step 1 once the target version is known.
 
 ---
 
 ## Step 1: Version Selection
+
+> **Local source mode:** If your launching instruction contains `LOCAL SOURCE MODE` (set by `install.sh --local-source <path>`), SKIP this entire step — do not query the GitHub releases API and do not pick a version. Take the target version from `<path>/CHANGELOG.md` (latest entry). In Steps 2 and 3, copy every file from `<path>/<relative-path>` instead of fetching from GitHub (do not build any `<tag>` URL).
 
 1. Read `.agent-context/.agent-context-version` (default `0.0.0` if missing)
 2. Fetch the release list from `https://api.github.com/repos/lx-wnk/Agent-Context/releases`
@@ -119,17 +123,33 @@ Fetch each shared file directly from GitHub raw content — no tarball or temp d
 
 Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
 
-| Source path                          | Destination                                |
-| ------------------------------------ | ------------------------------------------ |
-| `context/agent-startup.md`           | `.agent-context/agent-startup.md`          |
-| `context/layer0-agent-workflow.md`   | `.agent-context/layer0-agent-workflow.md`  |
-| `context/base-principles.md`         | `.agent-context/base-principles.md`        |
-| `.prompts/decision-review-prompt.md` | `.agent-context/decision-review-prompt.md` |
-| `.prompts/memory-review-prompt.md`   | `.agent-context/memory-review-prompt.md`   |
+| Source path                            | Destination                                   |
+| -------------------------------------- | --------------------------------------------- |
+| `context/agent-startup.md`             | `.agent-context/agent-startup.md`             |
+| `context/layer0-agent-workflow.md`     | `.agent-context/layer0-agent-workflow.md`     |
+| `context/base-principles.md`           | `.agent-context/base-principles.md`           |
+| `context/agent-delegation.md`          | `.agent-context/agent-delegation.md`          |
+| `context/memory-maintenance.md`        | `.agent-context/memory-maintenance.md`        |
+| `.prompts/decision-review-prompt.md`   | `.agent-context/decision-review-prompt.md`    |
+| `.prompts/memory-review-prompt.md`     | `.agent-context/memory-review-prompt.md`      |
+| `context/bin/check-token-budget.sh`    | `.agent-context/bin/check-token-budget.sh`    |
+| `context/bin/memory-prune.sh`          | `.agent-context/bin/memory-prune.sh`          |
+| `context/bin/discovery-digest.sh`      | `.agent-context/bin/discovery-digest.sh`      |
+| `context/bin/check-map-budget.sh`      | `.agent-context/bin/check-map-budget.sh`      |
+| `context/skills/discovery-map.md`      | `.agent-context/skills/discovery-map.md`      |
+| `context/commands/discover.md`         | `.claude/commands/discover.md`                |
+| `context/commands/memory-review.md`    | `.claude/commands/memory-review.md`           |
+| `context/commands/decision-review.md`  | `.claude/commands/decision-review.md`         |
+| `context/hooks/lib.sh`                 | `.agent-context/hooks/lib.sh`                 |
+| `context/hooks/pre-protect-secrets.sh` | `.agent-context/hooks/pre-protect-secrets.sh` |
+| `context/hooks/post-format.sh`         | `.agent-context/hooks/post-format.sh`         |
+| `context/hooks/stop-test-gate.sh`      | `.agent-context/hooks/stop-test-gate.sh`      |
+| `context/hooks/subagent-scope.sh`      | `.agent-context/hooks/subagent-scope.sh`      |
 
-Fetch all files **in parallel** — spawn each curl in the background and wait for all:
+Fetch all files **in parallel** — spawn each curl in the background and wait for all. Create `.agent-context/bin/`, `.agent-context/hooks/`, `.agent-context/skills/`, and `.claude/commands/` first (`mkdir -p .agent-context/bin .agent-context/hooks .agent-context/skills .claude/commands`) and `chmod +x` the scripts under `bin/` and `hooks/` after download:
 
 ```bash
+mkdir -p .agent-context/bin .agent-context/hooks .agent-context/skills .claude/commands
 pids=()
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/agent-startup.md" \
     -o ".agent-context/agent-startup.md.tmp" && mv ".agent-context/agent-startup.md.tmp" ".agent-context/agent-startup.md" || { rm -f ".agent-context/agent-startup.md.tmp"; exit 1; }) & pids+=($!)
@@ -137,20 +157,45 @@ pids=()
     -o ".agent-context/layer0-agent-workflow.md.tmp" && mv ".agent-context/layer0-agent-workflow.md.tmp" ".agent-context/layer0-agent-workflow.md" || { rm -f ".agent-context/layer0-agent-workflow.md.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/base-principles.md" \
     -o ".agent-context/base-principles.md.tmp" && mv ".agent-context/base-principles.md.tmp" ".agent-context/base-principles.md" || { rm -f ".agent-context/base-principles.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/agent-delegation.md" \
+    -o ".agent-context/agent-delegation.md.tmp" && mv ".agent-context/agent-delegation.md.tmp" ".agent-context/agent-delegation.md" || { rm -f ".agent-context/agent-delegation.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/memory-maintenance.md" \
+    -o ".agent-context/memory-maintenance.md.tmp" && mv ".agent-context/memory-maintenance.md.tmp" ".agent-context/memory-maintenance.md" || { rm -f ".agent-context/memory-maintenance.md.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/.prompts/decision-review-prompt.md" \
     -o ".agent-context/decision-review-prompt.md.tmp" && mv ".agent-context/decision-review-prompt.md.tmp" ".agent-context/decision-review-prompt.md" || { rm -f ".agent-context/decision-review-prompt.md.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/.prompts/memory-review-prompt.md" \
     -o ".agent-context/memory-review-prompt.md.tmp" && mv ".agent-context/memory-review-prompt.md.tmp" ".agent-context/memory-review-prompt.md" || { rm -f ".agent-context/memory-review-prompt.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/check-token-budget.sh" \
+    -o ".agent-context/bin/check-token-budget.sh.tmp" && mv ".agent-context/bin/check-token-budget.sh.tmp" ".agent-context/bin/check-token-budget.sh" || { rm -f ".agent-context/bin/check-token-budget.sh.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/memory-prune.sh" \
+    -o ".agent-context/bin/memory-prune.sh.tmp" && mv ".agent-context/bin/memory-prune.sh.tmp" ".agent-context/bin/memory-prune.sh" || { rm -f ".agent-context/bin/memory-prune.sh.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/discovery-digest.sh" \
+    -o ".agent-context/bin/discovery-digest.sh.tmp" && mv ".agent-context/bin/discovery-digest.sh.tmp" ".agent-context/bin/discovery-digest.sh" || { rm -f ".agent-context/bin/discovery-digest.sh.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/check-map-budget.sh" \
+    -o ".agent-context/bin/check-map-budget.sh.tmp" && mv ".agent-context/bin/check-map-budget.sh.tmp" ".agent-context/bin/check-map-budget.sh" || { rm -f ".agent-context/bin/check-map-budget.sh.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/skills/discovery-map.md" \
+    -o ".agent-context/skills/discovery-map.md.tmp" && mv ".agent-context/skills/discovery-map.md.tmp" ".agent-context/skills/discovery-map.md" || { rm -f ".agent-context/skills/discovery-map.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/commands/discover.md" \
+    -o ".claude/commands/discover.md.tmp" && mv ".claude/commands/discover.md.tmp" ".claude/commands/discover.md" || { rm -f ".claude/commands/discover.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/commands/memory-review.md" \
+    -o ".claude/commands/memory-review.md.tmp" && mv ".claude/commands/memory-review.md.tmp" ".claude/commands/memory-review.md" || { rm -f ".claude/commands/memory-review.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/commands/decision-review.md" \
+    -o ".claude/commands/decision-review.md.tmp" && mv ".claude/commands/decision-review.md.tmp" ".claude/commands/decision-review.md" || { rm -f ".claude/commands/decision-review.md.tmp"; exit 1; }) & pids+=($!)
+for _hook in lib.sh pre-protect-secrets.sh post-format.sh stop-test-gate.sh subagent-scope.sh; do
+  (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/hooks/$_hook" \
+      -o ".agent-context/hooks/$_hook.tmp" && mv ".agent-context/hooks/$_hook.tmp" ".agent-context/hooks/$_hook" || { rm -f ".agent-context/hooks/$_hook.tmp"; exit 1; }) & pids+=($!)
+done
 
 fail=0
 for pid in "${pids[@]}"; do
     wait "$pid" || fail=1
 done
 if [ "$fail" -ne 0 ]; then
-    rm -f .agent-context/*.tmp
+    rm -f .agent-context/*.tmp .agent-context/bin/*.tmp .agent-context/hooks/*.tmp .agent-context/skills/*.tmp
     echo "Error: one or more shared file downloads failed" >&2
     exit 1
 fi
+chmod +x .agent-context/bin/*.sh .agent-context/hooks/*.sh 2>/dev/null || true
 ```
 
 > **Important:** If the parallel download block above exits non-zero (any file failed to download), **stop here — do NOT write the version file.** Recording a new version tag in `.agent-context/.agent-context-version` when one or more shared files are missing would leave the installation in an inconsistent state where the version number claims a complete update but the files do not match.
@@ -249,11 +294,25 @@ Used during Phase S2 (SETUP) and Step 5 (UPDATE) when processing discovered know
 
 Apply automatically when confidence ≥ 0.8:
 
-| Signal                                                     | Action                                        |
-| ---------------------------------------------------------- | --------------------------------------------- |
-| Size <30 lines AND maps cleanly to one layer               | Auto-route to target layer, no question       |
-| Size >100 lines OR file has a table of contents            | Auto → add to `knowledge-map.md` as reference |
-| Existing `setup-decisions.json` entry with matching SHA256 | Reuse previous decision silently              |
+| Signal                                                     | Action                                                                    |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Size <30 lines AND maps cleanly to one layer               | Auto-route to target layer, no question                                   |
+| Size >100 lines OR file has a table of contents            | Auto → add to `knowledge-map.md` as reference **AND distill** (see below) |
+| Existing `setup-decisions.json` entry with matching SHA256 | Reuse previous decision silently                                          |
+
+### Distillation (MANDATORY for every `reference` source)
+
+A `knowledge-map.md` pointer alone is **not enough** — a large design/spec/architecture doc carries non-obvious facts that must be loaded by task routing, not just linked. For each source routed as `reference`, extract its **non-obvious gold** into the narrowest fitting home (skip anything discoverable from code):
+
+| What to extract from the doc                                              | Goes to                                                                                    |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Architecture decision + rationale (ADRs, "we chose X because Y")          | `decisions.json`                                                                           |
+| Hard invariant / gotcha / "must/never" constraint (determinism, security) | `memory/lessons.md` (`ttl:infinite` for architecture/security)                             |
+| A complex recurring subsystem (combat, economy, generation, auth)         | `memory/<domain>.md` stub: 3–8 lines of the non-obvious model + a pointer to the full spec |
+| Domain glossary / project-specific terminology                            | `memory/<domain>.md` or `layer2-project-core.md`                                           |
+| Frequently-needed reference too heavy for a stub (>30 lines distilled)    | `skills/<name>/SKILL.md`                                                                   |
+
+Rules: each fact in exactly ONE place; the stub/lesson **summarizes** and links the spec (it does not copy it). Prefer 1–2 high-value nuggets per doc over exhaustive transcription — capture what a future task would otherwise have to re-derive. This is how "Besonderheiten / complex topics / perspektivisch benötigt" actually reach the agent.
 
 ### Requires Ack/Nack
 
@@ -281,19 +340,26 @@ High-confidence auto-decisions are listed in the summary only — not asked.
 
 ### Plan-File Mode (other agents / CI / headless)
 
-When not in Claude Code interactive mode, write `.agent-context/setup-plan.md` before executing:
+When not in Claude Code interactive mode, write `.agent-context/setup-plan.md` for transparency:
 
 ```markdown
 # Setup Plan — YYYY-MM-DD
 
-| #   | Source                     | Action      | Confidence | Status    |
-| --- | -------------------------- | ----------- | ---------- | --------- |
-| 1   | docs/architecture.md       | reference   | 0.91       | ✅ auto   |
-| 2   | CONTRIBUTING.md            | consolidate | 0.85       | ✅ auto   |
-| 3   | src/: conflict rule A vs B | keep rule A | 0.55       | ⏳ review |
+| #   | Source                     | Action      | Confidence | Status         |
+| --- | -------------------------- | ----------- | ---------- | -------------- |
+| 1   | docs/architecture.md       | reference   | 0.91       | ✅ auto        |
+| 2   | CONTRIBUTING.md            | consolidate | 0.85       | ✅ auto        |
+| 3   | src/: conflict rule A vs B | keep rule A | 0.55       | ✅ best-effort |
 ```
 
-User edits the Status column and re-runs the prompt to execute.
+**Headless does NOT defer — it decides.** `install.sh` runs the agent once with `-p` and never re-runs it, so a `⏳ review` row would be silently dropped and its knowledge lost (this is the "memory looks empty" failure). Therefore, in headless/CI mode you MUST resolve every row in this same run:
+
+- Apply each source's `recommended_action` as a **best-effort** decision and execute it (route + distill). Mark it `✅ best-effort` in the plan.
+- For a **conflict** between two sources, pick the higher-confidence / more-specific / more-recent one, apply it, and record the loser in the row note — do not skip the topic.
+- Choose **non-destructive** resolutions when unsure: `reference` (+ distill) over `consolidate`, append over rewrite. Never delete a Real Doc.
+- The plan file is an audit trail of what was auto-applied, **not** a queue waiting for a human. Leave no row in `⏳ review` when the run ends.
+
+(Interactive mode still asks; only headless auto-resolves.)
 
 ### Decision Manifest
 
@@ -447,6 +513,71 @@ All three substeps are guarded by existence/tracking/marker checks — running t
 
 ---
 
+## Step 4.7: Hook Registration (SETUP and UPDATE)
+
+Agent-Context ships four optional, deterministic hooks (`.agent-context/hooks/`): secret-write block (PreToolUse), auto-format (PostToolUse), test gate (Stop), and subagent scope check (SubagentStop). They are governed by the project-owned `.agent-context/hooks.conf` and are **off by default** (`HOOKS_ENABLED=0`) — registering them changes nothing until the user opts in.
+
+**Registration is additive and idempotent — never overwrite or remove existing `settings.json` content.**
+
+1. **SETUP (no prior `.claude/settings.json`):** the template `settings.json` already contains the four hook registrations — nothing to do. In `INTERACTIVE_MODE=true`, you MAY ask the user whether to enable hooks now; if yes, set `HOOKS_ENABLED=1` in `.agent-context/hooks.conf` and fill `FORMAT_CMD` / `TEST_CMD` from the discovered toolchain (Phase S2). Otherwise leave `HOOKS_ENABLED=0`.
+
+2. **UPDATE (existing `.claude/settings.json`):** read it. If it already references `.agent-context/hooks/` in any hook command → **skip** (already registered). Otherwise merge the four entries below into the existing `hooks` object **additively** — preserve every existing key and every existing hook entry, only appending these. Do not touch `HOOKS_ENABLED` (stays `0` — existing projects are never silently activated).
+
+Canonical entries to merge (matchers and event names exactly as shown):
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/pre-protect-secrets.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/post-format.sh", "timeout": 60 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/stop-test-gate.sh",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/subagent-scope.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+If the user's `settings.json` already has entries for one of these events (e.g. their own `PreToolUse`), append our entry to that event's array rather than replacing it. Report in the summary that hooks were registered (disabled) and how to enable them (`HOOKS_ENABLED=1` + commands in `hooks.conf`).
+
+---
+
 ## Step 5: Knowledge Re-Sync (UPDATE mode)
 
 After updating shared files (Steps 1–4), re-synchronize all project knowledge:
@@ -455,28 +586,37 @@ After updating shared files (Steps 1–4), re-synchronize all project knowledge:
 
 Apply the **Global Constraint: Knowledge Map Sources** — run `git ls-files --cached --others --exclude-standard` and only consider files in that output.
 
-Launch parallel subagents (same as SETUP Phase S2 Subagent 1) to scan within that set:
+Generate the discovery digest first (orientation; delete it at the end of the run):
+
+```bash
+bash .agent-context/bin/discovery-digest.sh > .agent-context/discovery-digest.md 2>/dev/null || true
+```
+
+Launch parallel subagents (same set as SETUP Phase S2 — **including Subagent 7: Project Specifics & Complexity**) to scan within the constraint set:
 
 - Existing `.agent-context/` (all layers, memory/, decisions.json, skills/)
 - All root-level `*.md` files
 - Any folder containing 3+ markdown or structured-data files
+- The digest's "Distillation candidates" — heavy docs whose non-obvious gold may never have been distilled on an older install
 
 Check `.agent-context/setup-decisions.json` for existing decisions — skip sources with matching SHA256.
 
-For new or changed sources: apply Knowledge Decision Logic (Ack/Nack or plan-file).
+For new or changed sources: apply Knowledge Decision Logic, including the **Distillation** step (extract invariants → `memory/lessons.md`, decisions → `decisions.json`, complex subsystems → `memory/<domain>.md`). In headless/CI mode, follow the headless-decides policy — never leave a source in `⏳ review`. **An existing install with rich `docs/` but near-empty `memory/` is the signal that distillation never ran — backfill it now.**
 
 ### 5b: Routing & Restructuring (additive-only)
 
 Route facts to their targets — **additive only, never overwrite existing content**:
 
-| Fact Type                   | Target                   | Rule                                                           |
-| --------------------------- | ------------------------ | -------------------------------------------------------------- |
-| Project-wide convention     | `layer2-project-core.md` | Append if keyword not already present                          |
-| Domain-specific fact        | `memory/<domain>.md`     | Append if keyword not already present                          |
-| Heavy reference (>30 lines) | `skills/<reference>.md`  | Create if skill does not exist                                 |
-| Gotcha / lesson             | `memory/lessons.md`      | Append with today's date, `ttl:90d source:discovered conf:med` |
-| Architecture decision       | `decisions.json`         | Append to JSON array if id not present                         |
-| External knowledge pointer  | `knowledge-map.md`       | Append row if source not already listed                        |
+| Fact Type                                        | Target                   | Rule                                                                |
+| ------------------------------------------------ | ------------------------ | ------------------------------------------------------------------- |
+| Project-wide convention                          | `layer2-project-core.md` | Append if keyword not already present                               |
+| Domain-specific fact                             | `memory/<domain>.md`     | Append if keyword not already present                               |
+| Heavy reference (>30 lines)                      | `skills/<reference>.md`  | Create if skill does not exist                                      |
+| Gotcha / lesson                                  | `memory/lessons.md`      | Append with today's date, `ttl:90d source:discovered conf:med`      |
+| Hard invariant (determinism, security, ordering) | `memory/lessons.md`      | Append with `ttl:infinite` — these don't go stale                   |
+| Complex subsystem summary                        | `memory/<domain>.md`     | Create stub (3–8 lines, non-obvious model + spec pointer) if absent |
+| Architecture decision                            | `decisions.json`         | Append to JSON array if id not present                              |
+| External knowledge pointer                       | `knowledge-map.md`       | Append row if source not already listed                             |
 
 Keyword check: search target file for 2–3 key terms from the fact. If found → skip. If not found → append.
 
@@ -522,6 +662,7 @@ Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-conte
 - `knowledge-map.md` ≥ 100 lines: flag for cleanup
 - Memory files ≥ 500 lines: flag as skill graduation candidate
 - Include the audit table in the summary output (✅ / ⚠️ per file)
+- Run the always-on budget gate: `bash .agent-context/bin/check-token-budget.sh` (reads `.agent-context/budget.conf`). If it reports FAIL, flag the always-on baseline as over budget and recommend moving optional content behind routing.
 
 ## UPDATE Mode: Done
 
@@ -564,9 +705,24 @@ AGENTS.md                                PROJECT — customize freely
   agent-startup.md                       🔒 SHARED — do NOT modify (auto-updated)
   layer0-agent-workflow.md               🔒 SHARED — do NOT modify (auto-updated)
   base-principles.md                     🔒 SHARED — do NOT modify (auto-updated)
+  agent-delegation.md                    🔒 SHARED — on-demand delegation protocol (auto-updated)
+  memory-maintenance.md                  🔒 SHARED — on-demand memory restructuring (auto-updated)
   .agent-context-version                 🔒 SHARED — written by setup/update
   memory-review-prompt.md               🔒 SHARED — do NOT modify (auto-updated)
   decision-review-prompt.md              🔒 SHARED — do NOT modify (auto-updated)
+  bin/
+    check-token-budget.sh                🔒 SHARED — always-on budget gate (auto-updated)
+    memory-prune.sh                      🔒 SHARED — memory decay/archive (auto-updated)
+    discovery-digest.sh                  🔒 SHARED — deterministic discovery inventory (auto-updated)
+    check-map-budget.sh                  🔒 SHARED — discovery-map cap gate (auto-updated)
+  hooks/
+    lib.sh                               🔒 SHARED — hook helpers (auto-updated)
+    pre-protect-secrets.sh               🔒 SHARED — PreToolUse secret block (auto-updated)
+    post-format.sh                       🔒 SHARED — PostToolUse auto-format (auto-updated)
+    stop-test-gate.sh                    🔒 SHARED — Stop test gate (auto-updated)
+    subagent-scope.sh                    🔒 SHARED — SubagentStop scope check (auto-updated)
+  hooks.conf                             PROJECT — hook toggles + toolchain (never overwritten)
+  budget.conf                            PROJECT — token-budget config (never overwritten)
   knowledge-map.md                       PROJECT — maintained by agent, never recreate from template
   setup-decisions.json                   PROJECT — maintained by agent, never recreate from template
   decisions.json                         PROJECT — structured decisions (auto-reviewed)
@@ -575,6 +731,7 @@ AGENTS.md                                PROJECT — customize freely
   layer3-guidebook.md                    PROJECT — customize freely
   skills/
     index.md                             PROJECT — skill registry
+    discovery-map.md                     🔒 SHARED — on-demand discovery skill (auto-updated)
   memory/                                PROJECT — customize freely
     decisions.md                         Legacy stub (migrated to decisions.json)
     index.md                             Memory file catalog
@@ -594,7 +751,16 @@ Put project-specific workflow rules in `layer2-project-core.md`, task routing in
 
 ### Phase S2: Discovery (Parallel Subagent Scan)
 
-Launch **6 parallel subagents** to scan the project. All subagents are **mandatory** — every one MUST execute, none may be skipped. Running them in parallel maximizes speed.
+**First, generate the discovery digest** — a deterministic orientation map so no manifest, service, or doc is missed and the subagents spend their budget on judgement rather than re-scanning:
+
+```bash
+bash .agent-context/bin/discovery-digest.sh > .agent-context/discovery-digest.md 2>/dev/null \
+  || echo "(digest script unavailable — subagents scan unaided)"
+```
+
+Pass the digest's contents to every subagent as orientation. It is an **accelerator, not a whitelist** — subagents must still scan deeper than the digest lists. The "Documentation inventory" and "Distillation candidates" tables in the digest are the authoritative list of docs to process (every row must end up either routed+distilled or explicitly classified `ignore` — none silently skipped). Delete `.agent-context/discovery-digest.md` at the end of the run (it is a transient scratch file, not project knowledge).
+
+Launch **7 parallel subagents** to scan the project. All subagents are **mandatory** — every one MUST execute, none may be skipped. Running them in parallel maximizes speed.
 
 #### Subagent 1: Documentation & Knowledge Scanner
 
@@ -668,17 +834,34 @@ Check for existing skills infrastructure:
 
 Output: whether skills-lock exists, list of existing skills.
 
+#### Subagent 7: Project Specifics & Complexity
+
+This subagent exists to capture what the others miss: **non-obvious peculiarities, hard-won constraints, and the complex subsystems a future task will repeatedly need.** Read the "Distillation candidates" from the digest (the heavy design/spec/architecture docs) plus any in-code signals, and surface:
+
+- **Hard invariants / gotchas** — determinism requirements, integer-only math, custom PRNG, idempotency keys, re-simulation/anti-cheat rules, ordering constraints, security boundaries. Anything where "if you don't know this, you'll break it."
+- **Architecture decisions + rationale** — ADRs, "we chose X over Y because Z", explicit trade-offs.
+- **Complex recurring subsystems** — name each (e.g. combat engine, economy/balancing, procedural generation, auth/RLS) with a 1–2 line non-obvious model summary and the spec path.
+- **Domain glossary** — project-specific terms a newcomer/agent wouldn't infer from code.
+- **Frequently-needed references** — the docs that will be opened again and again for a whole class of tasks.
+
+For each finding output: `{ "kind": "invariant|decision|subsystem|glossary|reference", "summary": "<1-2 lines, non-obvious only>", "source": "<doc path>", "target": "memory/lessons.md|decisions.json|memory/<domain>.md|skills/<name>/SKILL.md" }`.
+
+Apply the **discoverability filter**: skip anything an agent could read straight from the code. Only capture what must be told. These findings feed the **Distillation** step — they are the primary mechanism for getting Besonderheiten and complex topics into task-routed memory.
+
 #### Merge Results
 
 Collect all subagent outputs. Document each finding with its target layer:
 
-| Finding type             | Document in                       |
-| ------------------------ | --------------------------------- |
-| Project name, stack      | `layer1-bootstrap.md`             |
-| Docker, domains          | `layer1-bootstrap.md`             |
-| Conventions, CI, testing | `layer2-project-core.md`          |
-| Skills, task routing     | `layer3-guidebook.md`             |
-| Existing doc content     | Input for Phase S3 classification |
+| Finding type                              | Document in                       |
+| ----------------------------------------- | --------------------------------- |
+| Project name, stack                       | `layer1-bootstrap.md`             |
+| Docker, domains                           | `layer1-bootstrap.md`             |
+| Conventions, CI, testing                  | `layer2-project-core.md`          |
+| Skills, task routing                      | `layer3-guidebook.md`             |
+| Invariant / gotcha (Subagent 7)           | `memory/lessons.md`               |
+| Architecture decision (Subagent 7)        | `decisions.json`                  |
+| Complex subsystem / glossary (Subagent 7) | `memory/<domain>.md` (or skill)   |
+| Existing doc content                      | Input for Phase S3 classification |
 
 Only ask the user for values that no subagent could auto-detect.
 

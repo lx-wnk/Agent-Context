@@ -6,6 +6,7 @@
 ## Skill Lookup
 
 - Before starting any task, check `.agent-context/skills/index.md` for a matching skill — read and follow it
+- Skills follow the Agent Skills standard (`skills/<name>/SKILL.md`, `name` + `description` frontmatter; legacy flat `skills/<name>.md` still valid) — see https://github.com/lx-wnk/Agent-Context/blob/main/docs/skill-standard.md when authoring
 
 ## Memory Update Rules
 
@@ -14,15 +15,12 @@
 - Memory stubs: max 15 lines, one per domain
 - Heavy references (>30 lines): create a skill in `.agent-context/skills/` with YAML trigger frontmatter
 - Each fact lives in exactly ONE place. No duplicates across files.
+- When a `memory/<domain>.md` stub reaches 15 lines, expand it into a directory — see `.agent-context/memory-maintenance.md` (Domain Expansion)
 
-### Domain Expansion
+### Memory Decay
 
-When a `memory/<domain>.md` stub reaches 15 lines, expand it into a directory:
-
-1. Create `memory/<domain>/` with topical sub-files (e.g., `memory/cart/pricing.md`, `memory/cart/checkout-flow.md`)
-2. Replace the original `memory/<domain>.md` content with an index that lists sub-files and their purpose
-3. Each sub-file follows the same rules: date required, max 30 lines — beyond that, graduate to a skill
-4. Update `memory/index.md` to reflect the expansion
+- Dated entries expire when `today > date + ttl`; `ttl:infinite` never expires (architecture/security)
+- Archive expired entries (never delete): `bash .agent-context/bin/memory-prune.sh` (dry-run) then `--apply` → moves them to `memory/archive/<ISO-week>.md`
 
 ## Routing New Knowledge
 
@@ -62,74 +60,8 @@ If you're unsure whether something is worth saving, ask: "Would a future session
 - **During session**: triggers are handled inline (see directive above)
 - **Session end**: review whether any triggers fired but were missed and persist them. Cross-session activity history lives in Git history and external session logs (e.g., Obsidian) — not in repo memory
 - **After 3+ memory updates**: scan for contradictions with existing entries before closing
-
-### Knowledge Map Triggers
-
-Update `.agent-context/knowledge-map.md` immediately when any of the following occurs — same non-negotiable rule as all other triggers (next action after discovery, before continuing):
-
-| Event                                              | Action                                                   |
-| -------------------------------------------------- | -------------------------------------------------------- |
-| External file changed (SHA256 mismatch detected)   | Update SHA256 + Last Verified in Knowledge Sources table |
-| New structured knowledge file or folder discovered | Add entry to Knowledge Sources + add row to Task Routing |
-| Task type used but no routing row exists for it    | Add routing row to Task Routing based on current task    |
-| Knowledge source no longer exists                  | Remove entry from Knowledge Sources table                |
-
-### Lesson Graduation
-
-When a lesson has proven itself (applied 3+ times, never questioned), suggest promoting it:
-
-- Project-wide convention → move to `layer2-project-core.md`
-- Domain-specific pattern → keep in `memory/<domain>.md` (or sub-file if domain is expanded)
-- Remove the original entry from `memory/lessons.md` after promotion
+- **Knowledge source changed / lesson proven 3+ times**: update `knowledge-map.md` / promote the lesson — procedures in `.agent-context/memory-maintenance.md` (Knowledge Map Triggers, Lesson Graduation)
 
 ## Delegating to Specialist Agents
 
-When delegating a task to a specialist sub-agent, follow this context injection protocol:
-
-### Context Injection
-
-Specialist agents have no direct access to `.agent-context/`. Inject the context they need via the delegating prompt:
-
-```
-You are being dispatched as [agent-name].
-
-## Project Context
-
-[Paste relevant snippets from layer1, layer2, and decisions.json here]
-
-## Task
-
-[Specific task description]
-```
-
-Inject only what is relevant to the task — not all layers wholesale.
-
-### Available Specialist Agents (requires `agents@lx-wnk` plugin)
-
-> **Optional.** The following table only applies if the `agents@lx-wnk` plugin is installed.
-> If agents are not available, skip this table and delegate to general-purpose sub-agents instead.
-
-| Agent          | Inject                                         |
-| -------------- | ---------------------------------------------- |
-| `ac-backend`   | layer1 stack, layer2 rules, relevant decisions |
-| `ac-frontend`  | layer1 stack, layer2 CSS/component conventions |
-| `ac-testing`   | layer2 test conventions and QA command         |
-| `ac-architect` | layer2 conventions, relevant decisions         |
-| `ac-review`    | layer2 coding conventions                      |
-| `ac-concept`   | layer1 stack, relevant constraints             |
-| `ac-chrome`    | layer1 local domains and ports                 |
-| Others         | task description alone is sufficient           |
-
-### Persist Block Handling
-
-Some agents return a `persist:` block when they produce knowledge that should be saved. Handle it as follows:
-
-**type: adr:**
-
-- Append a new entry to `.agent-context/decisions.json` using the title, context, decision, and consequences fields
-
-**type: memory-update:**
-
-- Append the content to the specified file under `.agent-context/` (e.g., `memory/lessons.md`)
-
-The persist block is a request, not an automatic write. Review it before persisting.
+When delegating a task to a sub-agent, FIRST read `.agent-context/agent-delegation.md` — it holds the context-injection protocol, the specialist-agent table, and `persist:` block handling. Sub-agents cannot see `.agent-context/`, so inject only the relevant layer1/layer2/decisions snippets into the delegating prompt.

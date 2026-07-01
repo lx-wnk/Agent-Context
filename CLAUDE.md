@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Agent-Context is a layered, agent-agnostic context architecture for AI coding agents. All layers (0-3) load at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~200-250 lines. Detailed reference (skills, memory files) is pulled on-demand based on task keywords.
+Agent-Context is a layered, agent-agnostic context architecture for AI coding agents. All layers (0-3) load at startup via `@`-includes in `AGENTS.md`, keeping the always-on baseline at ~150-200 effective instruction lines (enforced by `tests/check-token-budget.sh`). Detailed reference (skills, memory files, delegation/memory-maintenance procedures) is pulled on-demand based on task keywords.
 
 This repository contains the framework itself: shared context files, templates, setup/update prompts, and documentation. It is **not** a runtime application — it's a template system installed into other projects via `.prompts/setup-prompt.md`.
 
@@ -27,9 +27,11 @@ npm test
 
 Two categories of files, critical to understand before editing:
 
-- **Shared files** (`context/`): Overwritten on every auto-update in target projects. Changes here propagate to all installations.
-- **Template files** (`templates/`): Copied once during setup, never overwritten. These become project-owned files.
-- **Test files** (`tests/`): CI tests verifying `install.sh` behavior and template coverage. Not installed into target projects.
+- **Shared files** (`context/`, incl. `context/bin/`, `context/hooks/`, `context/skills/`, and `context/commands/`): Overwritten on every auto-update in target projects. Changes here propagate to all installations. Includes the `discovery-map` skill, the `check-map-budget.sh` cap validator, and the Claude Code slash commands in `context/commands/` (`discover`, `memory-review`, `decision-review` → `.claude/commands/`) — thin wrappers that invoke the matching skill/review prompt.
+- **Template files** (`templates/`): Copied once during setup, never overwritten. These become project-owned files (incl. `hooks.conf`, `budget.conf`).
+- **Test files** (`tests/`): CI tests verifying `install.sh` behavior, template coverage, token budget, memory-prune, hooks, and an offline install smoke test (`check-install-smoke.sh`, derived from the setup-prompt download table). Not installed into target projects.
+
+When adding a new **shared** file, wire it into `.prompts/setup-prompt.md` Step 2 (download list + parallel curl block). When adding a new **core template**, update `check_critical_templates()` in `install.sh`. Both are guarded by `tests/`.
 
 ### Layer System
 
@@ -57,5 +59,7 @@ Before declaring any task complete, verify `README.md` is still accurate: instal
 - **Formatting**: Prettier with `printWidth: 120`, 2-space indent, `proseWrap: preserve`
 - **Context minimization**: Only include information not discoverable from source code. Based on ETH Zurich (2026) research showing auto-generated context reduces agent performance ~3%.
 - **Memory routing**: General convention → layer 2, domain fact → `memory/<domain>.md`, heavy reference (>30 lines) → `skills/`, gotcha → `memory/lessons.md`, decision → `decisions.json`
+- **Discovery map**: the `discovery-map` skill builds an on-demand `map.json` + `memory/<node>.md` notes; pulled lazily, never `@`-included; size-capped by `check-map-budget.sh` (caps in `budget.conf`). Invoke via the `/discover` slash command (Claude Code) or a natural-language trigger ("discover the project") for other agents — both run interactively, where fan-out works. The headless installer never builds the map.
+- **Install flags**: `install.sh --force` = full from-scratch rediscovery (re-scan at SETUP depth, merge non-destructively); `--discover` = after the run, check for a map and hand off to interactive `/discover` if absent (does not build it headlessly); `--local-source <path>` (env `AGENT_CONTEXT_SOURCE`) = install from a local clone instead of downloading.
 - **PR template**: `.github/pull_request_template.md` — Summary, Changes, Notes sections
 - **Documentation language**: `docs/best-practices-agent-creation.md` is in German

@@ -117,29 +117,50 @@ main() {
     ALLOWED_TOOLS="Edit,Write,Read,Bash,Glob,Grep,WebFetch,WebSearch,Agent"
     LOG=".agent-context/setup.log"
 
-    # --local <path>: use a local prompt file instead of the remote URL (for testing)
+    # --local-source <path> (or env AGENT_CONTEXT_SOURCE): install every shared file and template from
+    #   a local clone instead of downloading from GitHub. Implies a forced run. For local dev/testing.
     # --ai-dirs=<dirs>: comma-separated extra AI-doc dirs to treat as migratable (e.g. --ai-dirs=".cursor,.ai-custom")
-    # --force: skip the up-to-date short-circuit and run the full update flow
+    # --force: full from-scratch rediscovery — re-scan the whole codebase at SETUP depth even on an
+    #   existing install, merging into existing knowledge without deleting still-valid facts
+    # --discover: after install, check for a discovery map and, if absent, hand off to the interactive
+    #   /discover command (a rich map needs fan-out discovery, which is not run by this headless installer)
     PROMPT_INSTRUCTION="Fetch $PROMPT_URL and follow its instructions exactly."
-    if [ "${1:-}" = "--local" ]; then
-        AGENT_CONTEXT_PROMPT="${2:-}"
+    LOCAL_PROMPT=""
+    if [ "${1:-}" = "--local-source" ]; then
+        AGENT_CONTEXT_SOURCE="${2:-}"
     fi
-    if [ -n "${AGENT_CONTEXT_PROMPT:-}" ]; then
-        if [ ! -f "$AGENT_CONTEXT_PROMPT" ]; then
-            echo "Error: AGENT_CONTEXT_PROMPT file not found: $AGENT_CONTEXT_PROMPT" >&2
+
+    # Local-source mode: validate the clone, force a run, and read its prompt locally.
+    if [ -n "${AGENT_CONTEXT_SOURCE:-}" ]; then
+        if [ ! -d "$AGENT_CONTEXT_SOURCE" ]; then
+            echo "Error: AGENT_CONTEXT_SOURCE directory not found: $AGENT_CONTEXT_SOURCE" >&2
             exit 1
         fi
-        _abs_prompt=$(realpath "$AGENT_CONTEXT_PROMPT" 2>/dev/null \
-            || (cd "$(dirname "$AGENT_CONTEXT_PROMPT")" && echo "$(pwd)/$(basename "$AGENT_CONTEXT_PROMPT")") 2>/dev/null \
-            || echo "$AGENT_CONTEXT_PROMPT")
-        PROMPT_INSTRUCTION="Read $_abs_prompt and follow its instructions exactly."
+        _abs_source=$(realpath "$AGENT_CONTEXT_SOURCE" 2>/dev/null || (cd "$AGENT_CONTEXT_SOURCE" && pwd))
+        if [ ! -f "$_abs_source/.prompts/setup-prompt.md" ]; then
+            echo "Error: not an Agent-Context clone (no .prompts/setup-prompt.md): $_abs_source" >&2
+            exit 1
+        fi
+        LOCAL_PROMPT="$_abs_source/.prompts/setup-prompt.md"
+        FORCE=1
+    fi
+
+    if [ -n "$LOCAL_PROMPT" ]; then
+        PROMPT_INSTRUCTION="Read $LOCAL_PROMPT and follow its instructions exactly."
+    fi
+
+    # Tell the agent to source everything locally instead of downloading.
+    if [ -n "${AGENT_CONTEXT_SOURCE:-}" ]; then
+        PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION LOCAL SOURCE MODE: do NOT download from GitHub. Install every shared file (Step 2) and every template (Step 3) by copying from the local clone at $_abs_source using the same relative paths (e.g. copy $_abs_source/context/bin/check-map-budget.sh to .agent-context/bin/check-map-budget.sh). Skip the remote version lookup and all <tag> URL building; take the target version from $_abs_source/CHANGELOG.md (latest entry)."
     fi
 
     AI_DIRS=""
+    DISCOVER=0
     for arg in "$@"; do
         case "$arg" in
             --ai-dirs=*) AI_DIRS="${arg#--ai-dirs=}" ;;
             --force) FORCE=1 ;;
+            --discover) DISCOVER=1 ;;
         esac
     done
 
@@ -148,8 +169,9 @@ main() {
     fi
 
     if [ "$FORCE" -eq 1 ]; then
-        PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION Force flag is set: skip any up-to-date version checks and perform a full update regardless of current version."
+        PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION FORCE / FULL REDISCOVERY: skip all up-to-date checks and, even on an existing install, run a complete from-scratch discovery — re-scan the entire codebase and rebuild the knowledge inventory at SETUP depth, do not merely reconcile deltas. Merge into the existing memory/decisions/knowledge-map; never delete a still-valid fact (move it, don't lose it)."
     fi
+
 
     # Fast-path: skip Claude spawn if already up-to-date.
     # Guards: version match alone is not proof of a complete installation — a CLAUDE.md with
@@ -254,7 +276,20 @@ main() {
 
     if ! grep -q "^\[agent-context\]" "$LOG" 2>/dev/null; then
         echo "Warning: no progress was logged — Claude may have exited early or encountered an error."
-        echo "Set AGENT_CONTEXT_PROMPT to a local prompt file, or check that 'claude' is authenticated."
+        echo "Use --local-source <clone> for a local install, or check that 'claude' is authenticated."
+    fi
+
+    # --discover is a hand-off, not a headless build: a rich map needs fan-out discovery, which runs
+    # reliably only in an interactive session. Report the truth instead of faking progress.
+    if [ "$DISCOVER" -eq 1 ]; then
+        if [ -f ".agent-context/map.json" ]; then
+            echo "Discovery map present: .agent-context/map.json"
+        else
+            echo ""
+            echo "No discovery map was built — a rich map needs fan-out discovery, which runs reliably"
+            echo "only in an interactive agent session, not this one-shot installer."
+            echo "  -> Open this project in Claude Code and run:  /discover"
+        fi
     fi
 
     rm -f "$LOG"
