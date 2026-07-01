@@ -4,6 +4,16 @@ A project-based setup and memory-handling system for Claude Code. Optimized for 
 
 Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides a layered architecture: all layers (0-3) are loaded at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~150-200 lines. Detailed reference (skills, memory files) is pulled in on-demand based on the task at hand. Auto-updates keep shared infrastructure current across all your projects.
 
+## Contents
+
+- [The Problem](#the-problem)
+- [The Solution](#the-solution)
+- [Architecture](#architecture)
+- [Installation](#installation)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
+
 ## The Problem
 
 Claude Code loads project instructions into its context window every conversation. Most projects dump everything into a single `CLAUDE.md`, resulting in:
@@ -57,84 +67,7 @@ templates/*                       →──    AGENTS.md, layer1-3, memory/ (pro
 | 2       | `.agent-context/layer2-project-core.md`   | Dev rules + `@` ref to base       | Project          |
 | 3       | `.agent-context/layer3-guidebook.md`      | Task routing, skills, memory      | Project          |
 
-## Why `.agent-context/` instead of `.claude/rules/`?
-
-|                     | `.claude/rules/`            | `.agent-context/`                   |
-| ------------------- | --------------------------- | ----------------------------------- |
-| **Loading**         | Always loaded (all files)   | Layers at startup, skills on-demand |
-| **Path globs**      | Yes (Claude Code native)    | No (agent reads guidebook)          |
-| **Discoverability** | Hidden directory convention | Explicit, self-documenting          |
-
-The guidebook pattern (layer 3) replaces path-based auto-loading with task-based routing. `.claude/CLAUDE.md` serves as a minimal bootstrap pointer to `AGENTS.md`.
-
-## How It Works
-
-### Initial Setup (one-time)
-
-Paste [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) into Claude Code. It:
-
-1. Downloads the latest release from the GitHub Releases API
-2. Copies **shared files** from `context/` → `.agent-context/` (overwritable)
-3. Creates **project-owned files** from `templates/` → `AGENTS.md`, layers 1-3, memory stubs (never overwritten)
-4. Writes the release version to `.agent-context/.agent-context-version`
-5. Discovers your tech stack and fills in the TODO placeholders — and **distills** the non-obvious gold from your docs (hard invariants, architecture decisions, complex subsystems) into `memory/`, `decisions.json`, and skills, so it loads by task routing rather than sitting unread. A deterministic discovery digest (`bin/discovery-digest.sh`) orients the scan so no doc is missed. Memory stubs that stay empty after setup are expected — runtime-accumulated knowledge (lessons, preferences) fills as you work.
-
-### Every Session (automatic)
-
-Updates can be triggered manually by fetching the setup prompt from remote and following its instructions:
-
-1. Reads `.agent-context/.agent-context-version` (local) and fetches the latest release tag from the GitHub API (remote, cached for 1 hour)
-2. **If already up-to-date and templates intact:** exits immediately — no Claude spawn needed
-3. **If versions differ:** spawns Claude, which downloads shared files in parallel, writes the new version
-4. **If API fails:** falls back to the cached version; warns if the cache is stale
-
-### What the agent sees at runtime
-
-```
-AGENTS.md                               ← Agent reads this first
-  @.agent-context/agent-startup.md      ← Version check, update info
-  @.agent-context/layer0-agent-workflow  ← Memory routing, skill lookup
-  @.agent-context/layer1-bootstrap      ← Tech stack, Docker, domains
-  @.agent-context/layer2-project-core   ← Your conventions + critical rules
-  @.agent-context/layer3-guidebook      ← Task routing → memory/skills on-demand
-```
-
-Total baseline: ~150-200 lines. Heavy reference (skills, memory) is loaded only when the task matches.
-
-### Read flow: always-on vs on-demand
-
-The baseline (layers + indexes) loads once at session start. Everything heavy — skill bodies, domain
-memory, external docs, the discovery map — is pulled only when a task's routing calls for it, so context
-stays small no matter how large the project's knowledge grows.
-
-```mermaid
-flowchart TD
-    Start([Session start]) --> AG[AGENTS.md]
-    AG -->|"@-includes"| Base["Always-on baseline (~150–200 lines):<br/>agent-startup · layer0 · layer1 · layer2 · layer3<br/>· knowledge-map · skills index"]
-    Base --> Task{Task begins}
-    Task --> Route["Layer 0 / Layer 3 routing:<br/>what does THIS task need?"]
-
-    Route -->|skill trigger| Skill["skills/&lt;name&gt;.md"]
-    Route -->|domain keyword| Mem["memory/&lt;domain&gt;.md"]
-    Route -->|external source| Doc["doc via knowledge-map"]
-    Route -->|unfamiliar subsystem| Map["map.json → 1–2 nodes → memory/&lt;node&gt;.md"]
-
-    Skill --> Act([Act with just-enough context])
-    Mem --> Act
-    Doc --> Act
-    Map --> Act
-
-    subgraph OnDemand ["pulled on demand · never at startup"]
-        Skill
-        Mem
-        Doc
-        Map
-    end
-```
-
-Only the **indexes** (`knowledge-map.md`, `skills/index.md`) sit in the baseline; the **bodies** they point
-to are read lazily. The discovery map is the same pattern one level deeper: read the small `map.json`, then
-open only the 1–2 node notes the task needs.
+See [Architecture](docs/architecture.md) for the full mental model, layer loading, and runtime read flow.
 
 ## Installation
 
@@ -146,269 +79,23 @@ Run this one-liner from your project root:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/install.sh)"
 ```
 
-The script checks whether your project is already up-to-date (TTL-cached, 1 hour). If an update is needed, it spawns Claude headlessly, shows live progress in your terminal, and exits cleanly when done:
-
-```
-Starting agent-context setup in /your/project...
-...............
-[agent-context] Mode: UPDATE (0.3.0 → 0.5.0)
-[agent-context] Step 1/5: Checking version...
-....
-[agent-context] Step 2/5: Installing shared files...
-...
-[agent-context] Done.
-```
-
-Claude analyzes existing documentation, applies quality filters, discovers your tech stack, and creates the architecture. Restart your session afterwards — the new configuration takes effect on the next start.
-
-Pass `--force` for a **full from-scratch rediscovery**: it re-scans the entire codebase at setup depth even on an existing install and merges into your knowledge without deleting still-valid facts (a normal update only reconciles deltas). Pass `--discover` to check for a [discovery map](#on-demand-discovery-map) after the run and, if none exists, point you to the interactive `/discover` command — the headless installer does not build the map itself (a rich map needs fan-out discovery, which runs reliably only in an interactive session).
-
 **Requires:** [Claude Code CLI](https://claude.ai/code) installed and authenticated.
 
-### Alternative: paste into a session
+See [what gets created](docs/architecture.md#what-gets-created) and [alternative install](docs/architecture.md#alternative-paste-into-a-session).
 
-Paste the contents of [`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) directly into a Claude Code session if you prefer to confirm each step interactively.
+## Documentation
 
-### What Gets Created
+- [Architecture](docs/architecture.md) — layer system, repo-to-project mapping, how it works, runtime read flow, repository structure
+- [Discovery Map](docs/discovery-map.md) — on-demand codebase discovery for large/unfamiliar projects
+- [Enforcement & Hygiene](docs/enforcement.md) — deterministic hooks, token budget, memory decay, portable skills, updates
+- [Key Principles](docs/principles.md) — the five design principles behind this architecture
+- [Research & References](docs/references.md) — papers and articles the design is based on
+- [Skill Standard](docs/skill-standard.md) — the open Agent Skills standard used by `.agent-context/skills/`
+- [Contributing](CONTRIBUTING.md) — dev setup, smoke tests, and the PR process
 
-```
-your-project/
-├── AGENTS.md                              ← Entry point
-├── .claude/CLAUDE.md                      ← Bootstrap pointer → @AGENTS.md
-├── .claude/settings.json                  ← Settings file (created if missing, never overwritten)
-└── .agent-context/
-    ├── agent-startup.md                   ← Startup info (shared)
-    ├── layer0-agent-workflow.md            ← Universal agent workflow (shared)
-    ├── base-principles.md                 ← Dev principles (shared)
-    ├── agent-delegation.md                ← Delegation protocol, on-demand (shared)
-    ├── memory-maintenance.md              ← Memory restructuring, on-demand (shared)
-    ├── layer1-bootstrap.md                ← Project identity, Docker, domains
-    ├── layer2-project-core.md             ← Dev principles + critical rules
-    ├── layer3-guidebook.md                ← Task routing, skills, memory
-    ├── .agent-context-version              ← Installed version (written by setup/update)
-    ├── decisions.json                     ← Architectural decisions (structured)
-    ├── knowledge-map.md                   ← Universal knowledge pointer index (auto-maintained)
-    ├── memory-review-prompt.md            ← Memory review prompt (shared)
-    ├── decision-review-prompt.md          ← Decision review prompt (shared)
-    ├── hooks.conf                         ← Hook toggles + toolchain (project-owned)
-    ├── budget.conf                        ← Token-budget config (project-owned)
-    ├── bin/                               ← Shared tooling (auto-updated)
-    │   ├── check-token-budget.sh          ← Always-on budget audit
-    │   ├── memory-prune.sh                ← Memory decay / archive
-    │   ├── discovery-digest.sh            ← Deterministic discovery inventory
-    │   └── check-map-budget.sh            ← Discovery-map cap gate
-    ├── hooks/                             ← Shared hook scripts (auto-updated)
-    │   ├── lib.sh
-    │   ├── pre-protect-secrets.sh          ← PreToolUse: block secret writes
-    │   ├── post-format.sh                  ← PostToolUse: auto-format
-    │   ├── stop-test-gate.sh               ← Stop: test gate
-    │   └── subagent-scope.sh               ← SubagentStop: scope check
-    ├── skills/
-    │   ├── index.md                       ← Skill registry (on-demand)
-    │   └── discovery-map.md               ← On-demand discovery skill
-    └── memory/
-        ├── decisions.md                   ← Legacy stub (migrated to decisions.json)
-        ├── lessons.md                     ← Hard-won lessons
-        ├── people.md                      ← Team members & stakeholders
-        ├── preferences.md                 ← Agent behavior preferences
-        ├── todo.md                        ← Active task plan (local-only, gitignored)
-        ├── user.md                        ← Primary user profile
-        └── index.md                       ← Memory file catalog
-```
+## Contributing
 
-## Repository Structure
-
-```
-agent-context/
-├── context/           # Shared agent context (copied to .agent-context/)
-│   ├── bin/           #   Shared tooling: token-budget gate, memory-prune
-│   └── hooks/         #   Shared hook scripts (lib + 4 hooks)
-├── templates/         # Project setup templates (copied once, never overwritten)
-├── tests/             # Pure-bash tests (install, coverage, budget, prune, hooks)
-├── .github/workflows/ # CI: prettier, shell tests, token-budget gate
-├── plugins.json       # Base plugin set for Claude Code
-├── example.md         # Annotated example (Shopware 6 project)
-├── install.sh         # Installer script (curl one-liner entry point)
-├── .prompts/          # Prompt files for Claude (setup + review instructions)
-└── README.md
-```
-
-## Development & Contributing
-
-### Offline install smoke test (no network, no release, no agent)
-
-The fastest way to verify your changes install cleanly. It derives the shared-file list from the
-`setup-prompt.md` download table, copies everything from your working tree into a throwaway target,
-and runs the installed gates — so it also catches a new shared file you forgot to wire into the table:
-
-```bash
-bash tests/check-install-smoke.sh            # temp dir, auto-removed
-bash tests/check-install-smoke.sh /tmp/ac    # keep the installed tree to inspect it
-```
-
-This runs as part of `npm test`, so CI guards it on every change.
-
-### Full agent dry-run in another project
-
-The smoke test above runs in isolation. To see how Agent-Context actually installs into a **real
-codebase** — real files to discover, an existing `.claude/` to merge, layers filled from your stack —
-run the installer inside that project with `--local-source` pointing at your clone. It installs every
-shared file and template **from your local working tree** instead of downloading (no release tag, no
-ref pinning), uses your branch's prompt, and forces a run (bypassing the "already up to date"
-short-circuit). `install.sh` installs into the current directory, so `cd` into the target first:
-
-```bash
-cd ~/code/my-other-project
-bash ~/code/Agent-Context/install.sh --local-source ~/code/Agent-Context
-```
-
-`--local-source <path>` (or the env var `AGENT_CONTEXT_SOURCE=<path>`) is the one knob — it implies the
-local prompt and a forced run. Replace the example paths with your clone and target project. For an
-already-released version, drop the flag and use the normal [install one-liner](#installation).
-
-## Agents
-
-Specialist agents (`ac-*`) are distributed as the [`agents@lx-wnk`](https://github.com/lx-wnk/agents) plugin — installed automatically via `plugins.json`. See the plugin repo for the full agent list and documentation.
-
-## Example
-
-See [`example.md`](example.md) for a complete annotated walkthrough of a Shopware 6 project. Each file is described in prose — shared files link back to `context/`, project-owned files explain what they contain and why.
-
-## On-demand Discovery Map
-
-For large or unfamiliar codebases, build a discovery map. In Claude Code, type `/discover`
-(installed as a slash command at `.claude/commands/discover.md`); with any other agent, just
-ask to "discover the project" and the `discovery-map` skill is loaded via skill routing. (Running
-`install.sh --discover` does not build the map itself — it just points you here afterwards, because
-fan-out discovery needs an interactive session.) Fan-out discovery subagents inspect
-each subsystem and record **meaningful, non-obvious things** — gotchas, why-decisions, surprising
-couplings — into a tiny `map.json` (navigation) plus curated `memory/<node>.md` notes (depth).
-Re-runs are incremental: only subsystems whose files changed (by git watermark) are re-discovered.
-
-The map is **pulled on demand, never loaded at startup**. The consuming agent reads the
-small index, picks the 1–2 relevant nodes, and reads only those notes — so even a
-10k-file repo costs the always-on baseline nothing.
-
-### How it differs from auto-graph tools
-
-|              | Auto-graph tools (e.g. Graphify)                 | Agent-Context discovery map                                     |
-| ------------ | ------------------------------------------------ | --------------------------------------------------------------- |
-| Loading      | Graph available, can grow unwieldy (>5000 nodes) | On-demand only; top index byte-capped in CI                     |
-| Content      | Mechanical symbol/call graph from parsers        | Agent judgment — non-obvious facts, not what's greppable        |
-| Scaling      | Graph grows with the codebase                    | Top index stays flat; depth lazy underneath, hierarchical split |
-| Cost control | Re-extraction, external API for non-code         | Incremental by git watermark; no extra runtime deps             |
-| Enforcement  | —                                                | Caps in `budget.conf`, enforced by `check-map-budget.sh` + CI   |
-
-## Key Principles
-
-### 1. "Can the agent discover this by reading the code?"
-
-Based on the [ETH Zurich study (2026)](https://arxiv.org/abs/2602.11988): auto-generated context files tend to **reduce** task success rates while increasing token cost by over 20%. Only include information that is **not discoverable** from source code.
-
-**Keep:** Gotchas, non-linter conventions, architecture decisions, external system references, CI workflows. **Remove:** Directory trees, entity fields, route tables, service registrations, dependency lists.
-
-### 2. Narrowest fitting scope
-
-Route information to the most specific level possible:
-
-| Scope                       | Target                   |
-| --------------------------- | ------------------------ |
-| General philosophy          | `layer2-project-core.md` |
-| Domain convention           | `memory/<domain>.md`     |
-| Heavy reference (>30 lines) | `skills/<reference>.md`  |
-| Gotcha / lesson             | `memory/lessons.md`      |
-
-A PHP convention loaded during a CSS fix is wasted context.
-
-### 3. Stubs + Skills pattern
-
-Memory files are lightweight stubs (~10 lines) with quick facts. Full reference lives in skills, loaded only when trigger keywords match. This achieves near-zero baseline cost for heavy documentation.
-
-### 4. Full knowledge re-sync on every update
-
-Updates are not file patches. Every `setup-prompt.md` run (SETUP or UPDATE) performs a full knowledge re-synchronization: scan all knowledge sources (agent-context, source code, docs, architecture files), build a consolidated fact inventory, route facts to optimal targets, and verify global integrity. No fact is lost — it may move, but it must be traceable somewhere.
-
-### 5. Self-maintaining knowledge map
-
-`knowledge-map.md` is the single routing index for all project knowledge — both internal (agent-context) and external (docs, architecture files, API specs). Agents update it immediately when sources change, following the same non-negotiable rule as `lessons.md` updates. The map always reflects current project reality.
-
-## Enforcement & Hygiene
-
-The layered context is advisory — these add deterministic, OS-level guardrails on top. All are optional, project-overridable, and never overwrite project-owned files.
-
-### Deterministic Hooks
-
-Four Claude Code hooks ship as shared scripts in `.agent-context/hooks/`, governed by the project-owned `.agent-context/hooks.conf`:
-
-| Hook                     | Event        | Default | What it does                                                      |
-| ------------------------ | ------------ | ------- | ----------------------------------------------------------------- |
-| `pre-protect-secrets.sh` | PreToolUse   | on\*    | Blocks writes to `.env`/secret files (exit 2) — `PROTECTED_GLOBS` |
-| `post-format.sh`         | PostToolUse  | on\*    | Runs `FORMAT_CMD` on the edited file                              |
-| `stop-test-gate.sh`      | Stop         | warn    | Runs `TEST_CMD`; `warn` reports failures, `block` forces a fix    |
-| `subagent-scope.sh`      | SubagentStop | off     | Flags a subagent that wrote outside `ALLOWED_SUBAGENT_PATHS`      |
-
-\* Per-hook flags only take effect once the master switch is on. **`HOOKS_ENABLED=0` by default** — nothing fires until you opt in. To enable: set `HOOKS_ENABLED=1` in `.agent-context/hooks.conf` and fill in `FORMAT_CMD` / `TEST_CMD` for your toolchain. The scripts read the conf for all behavior, so you customize without editing shared code; for deeper changes, point `.claude/settings.json` at your own script. Hooks need no extra dependencies (`jq` is used when present, with a pure-shell fallback).
-
-### Token Budget
-
-`.agent-context/bin/check-token-budget.sh` counts the **effective instruction lines** of the always-on closure (the files `@`-included from `AGENTS.md`) and fails if they exceed `MAX_EFFECTIVE_LINES` in `budget.conf` (default 200). The repo's own CI (`.github/workflows/ci.yml`) enforces a tighter limit on the shared baseline so a release can't silently bloat what every install loads. Run it yourself any time:
-
-```bash
-bash .agent-context/bin/check-token-budget.sh
-```
-
-### Memory Decay
-
-Dated memory entries carry a TTL (`(2026-01-15) ttl:90d`). `.agent-context/bin/memory-prune.sh` archives expired entries into `memory/archive/<ISO-week>.md` — dry-run by default, never deletes:
-
-```bash
-bash .agent-context/bin/memory-prune.sh           # preview what would move
-bash .agent-context/bin/memory-prune.sh --apply   # archive expired entries
-```
-
-`ttl:infinite` (architecture/security) never expires. **When does memory go stale?** A lesson tagged `ttl:90d` is considered stale 90 days after its date; gotchas/quirks default to 90d, sprint-specific notes to 30d, and durable architecture/security facts to `infinite`. Stale context actively misleads — pruning keeps the live set trustworthy while preserving history in the archive.
-
-### Portable Skills
-
-Skills follow the open [Agent Skills standard](docs/skill-standard.md) (`skills/<name>/SKILL.md` with `name` + `description` frontmatter), making `.agent-context/skills/` portable across Claude Code, Codex, Cursor, and Gemini. Legacy flat `skills/<name>.md` files remain valid.
-
-## Updates
-
-After creating a [GitHub Release](https://github.com/lx-wnk/Agent-Context/releases), projects update by re-running the `install.sh` one-liner. The script compares the installed version against the latest release (GitHub Releases API, TTL-cached for 1 hour) — if already up-to-date, it exits immediately without spawning Claude. If a new version is available, Claude downloads the shared files in parallel, overwrites them, and runs a full knowledge re-synchronization: scanning all project knowledge sources, routing new facts to optimal targets, and verifying nothing was lost. Project-owned files receive improvements additively; content is never deleted. If the API is unreachable, the installer falls back to the cached version.
-
-## Research & References
-
-### Core Papers
-
-- [ETH Zurich: Evaluating AGENTS.md (arxiv 2602.11988)](https://arxiv.org/abs/2602.11988) — Empirical evaluation of context files across coding agents; finds auto-generated context tends to reduce task success rates while increasing token cost by 20%+
-- [Empirical Study of CLAUDE.md Files (arxiv 2509.14744)](https://arxiv.org/abs/2509.14744) — Analysis of 253 CLAUDE.md files across 242 repositories; validates layered hierarchy design; identifies dominant content categories (Build/Run, Implementation Details, Architecture)
-- [Lost in the Middle: How LLMs Use Long Contexts (arxiv 2307.03172)](https://arxiv.org/abs/2307.03172) — Foundational paper on U-shaped position bias; explains why critical constraints belong at the top of context files, not the middle
-- [Agentic Context Engineering (arxiv 2510.04618)](https://arxiv.org/abs/2510.04618) — Treats context as an evolving playbook refined through generation, reflection, and curation; directly relevant to the memory self-improvement loop
-- [Tokalator: Measuring Token Cost of Instruction Files (arxiv 2604.08290)](https://arxiv.org/abs/2604.08290) — Finds 21.2% of context tokens come from unintentionally-included files; a single instruction file adds ~4,200 tokens per prompt silently
-- [On the Impact of AGENTS.md Files (arxiv 2601.20404)](https://arxiv.org/abs/2601.20404) — Empirical measurement: AGENTS.md presence yields 16.58% median runtime reduction and ~20% output-token reduction when content is lean
-- [SSGM: Structured Memory Governance (arxiv 2603.11768)](https://arxiv.org/abs/2603.11768) — TTL-tiered memory with semantic relevance × time-decay scoring; basis for the TTL metadata system
-- [MemoryGraft: Persistent Memory Poisoning (arxiv 2512.16962)](https://arxiv.org/abs/2512.16962) — Poisoned skill/memory files can corrupt 87% of downstream agent decisions within 4 hours; motivates source attribution and trust scoring
-- [A-MemGuard: Consensus Validation Defense (OpenReview)](https://openreview.net/forum?id=fVxfCEv8xG) — Dual-memory + consensus validation cuts poisoning attack success by 95%+
-
-### Engineering & Best Practices
-
-- [Addy Osmani: Stop Using /init for AGENTS.md](https://addyosmani.com/blog/agents-md/) — The "discoverable?" filter for what belongs in context files
-- [Anthropic: Effective Context Engineering for AI Agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) — Authoritative guide on context design for agentic systems
-- [Anthropic: How We Built Our Multi-Agent Research System](https://www.anthropic.com/engineering/multi-agent-research-system) — Orchestrator/subagent patterns; multi-agent outperformed single-agent Claude Opus 4 by 90%+ on internal evals
-- [Anthropic: Effective Harnesses for Long-Running Agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) — Structured environments for multi-session tasks; relevant to setup/update prompt design
-- [Context Engineering for Coding Agents — Thoughtworks](https://martinfowler.com/articles/exploring-gen-ai/context-engineering-coding-agents.html) — Practical framing of context engineering for coding workflows (Birgitta Böckeler, published on martinfowler.com)
-- [Want better AI outputs? Try context engineering — GitHub Blog](https://github.blog/ai-and-ml/generative-ai/want-better-ai-outputs-try-context-engineering/) — Accessible overview of context engineering concepts
-- [llms.txt standard](https://llmstxt.org/) — Curated pointer-index file for LLM navigation of large doc sets without modification; basis for the knowledge-map.md pattern
-- [Terraform plan/apply](https://developer.hashicorp.com/terraform/cli/commands/plan) — Plan-before-execute UX pattern; basis for setup-plan.md and Ack/Nack flow
-- [Nx migrations.json](https://nx.dev/docs/reference/nx/migrations) — Persisted decision manifest for idempotent re-runs; basis for setup-decisions.json
-- [Copier: Template Updating](https://copier.readthedocs.io/en/stable/updating/) — Three-way merge approach for project-owned files (evaluated and adapted — conflict markers replaced with additive-only + integrity check)
-
-### Standards & Docs
-
-- [AGENTS.md specification](https://agents.md/) — Open standard for agent instructions, stewarded by the Agentic AI Foundation (Linux Foundation)
-- [Claude Code: Best Practices](https://code.claude.com/docs/en/best-practices)
-- [Claude Code: Skills](https://code.claude.com/docs/en/skills)
-- [Agent Creation Best Practices](docs/best-practices-agent-creation.md) — Comprehensive guide for creating custom agent configurations (German)
+Contributions are welcome. Run `npm test` and `npm run prettier` before opening a PR — see [CONTRIBUTING.md](CONTRIBUTING.md) for the full dev setup, smoke tests, and the PR template.
 
 ## License
 
