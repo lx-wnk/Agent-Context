@@ -98,6 +98,41 @@ else
     pass "--max overrides conf (fails at max 1)"
 fi
 
+# 11. Soft/hard caps: a 5-line file between a soft cap of 3 and a hard cap of 10 WARNS but passes.
+t=$(mk_tmp)
+printf 'a\nb\nc\nd\ne\n' > "$t/f.md"
+cat > "$t/soft.conf" <<EOF
+MAX_EFFECTIVE_LINES=3
+MAX_EFFECTIVE_LINES_HARD=10
+INCLUDE_FILES="$t/f.md"
+EOF
+err=$(bash "$ENGINE" --conf "$t/soft.conf" --quiet 2>&1 >/dev/null); code=$?
+{ [ "$code" -eq 0 ] && printf '%s' "$err" | grep -q "WARN"; } \
+    && pass "over soft but under hard → WARN + exit 0" || fail "soft warn band" "code=$code err=$err"
+
+# 12. Over the hard cap → exit 1.
+cat > "$t/hard.conf" <<EOF
+MAX_EFFECTIVE_LINES=2
+MAX_EFFECTIVE_LINES_HARD=4
+INCLUDE_FILES="$t/f.md"
+EOF
+if bash "$ENGINE" --conf "$t/hard.conf" --quiet >/dev/null 2>&1; then
+    fail "over hard cap → exit 1" "exited 0"
+else
+    pass "over hard cap → exit 1"
+fi
+
+# 13. Backward compatible: no hard cap set → hard defaults to soft (fails exactly at the soft limit).
+cat > "$t/nohard.conf" <<EOF
+MAX_EFFECTIVE_LINES=4
+INCLUDE_FILES="$t/f.md"
+EOF
+if bash "$ENGINE" --conf "$t/nohard.conf" --quiet >/dev/null 2>&1; then
+    fail "no hard cap → fails at soft limit" "exited 0 (5 lines over soft 4)"
+else
+    pass "no hard cap → hard defaults to soft (fails at soft limit)"
+fi
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))

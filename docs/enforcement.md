@@ -17,7 +17,7 @@ Four Claude Code hooks ship as shared scripts in `.agent-context/hooks/`, govern
 
 ## Token Budget
 
-`.agent-context/bin/check-token-budget.sh` counts the **effective instruction lines** of the always-on closure (the files `@`-included from `AGENTS.md`) and fails if they exceed `MAX_EFFECTIVE_LINES` in `budget.conf` (default 200). The repo's own CI (`.github/workflows/ci.yml`) enforces a tighter limit on the shared baseline so a release can't silently bloat what every install loads. Run it yourself any time:
+`.agent-context/bin/check-token-budget.sh` counts the **effective instruction lines** of the always-on closure (the files `@`-included from `AGENTS.md`). Two caps in `budget.conf`: over the **soft cap** `MAX_EFFECTIVE_LINES` (default 200) only warns — so a real project filling its layers isn't blocked at line 201 — while over the **hard cap** `MAX_EFFECTIVE_LINES_HARD` (default 250) fails. Removing the hard-cap line makes the soft cap a hard failure again. The repo's own CI (`.github/workflows/ci.yml`) enforces a tighter single limit on the shared baseline so a release can't silently bloat what every install loads. Run it yourself any time:
 
 ```bash
 bash .agent-context/bin/check-token-budget.sh
