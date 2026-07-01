@@ -2,9 +2,23 @@
 
 All notable changes to this project will be documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.8.0] - 2026-06-23
+## [0.8.1] - 2026-07-01
 
 ### Added
+
+- README status badges (license, latest release, CI status).
+
+### Docs
+
+- Completed the 0.8.0 changelog below to cover the on-demand discovery map, the installer/command UX, and the soft/hard budget cap.
+
+## [0.8.0] - 2026-07-01
+
+### Added
+
+- **On-demand discovery map** — `/discover` fans out discovery subagents that record meaningful, non-obvious facts per subsystem into a tiny `map.json` (navigation) plus curated `memory/<node>.md` notes. Incremental by git watermark, size-capped by the dependency-free `bin/check-map-budget.sh`, and never loaded into always-on context. Shipped as a portable skill plus a `.claude/commands/discover.md` slash command.
+- **Installer & command UX** — `install.sh --local-source <clone>` installs every shared file and template from a local checkout instead of downloading (implies a forced run); real Claude Code slash commands ship to `.claude/commands/` (`/discover`, `/memory-review`, `/decision-review`); `--force` now runs a full from-scratch rediscovery (merging non-destructively); `--discover` verifies the map and hands off to the interactive build. An offline install smoke test (`tests/check-install-smoke.sh`) derives its file list from the setup-prompt download table, catching a shared file that was never wired in.
+- **Soft + hard token-budget cap** — `budget.conf` gains `MAX_EFFECTIVE_LINES_HARD`: over the soft `MAX_EFFECTIVE_LINES` only warns, over the hard cap fails the gate. Backward compatible (hard defaults to soft when unset).
 
 - **Deterministic hooks** (`.agent-context/hooks/`) — four optional, project-overridable Claude Code hooks: secret-write block (PreToolUse, exit 2), auto-format (PostToolUse), test gate (Stop), and subagent scope check (SubagentStop). Behavior and project toolchain live in the project-owned `.agent-context/hooks.conf`; hook scripts are shared/auto-updated. **Off by default** (`HOOKS_ENABLED=0`) — existing projects are never silently activated. See README → "Deterministic Hooks".
 - **Token-budget CI gate** — `tests/check-token-budget.sh` + `.github/workflows/ci.yml` fail the build if the always-on context closure exceeds a configurable effective-line limit (default 160 in-repo, `MAX_EFFECTIVE_LINES` in the shipped `budget.conf`). Counting engine (`bin/check-token-budget.sh`) ships to consumers to audit their own layers.
@@ -19,6 +33,8 @@ All notable changes to this project will be documented here. Format loosely foll
 
 - **Sharpened progressive disclosure** — the always-on baseline dropped from ~186 to ~141 effective lines. `layer0-agent-workflow.md` was trimmed: the delegation protocol moved to on-demand `agent-delegation.md`, and memory-restructuring procedures (domain expansion, lesson graduation, knowledge-map triggers) moved to on-demand `memory-maintenance.md`. Always-on triggers stay; the procedures load only when the matching event fires.
 - `.claude/settings.json` template now registers the four hooks (inert until `HOOKS_ENABLED=1`).
+- **Docs restructure** — a lean README that leads with a read-flow diagram, deep reference split into `docs/` (architecture, discovery-map, enforcement, principles, references) with an index, and a GitHub-standard `CONTRIBUTING.md`.
+- **Hook hardening** — the subagent scope check flags only Write/Edit/MultiEdit (not reads); auto-format runs via an argv array instead of `eval` on the raw path; the test gate writes to a `mktemp` file instead of a predictable `/tmp` path; CI uses `npm ci`.
 
 ### Migration
 
