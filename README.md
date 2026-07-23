@@ -43,7 +43,7 @@ AGENTS.md                          (~35 lines — identity, quick rules)
   skills/                          (full reference, loaded on-demand)
 ```
 
-**Baseline:** ~150-200 lines (AGENTS.md + all layers). Full reference (skills, memory): loaded only when trigger keywords match.
+**Baseline:** AGENTS.md + all layers. Full reference (skills, memory): loaded only when trigger keywords match.
 
 Auto-updates are built in: the agent fetches the setup prompt from remote, which auto-detects UPDATE mode, checks for new releases via the GitHub Releases API, and updates shared files. Project-owned files are never overwritten.
 

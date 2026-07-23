@@ -62,32 +62,8 @@ Total baseline: ~150-200 lines. Heavy reference (skills, memory) is loaded only 
 
 The baseline (layers + indexes) loads once at session start. Everything heavy — skill bodies, domain
 memory, external docs, the discovery map — is pulled only when a task's routing calls for it, so context
-stays small no matter how large the project's knowledge grows.
-
-```mermaid
-flowchart TD
-    Start([Session start]) --> AG[AGENTS.md]
-    AG -->|"@-includes"| Base["Always-on baseline (~150–200 lines):<br/>agent-startup · layer0 · layer1 · layer2 · layer3<br/>· knowledge-map · skills index"]
-    Base --> Task{Task begins}
-    Task --> Route["Layer 0 / Layer 3 routing:<br/>what does THIS task need?"]
-
-    Route -->|skill trigger| Skill["skills/&lt;name&gt;.md"]
-    Route -->|domain keyword| Mem["memory/&lt;domain&gt;.md"]
-    Route -->|external source| Doc["doc via knowledge-map"]
-    Route -->|unfamiliar subsystem| Map["map.json → 1–2 nodes → memory/&lt;node&gt;.md"]
-
-    Skill --> Act([Act with just-enough context])
-    Mem --> Act
-    Doc --> Act
-    Map --> Act
-
-    subgraph OnDemand ["pulled on demand · never at startup"]
-        Skill
-        Mem
-        Doc
-        Map
-    end
-```
+stays small no matter how large the project's knowledge grows. The [read-flow diagram](../README.md#architecture)
+in the README shows the full picture.
 
 Only the **indexes** (`knowledge-map.md`, `skills/index.md`) sit in the baseline; the **bodies** they point
 to are read lazily. The discovery map is the same pattern one level deeper: read the small `map.json`, then
