@@ -1,0 +1,70 @@
+name: Bug Report
+description: Something isn't working
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill in the details below.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the unexpected behavior or error.
+      placeholder: |
+        When I tried to..., it...
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to reproduce
+      description: How can we reliably reproduce this?
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: install-mode
+    attributes:
+      label: Install mode
+      description: Was this during Setup or Update?
+      options:
+        - Setup
+        - Update
+    validations:
+      required: true
+  - type: dropdown
+    id: agent-type
+    attributes:
+      label: Which agent?
+      options:
+        - Claude Code
+        - Codex
+        - Gemini
+        - Cursor
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Agent-Context version
+      description: Check .agent-context/.agent-context-version in your project
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: host-stack
+    attributes:
+      label: Host project tech stack
+      description: e.g., Node/React, Python/Flask, Go, Ruby on Rails
+      placeholder: "Node/React"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Paste any error messages or debug output
+      render: bash

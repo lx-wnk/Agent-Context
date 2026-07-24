@@ -8,7 +8,5 @@ Deep reference for the Agent Context Architecture. Start at [../README.md](../RE
 - [Key Principles](principles.md) — the five design principles behind this architecture
 - [Research & References](references.md) — papers and articles the design is based on
 - [Skill Standard](skill-standard.md) — the open Agent Skills standard used by `.agent-context/skills/`
-- [Discovery Map design](discovery-map-design.md) — design rationale for the discovery map
-- [Discovery Map implementation plan](discovery-map-plan.md) — implementation plan for the discovery map
 - [Agent Creation Best Practices](best-practices-agent-creation.md) — comprehensive guide for creating custom agent configurations (German)
 - [Contributing](../CONTRIBUTING.md) — dev setup, smoke tests, and the PR process

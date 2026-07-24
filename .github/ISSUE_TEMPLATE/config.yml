@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions or discussions?
+    url: https://github.com/lx-wnk/Agent-Context
+    about: Check the README and project repo for guidance. Use GitHub Discussions for questions that aren't bug reports or feature requests.
