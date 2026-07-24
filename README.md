@@ -4,7 +4,7 @@
 [![Latest release](https://img.shields.io/github/v/release/lx-wnk/Agent-Context)](https://github.com/lx-wnk/Agent-Context/releases/latest)
 [![CI](https://github.com/lx-wnk/Agent-Context/actions/workflows/ci.yml/badge.svg)](https://github.com/lx-wnk/Agent-Context/actions/workflows/ci.yml)
 
-A project-based setup and memory-handling system for Claude Code. Optimized for structuring project knowledge so that Claude always has the right context at the right time — without bloating the context window.
+A project-based setup and memory-handling system for AI coding agents, with first-class Claude Code support. Its entry point is the agent-agnostic `AGENTS.md`. Optimized for structuring project knowledge so that your agent always has the right context at the right time — without bloating the context window.
 
 Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides a layered architecture: all layers (0-3) are loaded at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~150-200 lines. Detailed reference (skills, memory files) is pulled in on-demand based on the task at hand. Auto-updates keep shared infrastructure current across all your projects.
 
@@ -12,8 +12,8 @@ Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides 
 
 - [The Problem](#the-problem)
 - [The Solution](#the-solution)
-- [Architecture](#architecture)
 - [Installation](#installation)
+- [Architecture](#architecture)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [License](#license)
@@ -46,6 +46,22 @@ AGENTS.md                          (~35 lines — identity, quick rules)
 **Baseline:** AGENTS.md + all layers. Full reference (skills, memory): loaded only when trigger keywords match.
 
 Auto-updates are built in: the agent fetches the setup prompt from remote, which auto-detects UPDATE mode, checks for new releases via the GitHub Releases API, and updates shared files. Project-owned files are never overwritten.
+
+See a fully installed project in [example.md](example.md).
+
+## Installation
+
+### Quick Start
+
+Run this one-liner from your project root:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/install.sh)"
+```
+
+**Requires:** [Claude Code CLI](https://claude.ai/code) installed and authenticated.
+
+See [what gets created](docs/architecture.md#what-gets-created) and [alternative install](docs/architecture.md#alternative-paste-into-a-session).
 
 ## Architecture
 
@@ -89,42 +105,20 @@ templates/*                       →──    AGENTS.md, layer1-3, memory/ (pro
 
 **Overwritable** files are updated on every release. **Project-owned** files are created once and never overwritten. The installed version is tracked in `.agent-context/.agent-context-version` — written by the agent from the release tag.
 
-### Layer System
-
-| Layer   | Location                                  | Content                           | Ownership        |
-| ------- | ----------------------------------------- | --------------------------------- | ---------------- |
-| Startup | `.agent-context/agent-startup.md`         | Version check, update info        | Shared (updated) |
-| 0       | `.agent-context/layer0-agent-workflow.md` | Universal agent workflow          | Shared (updated) |
-| Base    | `.agent-context/base-principles.md`       | Dev principles                    | Shared (updated) |
-| 1       | `.agent-context/layer1-bootstrap.md`      | Project identity, Docker, domains | Project          |
-| 2       | `.agent-context/layer2-project-core.md`   | Dev rules + `@` ref to base       | Project          |
-| 3       | `.agent-context/layer3-guidebook.md`      | Task routing, skills, memory      | Project          |
-
 See [Architecture](docs/architecture.md) for the full mental model, layer loading, and runtime read flow.
-
-## Installation
-
-### Quick Start
-
-Run this one-liner from your project root:
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/install.sh)"
-```
-
-**Requires:** [Claude Code CLI](https://claude.ai/code) installed and authenticated.
-
-See [what gets created](docs/architecture.md#what-gets-created) and [alternative install](docs/architecture.md#alternative-paste-into-a-session).
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) — layer system, repo-to-project mapping, how it works, runtime read flow, repository structure
-- [Discovery Map](docs/discovery-map.md) — on-demand codebase discovery for large/unfamiliar projects
-- [Enforcement & Hygiene](docs/enforcement.md) — deterministic hooks, token budget, memory decay, portable skills, updates
-- [Key Principles](docs/principles.md) — the five design principles behind this architecture
-- [Research & References](docs/references.md) — papers and articles the design is based on
-- [Skill Standard](docs/skill-standard.md) — the open Agent Skills standard used by `.agent-context/skills/`
-- [Contributing](CONTRIBUTING.md) — dev setup, smoke tests, and the PR process
+- [Example](example.md)
+- [Architecture](docs/architecture.md)
+- [Discovery Map](docs/discovery-map.md)
+- [Enforcement & Hygiene](docs/enforcement.md)
+- [Key Principles](docs/principles.md)
+- [Research & References](docs/references.md)
+- [Skill Standard](docs/skill-standard.md)
+- [Contributing](CONTRIBUTING.md)
+
+See [docs/](docs/README.md) for the full documentation index.
 
 ## Contributing
 
