@@ -1,0 +1,47 @@
+name: Feature Request
+description: Suggest an idea for improvement
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea? We'd love to hear it!
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What's the use case or pain point you're trying to solve?
+      placeholder: |
+        When using Agent-Context for..., I find that...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How do you think this should work?
+      placeholder: |
+        I propose that...
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered other approaches?
+      placeholder: |
+        Other possibilities:
+        - ...
+        - ...
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      description: Which part of the framework does this affect?
+      options:
+        - Shared infrastructure
+        - Templates
+        - Documentation
+        - Other
+    validations:
+      required: true
