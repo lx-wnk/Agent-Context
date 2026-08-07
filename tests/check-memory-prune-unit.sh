@@ -142,6 +142,40 @@ done
 after=$(cat "$t/memory/lessons.md")
 [ "$before" = "$after" ] && pass "malformed conf leaves files untouched" || fail "malformed conf leaves files untouched" "file changed"
 
+# 11. Expanded domains are scanned; the archive directory is not re-scanned.
+t=$(mk_tmp); mkdir -p "$t/memory/cart"
+cat > "$t/memory/lessons.md" <<'EOF'
+# Lessons Learned
+
+- **[top]** Top-level expired (2020-01-01) ttl:90d source:discovered conf:med
+EOF
+cat > "$t/memory/cart/pricing.md" <<'EOF'
+# Cart Pricing
+
+- **[nested]** Nested expired (2020-01-01) ttl:90d source:discovered conf:med
+EOF
+bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
+assert_file_not_contains "nested domain file is pruned" "$t/memory/cart/pricing.md" "Nested expired"
+arch=$(find "$t/memory/archive" -name '*.md' | head -1)
+assert_file_contains "nested entry reaches the archive" "$arch" "Nested expired"
+
+# Re-running must not re-archive what is already in archive/.
+lines_before=$(wc -l < "$arch")
+bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
+lines_after=$(wc -l < "$arch")
+[ "$lines_before" -eq "$lines_after" ] \
+    && pass "archive/ is excluded from the scan" \
+    || fail "archive/ is excluded from the scan" "archive grew from $lines_before to $lines_after lines"
+
+# 12. index.md and todo.md stay skipped at any depth.
+t=$(mk_tmp); mkdir -p "$t/memory/cart"
+cat > "$t/memory/cart/index.md" <<'EOF'
+# Cart Index
+- **[skip]** nested index entry (2020-01-01) ttl:90d
+EOF
+bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
+assert_file_contains "nested index.md is skipped" "$t/memory/cart/index.md" "nested index entry"
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))

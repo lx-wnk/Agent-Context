@@ -3,6 +3,9 @@ set -euo pipefail
 
 # Memory rotation / decay: archive expired dated memory entries.
 #
+# Scans memory/ recursively, so expanded domains (memory/<domain>/*.md) are covered too.
+# Skips the archive/ directory itself, and index.md/todo.md at any depth.
+#
 # Reads the dated-entry metadata the workflow already requires on every lesson:
 #   - **[scope]** Some lesson (2026-01-15) ttl:90d source:discovered conf:med
 # An entry expires when today > entry-date + ttl days. `ttl:infinite` never expires.
@@ -218,11 +221,15 @@ echo "Memory decay scan — $MEM_DIR (today: $TODAY)"
 [ "$APPLY" -eq 1 ] && echo "Mode: APPLY (files will be rewritten)" || echo "Mode: dry-run (no changes; pass --apply to archive)"
 echo ""
 
-for f in "$MEM_DIR"/*.md; do
+# Recursive: expanded domains live in memory/<domain>/*.md. The archive is excluded, or
+# every run would re-scan and re-archive what the previous run moved there.
+# Process substitution, not a pipe — a pipe would run the loop in a subshell and discard
+# expired_count and scanned_files.
+while IFS= read -r f; do
     [ -f "$f" ] || continue
     scanned_files=$((scanned_files + 1))
     process_file "$f"
-done
+done < <(find "$MEM_DIR" -type f -name '*.md' -not -path "$ARCHIVE_DIR/*" | sort)
 
 echo ""
 if [ "$expired_count" -eq 0 ]; then
