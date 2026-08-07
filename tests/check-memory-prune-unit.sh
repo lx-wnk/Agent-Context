@@ -40,6 +40,31 @@ EOF
 EOF
 }
 
+# Fixture for default-resolution tests. Covers every branch of resolve_ttl:
+# dated-untagged, explicit numeric ttl, explicit infinite, and no date at all.
+seed_defaults() {
+    local dir="$1"
+    mkdir -p "$dir"
+    cat > "$dir/lessons.md" <<'EOF'
+# Lessons Learned
+
+- **[untagged]** Dated but no ttl (2020-01-01) source:discovered conf:med
+- **[explicit]** Short ttl beats the default (2020-01-01) ttl:30d source:user conf:high
+- **[infinite]** Explicit infinite survives the default (2020-01-01) ttl:infinite source:user conf:high
+- **[undated]** No date at all, immortal by definition source:user conf:low
+EOF
+    cat > "$dir/people.md" <<'EOF'
+# Team & Stakeholders
+
+- **Ada** — Backend lead (2020-01-01) source:user conf:high
+EOF
+    cat > "$dir/glossary.md" <<'EOF'
+# Glossary
+
+- **[term]** Unclassified file, no shared default (2020-01-01) source:user conf:low
+EOF
+}
+
 echo "=== memory-prune unit tests ==="
 echo ""
 
@@ -67,6 +92,55 @@ before=$(cat "$t/memory/lessons.md")
 bash "$PRUNE" --dir "$t/memory" --apply >/dev/null 2>&1
 after=$(cat "$t/memory/lessons.md")
 [ "$before" = "$after" ] && pass "second apply is idempotent" || fail "second apply is idempotent" "file changed on re-run"
+
+# 5. Shared defaults: dated-untagged expires, explicit ttl and undated lines survive.
+t=$(mk_tmp); seed_defaults "$t/memory"
+bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
+assert_file_not_contains "shared default expires a dated untagged entry" "$t/memory/lessons.md" "Dated but no ttl"
+assert_file_not_contains "explicit ttl:30d still expires" "$t/memory/lessons.md" "Short ttl beats the default"
+assert_file_contains "explicit ttl:infinite survives the file default" "$t/memory/lessons.md" "Explicit infinite survives"
+assert_file_contains "undated line is never touched" "$t/memory/lessons.md" "No date at all"
+
+# 6. Shared default infinite keeps people.md untouched.
+assert_file_contains "shared default infinite keeps the entry" "$t/memory/people.md" "Backend lead"
+
+# 7. A file with no shared default and no conf entry stays immortal.
+assert_file_contains "unclassified file has no default" "$t/memory/glossary.md" "Unclassified file"
+
+# 8. Conf key overrides the shared table; unlisted files keep the shared default (merge).
+t=$(mk_tmp); seed_defaults "$t/memory"
+cat > "$t/budget.conf" <<'EOF'
+MEMORY_TTL_DEFAULTS="
+lessons.md=infinite
+glossary.md=90d
+"
+EOF
+bash "$PRUNE" --dir "$t/memory" --conf "$t/budget.conf" --apply >/dev/null 2>&1
+assert_file_contains "conf overrides shared default for lessons.md" "$t/memory/lessons.md" "Dated but no ttl"
+assert_file_not_contains "conf adds a default for an unlisted file" "$t/memory/glossary.md" "Unclassified file"
+assert_file_contains "unlisted file keeps its shared default (merge)" "$t/memory/people.md" "Backend lead"
+
+# 9. Report distinguishes a default-driven expiry from an entry-declared one.
+t=$(mk_tmp); seed_defaults "$t/memory"
+out=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" 2>&1)
+printf '%s' "$out" | grep -qF "EXPIRED (default 90d) → - **[untagged]**" \
+    && pass "report marks default-driven expiry" \
+    || fail "report marks default-driven expiry" "missing marker in output"
+printf '%s' "$out" | grep -qF "EXPIRED → - **[explicit]**" \
+    && pass "report leaves entry-declared expiry unmarked" \
+    || fail "report leaves entry-declared expiry unmarked" "missing plain marker in output"
+
+# 10. Malformed conf exits 2 and writes nothing.
+t=$(mk_tmp); seed_defaults "$t/memory"
+before=$(cat "$t/memory/lessons.md")
+for bad in 'lessons.md' 'lessons.md=7weeks' 'memory/lessons.md=90d'; do
+    printf 'MEMORY_TTL_DEFAULTS="%s"\n' "$bad" > "$t/bad.conf"
+    bash "$PRUNE" --dir "$t/memory" --conf "$t/bad.conf" --apply >/dev/null 2>&1
+    rc=$?
+    [ "$rc" -eq 2 ] && pass "malformed conf '$bad' exits 2" || fail "malformed conf '$bad' exits 2" "got exit $rc"
+done
+after=$(cat "$t/memory/lessons.md")
+[ "$before" = "$after" ] && pass "malformed conf leaves files untouched" || fail "malformed conf leaves files untouched" "file changed"
 
 echo ""
 echo "================================================"
