@@ -32,7 +32,7 @@ bash .agent-context/bin/memory-prune.sh           # preview what would move
 bash .agent-context/bin/memory-prune.sh --apply   # archive expired entries
 ```
 
-`ttl:infinite` (architecture/security) never expires. **When does memory go stale?** A lesson tagged `ttl:90d` is considered stale 90 days after its date; gotchas/quirks default to 90d, sprint-specific notes to 30d, and durable architecture/security facts to `infinite`. Stale context actively misleads — pruning keeps the live set trustworthy while preserving history in the archive.
+`ttl:infinite` (architecture/security) never expires. **When does memory go stale?** A lesson tagged `ttl:90d` is considered stale 90 days after its date. An entry that carries a date but no `ttl:` falls back to the per-file default — 90d for `lessons.md`, `infinite` for `preferences.md`, `people.md`, and `user.md` — configurable per project through `MEMORY_TTL_DEFAULTS` in `.agent-context/budget.conf`. An explicit `ttl:` on the entry always wins. Stale context actively misleads — pruning keeps the live set trustworthy while preserving history in the archive.
 
 ## Portable Skills
 
