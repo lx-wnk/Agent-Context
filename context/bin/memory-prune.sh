@@ -49,12 +49,32 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
-[ -z "$ARCHIVE_DIR" ] && ARCHIVE_DIR="$MEM_DIR/archive"
+# `find` normalizes its own start argument, so an un-normalized ARCHIVE_DIR ("memory/archive"
+# against a "-dir memory/" scan) makes the -path exclusion miss — the archive is then scanned
+# as a source file and its own rewrite wipes what earlier weeks put there.
+# Walks up to the first existing ancestor, so a not-yet-created archive still canonicalizes.
+normalize_dir() {
+    local d="$1" tail="" parent leaf
+    while [ "${d%/}" != "$d" ] && [ "$d" != "/" ]; do d="${d%/}"; done
+    [ -n "$d" ] || { printf '%s' "$1"; return 0; }
+    while [ ! -d "$d" ]; do
+        parent=$(dirname "$d")
+        leaf=$(basename "$d")
+        [ "$parent" = "$d" ] && { printf '%s' "$1"; return 0; }
+        tail="/$leaf$tail"
+        d="$parent"
+    done
+    printf '%s%s' "$(cd "$d" && pwd -P)" "$tail"
+}
 
 if [ ! -d "$MEM_DIR" ]; then
     echo "Error: memory directory not found: $MEM_DIR" >&2
     exit 2
 fi
+
+MEM_DIR=$(normalize_dir "$MEM_DIR")
+[ -z "$ARCHIVE_DIR" ] && ARCHIVE_DIR="$MEM_DIR/archive"
+ARCHIVE_DIR=$(normalize_dir "$ARCHIVE_DIR")
 
 # Per-file TTL defaults, applied ONLY to dated entries that carry no ttl: of their own.
 # Deliberately no `*` catch-all: a file nobody classified stays immortal until a project
@@ -144,6 +164,11 @@ process_file() {
     case "$base" in
         index.md|todo.md) return 0 ;;
     esac
+
+    # Independent of the find-level exclusion: whatever route the scan took to get here, a file
+    # inside the archive is never a source. Rewriting one would erase the append just made to it.
+    case "$file" in "$ARCHIVE_DIR"/*) return 0 ;; esac
+    [ "$file" = "$ARCHIVE_FILE" ] && return 0
 
     local tmp keep_tmp had_expired=0
     tmp=$(mktemp "${TMPDIR:-/tmp}/memprune.arch.XXXXXX")

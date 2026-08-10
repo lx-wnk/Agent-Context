@@ -119,6 +119,9 @@ bash "$PRUNE" --dir "$t/memory" --conf "$t/budget.conf" --apply >/dev/null 2>&1
 assert_file_contains "conf overrides shared default for lessons.md" "$t/memory/lessons.md" "Dated but no ttl"
 assert_file_not_contains "conf adds a default for an unlisted file" "$t/memory/glossary.md" "Unclassified file"
 assert_file_contains "unlisted file keeps its shared default (merge)" "$t/memory/people.md" "Backend lead"
+# An explicit ttl must beat the file default even when the default is the more permissive one —
+# with lessons.md=infinite, only "explicit wins" can expire this entry.
+assert_file_not_contains "explicit ttl:30d expires under a file default of infinite" "$t/memory/lessons.md" "Short ttl beats the default"
 
 # 9. Report distinguishes a default-driven expiry from an entry-declared one.
 t=$(mk_tmp); seed_defaults "$t/memory"
@@ -175,6 +178,31 @@ cat > "$t/memory/cart/index.md" <<'EOF'
 EOF
 bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
 assert_file_contains "nested index.md is skipped" "$t/memory/cart/index.md" "nested index entry"
+
+# 13. Non-canonical paths must not turn the archive into a scan target. `find` normalizes its
+# start argument, so an un-normalized --archive/--dir makes the -path exclusion miss and the
+# archive rewrite wipes what earlier runs put there. Trailing slashes are what tab-completion
+# produces, so this is the common invocation, not an exotic one.
+seed_one() {
+    printf '# Lessons\n\n- **[%s]** %s (2020-01-01) ttl:90d source:discovered conf:med\n' "$1" "$2" > "$3"
+}
+check_archive_survives() {
+    local label="$1"; shift
+    local d; d=$(mk_tmp); mkdir -p "$d/memory"
+    seed_one first "First run entry" "$d/memory/lessons.md"
+    ( cd "$d" && bash "$PRUNE" "$@" --conf absent.conf --apply ) >/dev/null 2>&1
+    seed_one second "Second run entry" "$d/memory/lessons.md"
+    ( cd "$d" && bash "$PRUNE" "$@" --conf absent.conf --apply ) >/dev/null 2>&1
+    local arch; arch=$(find "$d/memory/archive" -name '*.md' 2>/dev/null | head -1)
+    if [ -n "$arch" ] && grep -qF "First run entry" "$arch" && grep -qF "Second run entry" "$arch"; then
+        pass "$label"
+    else
+        fail "$label" "archive lost an earlier entry"
+    fi
+}
+check_archive_survives "trailing-slash --dir keeps the prior archive" --dir "memory/"
+check_archive_survives "trailing-slash --archive keeps the prior archive" --dir "memory" --archive "memory/archive/"
+check_archive_survives "relative --dir/--archive mix keeps the prior archive" --dir "./memory" --archive "memory/archive"
 
 echo ""
 echo "================================================"
