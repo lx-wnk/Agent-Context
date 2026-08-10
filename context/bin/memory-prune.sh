@@ -25,6 +25,9 @@ set -euo pipefail
 #   1. an explicit ttl: on the line          3. the shared table below
 #   2. MEMORY_TTL_DEFAULTS from the conf     4. no default -> the line is kept forever
 # A line without a (YYYY-MM-DD) date is never expired, regardless of defaults.
+# Defaults resolve by BASENAME only, at any depth: memory/<domain>/lessons.md inherits the
+# same default as the top-level lessons.md. Intended — a name means the same thing anywhere.
+#
 # Exit codes: 0 = success, 2 = usage/config error or a failed rewrite. No other code.
 #
 # Portability: handles both GNU date (-d) and BSD/macOS date (-j -f), same approach
@@ -79,8 +82,9 @@ MEM_DIR=$(normalize_dir "$MEM_DIR")
 ARCHIVE_DIR=$(normalize_dir "$ARCHIVE_DIR")
 
 # Per-file TTL defaults, applied ONLY to dated entries that carry no ttl: of their own.
-# Deliberately no `*` catch-all: a file nobody classified stays immortal until a project
-# opts in via MEMORY_TTL_DEFAULTS.
+# This table ships no `*` catch-all: a file nobody classified stays immortal until a project
+# opts in via MEMORY_TTL_DEFAULTS, which may use `*`. resolve_ttl still probes `*` in both
+# tables so the precedence order stays uniform across them.
 SHARED_TTL_DEFAULTS="
 lessons.md=90d
 preferences.md=infinite
@@ -112,34 +116,44 @@ date_to_epoch() {
 }
 
 # Rejects a malformed map before any file is touched — a partial rewrite is worse than
-# a hard stop. Word splitting on the map is intentional, as with INCLUDE_FILES.
+# a hard stop. Word splitting on the map is intentional, as with INCLUDE_FILES; pathname
+# expansion is not, or a `*` key would be reported as an unrelated filename.
 validate_ttl_map() {
     local label="$1" map="$2" token key value
+    set -f
     # shellcheck disable=SC2086
     for token in $map; do
         case "$token" in
             *=*) ;;
-            *) echo "Error: $label entry '$token' is not key=value." >&2; exit 2 ;;
+            *) set +f; echo "Error: $label entry '$token' is not key=value." >&2; exit 2 ;;
         esac
         key="${token%%=*}"
         value="${token#*=}"
-        [ -n "$key" ] || { echo "Error: $label entry '$token' has an empty key." >&2; exit 2; }
+        [ -n "$key" ] || { set +f; echo "Error: $label entry '$token' has an empty key." >&2; exit 2; }
         case "$key" in
-            */*) echo "Error: $label key '$key' must be a file basename, not a path." >&2; exit 2 ;;
+            */*) set +f; echo "Error: $label key '$key' must be a file basename, not a path." >&2; exit 2 ;;
         esac
         if [ "$value" != "infinite" ] && ! printf '%s' "$value" | grep -qE '^[0-9]+d$'; then
+            set +f
             echo "Error: $label value for '$key' must be <N>d or infinite, got '$value'." >&2
             exit 2
         fi
     done
+    set +f
 }
 
 lookup_ttl_map() {
     local map="$1" want="$2" token
+    set -f
     # shellcheck disable=SC2086
     for token in $map; do
-        [ "${token%%=*}" = "$want" ] && { printf '%s' "${token#*=}"; return 0; }
+        if [ "${token%%=*}" = "$want" ]; then
+            set +f
+            printf '%s' "${token#*=}"
+            return 0
+        fi
     done
+    set +f
     return 1
 }
 
@@ -259,7 +273,11 @@ process_file() {
 
     if [ "$had_expired" -eq 1 ]; then
         echo "  $base:"
-        awk -F'\t' '{ if ($1 == "") printf "    EXPIRED → %s\n", $2; else printf "    EXPIRED (%s) → %s\n", $1, $2 }' "$tmp"
+        # Field 1 is the marker; everything after the FIRST tab is the entry — a memory line may
+        # itself contain tabs, and the preview is the safety net before --apply, so never truncate.
+        awk -F'\t' '{ rest = $0; sub(/^[^\t]*\t/, "", rest);
+                      if ($1 == "") printf "    EXPIRED → %s\n", rest;
+                      else printf "    EXPIRED (%s) → %s\n", $1, rest }' "$tmp"
         if [ "$APPLY" -eq 1 ]; then
             mkdir -p "$ARCHIVE_DIR"
             {

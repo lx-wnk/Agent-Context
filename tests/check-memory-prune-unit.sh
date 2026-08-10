@@ -294,6 +294,26 @@ printf 'MEMORY_TTL_DEFAULTS="\n*=90d\nglossary.md=infinite\n"\n' > "$t/star2.con
 bash "$PRUNE" --dir "$t/memory" --conf "$t/star2.conf" --apply >/dev/null 2>&1
 assert_file_contains "exact basename beats the conf '*'" "$t/memory/glossary.md" "Unclassified file"
 
+# 19. The dry-run preview is the safety net before --apply, so it must show the whole line. A
+# memory line containing a tab was truncated at the first one while the full line still moved.
+t=$(mk_tmp); mkdir -p "$t/memory"
+printf '# Lessons\n\n- **[tabbed]** Before\tAFTER_THE_TAB (2020-01-01) ttl:90d source:user conf:med\n' > "$t/memory/lessons.md"
+out=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" 2>&1)
+printf '%s' "$out" | grep -qF "AFTER_THE_TAB" \
+    && pass "preview shows the full line past an embedded tab" \
+    || fail "preview shows the full line past an embedded tab" "preview truncated: $out"
+
+# 20. A bare `*` is a config error, and the message must name what the user wrote — unguarded
+# word splitting expanded it against the cwd and blamed an unrelated file.
+t=$(mk_tmp); seed_defaults "$t/memory"
+printf 'MEMORY_TTL_DEFAULTS="*"\n' > "$t/glob.conf"
+err=$(cd "$t/memory" && bash "$PRUNE" --dir "$t/memory" --conf "$t/glob.conf" --apply 2>&1 >/dev/null)
+rc=$?
+[ "$rc" -eq 2 ] && pass "bare '*' in the conf exits 2" || fail "bare '*' in the conf exits 2" "got exit $rc"
+printf '%s' "$err" | grep -qF "entry '*' is not key=value" \
+    && pass "config error names the literal token, not a globbed filename" \
+    || fail "config error names the literal token, not a globbed filename" "stderr was: $err"
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))

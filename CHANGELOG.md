@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **Per-file memory TTL defaults** — `bin/memory-prune.sh` now applies a default TTL to dated entries that carry no `ttl:` of their own. Ships with `lessons.md=90d` and `preferences.md`/`people.md`/`user.md=infinite`; projects tune it via `MEMORY_TTL_DEFAULTS` in `budget.conf`, per key, with a `*` catch-all. An explicit `ttl:` on the entry always wins, `ttl:infinite` included, and a line without a `(YYYY-MM-DD)` date is never touched. Keys match by basename at any depth.
+
+### Fixed
+
+- **Recursive memory scan** — expanded domains (`memory/<domain>/*.md`) were never pruned; the scan only looked one level deep. It now recurses, and follows symlinked memory directories and files (rewriting the target, not the link).
+- **Archive self-destruct on non-canonical paths** — a trailing slash on `--dir`/`--archive` (what tab-completion produces) made the archive-exclusion glob miss, so the archive was scanned as a source and its rewrite erased every entry prior runs had moved there. Paths are canonicalized up front and a second guard refuses to rewrite anything inside the archive.
+- **Prune error handling** — an unreadable memory file no longer aborts the scan, a failed rewrite exits 2 naming the file (instead of dying at an undeclared exit 1 or reporting success), the conf can no longer override the script's own `APPLY`/`MEM_DIR`/`ARCHIVE_DIR`/shared TTL table, and the dry-run preview no longer truncates an entry at an embedded tab.
+
+### Upgrade note
+
+`bin/memory-prune.sh` is a shared, auto-updated file, so this reaches every installation on the next update. Dated entries in `lessons.md` that carried no `ttl:` were previously immortal and now expire after 90 days — because such entries are typically old, **the first `--apply` after updating will archive noticeably more than before**. Nothing is deleted: entries move to `memory/archive/<ISO-week>.md`. The dry-run default previews the full list, so run `bash .agent-context/bin/memory-prune.sh` once and review it before passing `--apply`. To keep the old behavior for a file, set it to `infinite` in `MEMORY_TTL_DEFAULTS` in `budget.conf`.
+
 ## [0.8.1] - 2026-07-01
 
 ### Added
