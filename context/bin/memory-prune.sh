@@ -4,7 +4,8 @@ set -euo pipefail
 # Memory rotation / decay: archive expired dated memory entries.
 #
 # Scans memory/ recursively, so expanded domains (memory/<domain>/*.md) are covered too.
-# Skips the archive/ directory itself, and index.md/todo.md at any depth.
+# Symlinked files and symlinked sub-directories are followed. Skips the archive/ directory
+# itself, and index.md/todo.md at any depth.
 #
 # Reads the dated-entry metadata the workflow already requires on every lesson:
 #   - **[scope]** Some lesson (2026-01-15) ttl:90d source:discovered conf:med
@@ -24,6 +25,7 @@ set -euo pipefail
 #   1. an explicit ttl: on the line          3. the shared table below
 #   2. MEMORY_TTL_DEFAULTS from the conf     4. no default -> the line is kept forever
 # A line without a (YYYY-MM-DD) date is never expired, regardless of defaults.
+# Exit codes: 0 = success, 2 = usage/config error or a failed rewrite. No other code.
 #
 # Portability: handles both GNU date (-d) and BSD/macOS date (-j -f), same approach
 # install.sh uses for stat. No non-POSIX tools beyond awk/grep/date.
@@ -86,12 +88,19 @@ people.md=infinite
 user.md=infinite
 "
 
-# The conf may set MEMORY_TTL_DEFAULTS. It is kept in its own variable so a conf naming a
-# single file cannot silently drop the shared defaults for every other file.
+# The conf may set MEMORY_TTL_DEFAULTS — and nothing else this script relies on. It is sourced
+# in a SUBSHELL and only that one key is read back, so a conf cannot flip APPLY, redirect
+# MEM_DIR/ARCHIVE_DIR past their validation, or blank out SHARED_TTL_DEFAULTS. The other keys
+# in budget.conf (MAX_EFFECTIVE_LINES, INCLUDE_FILES, MAP_FILE, …) belong to other scripts and
+# are simply ignored here.
 MEMORY_TTL_DEFAULTS=""
 if [ -f "$CONF" ]; then
-    # shellcheck disable=SC1090
-    . "$CONF"
+    MEMORY_TTL_DEFAULTS=$(
+        set +e
+        # shellcheck disable=SC1090
+        . "$CONF" >/dev/null 2>&1
+        printf '%s' "${MEMORY_TTL_DEFAULTS:-}"
+    ) || MEMORY_TTL_DEFAULTS=""
 fi
 
 # Converts YYYY-MM-DD to a Unix epoch. Empty output on parse failure.
@@ -156,19 +165,46 @@ TODAY=$(date +%Y-%m-%d)
 expired_count=0
 scanned_files=0
 
+# Resolves a symlinked memory file to its physical target. A rewrite has to replace the
+# TARGET's content — mv over the link would swap a deliberately shared file for a private copy.
+resolve_link() {
+    local f="$1" dir leaf target hops=0
+    dir=$(cd "$(dirname "$f")" 2>/dev/null && pwd -P) || { printf '%s' "$f"; return 0; }
+    leaf=$(basename "$f")
+    while [ -L "$dir/$leaf" ] && [ "$hops" -lt 32 ]; do
+        target=$(readlink "$dir/$leaf")
+        case "$target" in
+            /*) ;;
+            *) target="$dir/$target" ;;
+        esac
+        dir=$(cd "$(dirname "$target")" 2>/dev/null && pwd -P) || break
+        leaf=$(basename "$target")
+        hops=$((hops + 1))
+    done
+    printf '%s/%s' "$dir" "$leaf"
+}
+
 # Collected per file: lines to archive, written only in --apply mode.
 process_file() {
     local file="$1"
-    local base
+    local base dest
     base=$(basename "$file")
     case "$base" in
         index.md|todo.md) return 0 ;;
     esac
 
+    dest=$(resolve_link "$file")
     # Independent of the find-level exclusion: whatever route the scan took to get here, a file
     # inside the archive is never a source. Rewriting one would erase the append just made to it.
     case "$file" in "$ARCHIVE_DIR"/*) return 0 ;; esac
+    case "$dest" in "$ARCHIVE_DIR"/*) return 0 ;; esac
     [ "$file" = "$ARCHIVE_FILE" ] && return 0
+    [ "$dest" = "$ARCHIVE_FILE" ] && return 0
+
+    if [ ! -r "$file" ]; then
+        echo "Warning: skipping unreadable file: $file" >&2
+        return 0
+    fi
 
     local tmp keep_tmp had_expired=0
     tmp=$(mktemp "${TMPDIR:-/tmp}/memprune.arch.XXXXXX")
@@ -232,10 +268,22 @@ process_file() {
                 printf '\n'
             } >> "$ARCHIVE_FILE"
             # Atomic replace: rename within the same directory so an interrupt can never
-            # leave the project-owned memory file truncated.
+            # leave the project-owned memory file truncated. The archive append above already
+            # happened, so any failure here leaves a DUPLICATE — say so and stop at exit 2
+            # rather than letting set -e kill the run with an undeclared exit 1.
             local dest_tmp
-            dest_tmp="$(mktemp "$(dirname "$file")/.memprune.XXXXXX")"
-            cp "$keep_tmp" "$dest_tmp" && mv "$dest_tmp" "$file" || { rm -f "$dest_tmp"; echo "Error: failed to rewrite $file" >&2; }
+            dest_tmp=$(mktemp "$(dirname "$dest")/.memprune.XXXXXX" 2>/dev/null) || {
+                rm -f "$tmp" "$keep_tmp"
+                echo "Error: cannot create a temp file next to $dest — it was not rewritten." >&2
+                echo "       The expired entr(ies) are now BOTH in $ARCHIVE_FILE and still in $dest." >&2
+                exit 2
+            }
+            cp "$keep_tmp" "$dest_tmp" && mv "$dest_tmp" "$dest" || {
+                rm -f "$dest_tmp" "$tmp" "$keep_tmp"
+                echo "Error: failed to rewrite $dest." >&2
+                echo "       The expired entr(ies) are now BOTH in $ARCHIVE_FILE and still in $dest." >&2
+                exit 2
+            }
         fi
     fi
 
@@ -248,13 +296,18 @@ echo ""
 
 # Recursive: expanded domains live in memory/<domain>/*.md. The archive is excluded, or
 # every run would re-scan and re-archive what the previous run moved there.
+# -L follows symlinks: a project may symlink its memory dir or share a single lessons.md.
 # Process substitution, not a pipe — a pipe would run the loop in a subshell and discard
 # expired_count and scanned_files.
 while IFS= read -r f; do
-    [ -f "$f" ] || continue
+    [ -e "$f" ] || continue
     scanned_files=$((scanned_files + 1))
     process_file "$f"
-done < <(find "$MEM_DIR" -type f -name '*.md' -not -path "$ARCHIVE_DIR/*" | sort)
+done < <(find -L "$MEM_DIR" -type f -name '*.md' -not -path "$ARCHIVE_DIR/*" 2>/dev/null | sort)
+
+if [ "$scanned_files" -eq 0 ] && [ -n "$(ls -A "$MEM_DIR" 2>/dev/null)" ]; then
+    echo "Warning: $MEM_DIR is not empty but no .md file was readable — broken symlink?" >&2
+fi
 
 echo ""
 if [ "$expired_count" -eq 0 ]; then

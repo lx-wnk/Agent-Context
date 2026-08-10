@@ -204,6 +204,96 @@ check_archive_survives "trailing-slash --dir keeps the prior archive" --dir "mem
 check_archive_survives "trailing-slash --archive keeps the prior archive" --dir "memory" --archive "memory/archive/"
 check_archive_survives "relative --dir/--archive mix keeps the prior archive" --dir "./memory" --archive "memory/archive"
 
+# 14. Symlinks: the pre-recursive scan followed them via the `for f in */*.md` glob, so a project
+# whose memory dir is a symlink, or that shares a single lessons.md, must keep working.
+t=$(mk_tmp); mkdir -p "$t/real"
+seed_one linked "Behind a symlinked dir" "$t/real/lessons.md"
+ln -s "$t/real" "$t/memory"
+bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
+assert_file_not_contains "symlinked memory dir is scanned" "$t/real/lessons.md" "Behind a symlinked dir"
+
+t=$(mk_tmp); mkdir -p "$t/memory" "$t/shared"
+seed_one shared "Shared lesson entry" "$t/shared/lessons.md"
+ln -s "$t/shared/lessons.md" "$t/memory/lessons.md"
+bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
+assert_file_not_contains "symlinked memory file is pruned at its target" "$t/shared/lessons.md" "Shared lesson entry"
+[ -L "$t/memory/lessons.md" ] \
+    && pass "rewrite keeps the symlink, replacing the target" \
+    || fail "rewrite keeps the symlink, replacing the target" "link was replaced by a regular file"
+
+# 15. An unreadable file must not abort the scan — `done < "$file"` under set -e exits 1, which
+# is outside the declared 0/2 contract, and every later file is silently skipped.
+if [ "$(id -u)" -eq 0 ]; then
+    pass "unreadable file skipped, scan continues (skipped: running as root)"
+    pass "unreadable file keeps the exit code at 0 (skipped: running as root)"
+else
+    t=$(mk_tmp); mkdir -p "$t/memory"
+    seed_one a "Alpha expired" "$t/memory/aaa.md"
+    seed_one b "Bravo expired" "$t/memory/bbb.md"
+    seed_one c "Charlie expired" "$t/memory/ccc.md"
+    chmod 000 "$t/memory/bbb.md"
+    bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
+    rc=$?
+    assert_file_not_contains "unreadable file skipped, scan continues" "$t/memory/ccc.md" "Charlie expired"
+    [ "$rc" -eq 0 ] && pass "unreadable file keeps the exit code at 0" || fail "unreadable file keeps the exit code at 0" "got exit $rc"
+    chmod 644 "$t/memory/bbb.md"
+fi
+
+# 16. A rewrite that cannot happen after the archive append leaves a duplicate. That must be a
+# loud exit 2, not a set -e death at exit 1 (mktemp path) and not a silent exit 0 (cp/mv path).
+if [ "$(id -u)" -eq 0 ]; then
+    pass "failed rewrite exits 2 (skipped: running as root)"
+    pass "failed rewrite names both copies (skipped: running as root)"
+else
+    t=$(mk_tmp); mkdir -p "$t/memory"
+    seed_one ro "Read-only dir entry" "$t/memory/lessons.md"
+    chmod 555 "$t/memory"
+    err=$(bash "$PRUNE" --dir "$t/memory" --archive "$t/archive" --conf "$t/absent.conf" --apply 2>&1 >/dev/null)
+    rc=$?
+    chmod 755 "$t/memory"
+    [ "$rc" -eq 2 ] && pass "failed rewrite exits 2" || fail "failed rewrite exits 2" "got exit $rc"
+    printf '%s' "$err" | grep -qF "BOTH in" \
+        && pass "failed rewrite names both copies" \
+        || fail "failed rewrite names both copies" "stderr was: $err"
+fi
+
+# 17. The conf may contribute MEMORY_TTL_DEFAULTS and nothing else. Sourcing it into the script's
+# own scope let it flip APPLY, redirect MEM_DIR past its validation, or blank the shared table.
+# APPLY on its own, so the assertion cannot pass merely because another hostile key emptied
+# the scan — the default dry-run has to survive a conf that asks for a rewrite.
+t=$(mk_tmp); seed_defaults "$t/memory"
+printf 'APPLY=1\n' > "$t/apply.conf"
+bash "$PRUNE" --dir "$t/memory" --conf "$t/apply.conf" >/dev/null 2>&1
+assert_file_contains "conf APPLY=1 does not turn dry-run into a rewrite" "$t/memory/lessons.md" "Dated but no ttl"
+[ -d "$t/memory/archive" ] && fail "conf APPLY=1 creates no archive" "archive/ exists" || pass "conf APPLY=1 creates no archive"
+
+t=$(mk_tmp); seed_defaults "$t/memory"
+cat > "$t/hostile.conf" <<EOF
+MEM_DIR="$t/elsewhere"
+ARCHIVE_DIR="$t/elsewhere"
+SHARED_TTL_DEFAULTS=""
+EOF
+out=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/hostile.conf" 2>&1)
+printf '%s' "$out" | grep -qF "EXPIRED (default 90d)" \
+    && pass "conf cannot blank the shared TTL table" \
+    || fail "conf cannot blank the shared TTL table" "shared default stopped applying"
+# Compared against the conf's target, not against $t/memory — the scan header prints the
+# canonicalized path, and on macOS /var is itself a symlink to /private/var.
+printf '%s' "$out" | grep -qF "elsewhere" \
+    && fail "conf cannot redirect the scanned directory" "scan followed the conf: $out" \
+    || pass "conf cannot redirect the scanned directory"
+
+# 18. The `*` catch-all the budget.conf template advertises. Both lines shipped untested.
+t=$(mk_tmp); seed_defaults "$t/memory"
+printf 'MEMORY_TTL_DEFAULTS="*=90d"\n' > "$t/star.conf"
+bash "$PRUNE" --dir "$t/memory" --conf "$t/star.conf" --apply >/dev/null 2>&1
+assert_file_not_contains "conf '*' applies to a file in neither table" "$t/memory/glossary.md" "Unclassified file"
+
+t=$(mk_tmp); seed_defaults "$t/memory"
+printf 'MEMORY_TTL_DEFAULTS="\n*=90d\nglossary.md=infinite\n"\n' > "$t/star2.conf"
+bash "$PRUNE" --dir "$t/memory" --conf "$t/star2.conf" --apply >/dev/null 2>&1
+assert_file_contains "exact basename beats the conf '*'" "$t/memory/glossary.md" "Unclassified file"
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))
