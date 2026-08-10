@@ -51,9 +51,7 @@ fi
 # shellcheck source=conf-read.sh
 . "$BIN_DIR/conf-read.sh"
 
-for _key in MAX_EFFECTIVE_LINES MAX_EFFECTIVE_LINES_HARD INCLUDE_FILES; do
-    conf_get_into "$_key" "$CONF" "$_key" || true
-done
+conf_load "$CONF" MAX_EFFECTIVE_LINES MAX_EFFECTIVE_LINES_HARD INCLUDE_FILES
 
 [ -n "$MAX_OVERRIDE" ] && MAX_EFFECTIVE_LINES="$MAX_OVERRIDE"
 # Hard cap defaults to the soft cap → backward compatible (fail exactly at the soft limit).

@@ -32,12 +32,8 @@ CONF_READER="$HOOK_DIR/../bin/conf-read.sh"
 if [ -r "$CONF_READER" ]; then
     # shellcheck source=../bin/conf-read.sh
     . "$CONF_READER"
-    if [ -f "$CONF_FILE" ]; then
-        for _key in HOOKS_ENABLED PROTECT_SECRETS PROTECTED_GLOBS FORMAT_ON_EDIT FORMAT_CMD \
-            STOP_GATE TEST_CMD SUBAGENT_SCOPE ALLOWED_SUBAGENT_PATHS; do
-            conf_get_into "$_key" "$CONF_FILE" "$_key" || true
-        done
-    fi
+    conf_load "$CONF_FILE" HOOKS_ENABLED PROTECT_SECRETS PROTECTED_GLOBS FORMAT_ON_EDIT FORMAT_CMD \
+        STOP_GATE TEST_CMD SUBAGENT_SCOPE ALLOWED_SUBAGENT_PATHS
 elif [ -f "$CONF_FILE" ]; then
     echo "agent-context hooks: $CONF_READER is missing — hooks stay disabled. Re-run the update." >&2
 fi

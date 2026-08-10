@@ -45,9 +45,7 @@ fi
 # shellcheck source=conf-read.sh
 . "$BIN_DIR/conf-read.sh"
 
-for _key in MAP_FILE MAP_MAX_TOTAL_BYTES MAP_MAX_NODES MAP_MAX_NODE_LINE_BYTES; do
-    conf_get_into "$_key" "$CONF" "$_key" || true
-done
+conf_load "$CONF" MAP_FILE MAP_MAX_TOTAL_BYTES MAP_MAX_NODES MAP_MAX_NODE_LINE_BYTES
 [ -n "$MAP_OVERRIDE" ] && MAP_FILE="$MAP_OVERRIDE"
 
 for v in MAP_MAX_TOTAL_BYTES MAP_MAX_NODES MAP_MAX_NODE_LINE_BYTES; do
