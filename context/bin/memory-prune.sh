@@ -260,6 +260,14 @@ resolve_link() {
     printf '%s/%s' "$dir" "$leaf"
 }
 
+## The containment invariant every symlink- and archive-escape guard in this script asserts:
+## <path> resolves strictly inside <dir>. Quoted, so a directory name containing *, ? or [
+## is matched literally rather than as a glob.
+is_under() {
+    case "$1" in "$2"/*) return 0 ;; esac
+    return 1
+}
+
 ## Per-line metadata patterns. Held in variables because bash 3.2 treats a quoted regex on the
 ## right of =~ as a literal string; an unquoted variable is the form that works across versions.
 ## All three match leftmost, which is the `grep -oE … | head -1` semantics they replaced.
@@ -281,19 +289,18 @@ process_file() {
     ## write primitive for anything outside the tree: a repository shipping nothing but
     ## `memory/lessons.md -> ~/private-notes.md` otherwise reaches every file the developer can
     ## write, and the archive lives inside the repository, so the next push carries it out.
-    ## Same containment shape as the archive guard below — the quoted variable matches literally.
-    case "$dest" in
-        "$MEM_DIR"/*) ;;
-        *)
-            echo "Warning: skipping $file — it resolves to $dest, outside the memory directory $MEM_DIR." >&2
-            return 0 ;;
-    esac
+    if ! is_under "$dest" "$MEM_DIR"; then
+        echo "Warning: skipping $file — it resolves to $dest, outside the memory directory $MEM_DIR." >&2
+        return 0
+    fi
     ## Independent of the find-level exclusion: whatever route the scan took to get here, a file
     ## inside the archive is never a source. Rewriting one would erase the append just made to it.
-    case "$file" in "$ARCHIVE_DIR"/*) return 0 ;; esac
-    case "$dest" in "$ARCHIVE_DIR"/*) return 0 ;; esac
-    [ "$file" = "$ARCHIVE_FILE" ] && return 0
-    [ "$dest" = "$ARCHIVE_FILE" ] && return 0
+    ## Both the directory and the exact-file checks are kept on purpose: the -path exclusion in
+    ## find is glob-fragile, so these are the control that actually carries the load.
+    if is_under "$file" "$ARCHIVE_DIR" || is_under "$dest" "$ARCHIVE_DIR" \
+        || [ "$file" = "$ARCHIVE_FILE" ] || [ "$dest" = "$ARCHIVE_FILE" ]; then
+        return 0
+    fi
 
     if [ ! -r "$file" ]; then
         echo "Warning: skipping unreadable file: $file" >&2
@@ -405,7 +412,7 @@ process_file() {
             ## during that window cannot redirect the rewrite out of the tree.
             local dest_now
             dest_now=$(resolve_link "$file")
-            case "$dest_now" in "$MEM_DIR"/*) ;; *) dest_now="" ;; esac
+            is_under "$dest_now" "$MEM_DIR" || dest_now=""
             if [ "$dest_now" != "$dest" ]; then
                 echo "Error: $file changed where it points while it was processed — $dest was not rewritten." >&2
                 echo "       The expired entr(ies) are now BOTH in $ARCHIVE_FILE and still in $dest." >&2
