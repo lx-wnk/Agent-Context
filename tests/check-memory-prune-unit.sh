@@ -351,6 +351,64 @@ else
     fi
 fi
 
+# 22. The archive-write path is the other half of the 0/2 contract. mkdir -p, the append to the
+# archive file, and the two mktemp calls were unguarded under set -e, so an unwritable archive
+# dir or TMPDIR killed the run at exit 1 with a raw "Permission denied". The source file is
+# untouched in all three cases, and the message has to say so.
+if [ "$(id -u)" -eq 0 ]; then
+    pass "unwritable archive dir exits 2 (skipped: running as root)"
+    pass "unwritable archive dir names the archive file (skipped: running as root)"
+    pass "unwritable archive dir leaves the source intact (skipped: running as root)"
+    pass "uncreatable archive dir exits 2 (skipped: running as root)"
+    pass "uncreatable archive dir names the directory (skipped: running as root)"
+    pass "unwritable TMPDIR exits 2 (skipped: running as root)"
+    pass "unwritable TMPDIR names the temp directory (skipped: running as root)"
+    pass "unwritable TMPDIR leaves the source intact (skipped: running as root)"
+else
+    t=$(mk_tmp); mkdir -p "$t/memory" "$t/arch"
+    seed_one aw "Archive append entry" "$t/memory/lessons.md"
+    chmod 555 "$t/arch"
+    err=$(bash "$PRUNE" --dir "$t/memory" --archive "$t/arch" --conf "$t/absent.conf" --apply 2>&1 >/dev/null)
+    rc=$?
+    chmod 755 "$t/arch"
+    [ "$rc" -eq 2 ] && pass "unwritable archive dir exits 2" || fail "unwritable archive dir exits 2" "got exit $rc"
+    # Matched on the trailing path segment: normalize_dir canonicalizes, and on macOS /var is
+    # itself a symlink to /private/var, so the absolute prefix in $t will not match verbatim.
+    if printf '%s' "$err" | grep -qF "Error:" && printf '%s' "$err" | grep -qE '/arch/[0-9]{4}-W[0-9]{2}\.md'; then
+        pass "unwritable archive dir names the archive file"
+    else
+        fail "unwritable archive dir names the archive file" "stderr was: $err"
+    fi
+    assert_file_contains "unwritable archive dir leaves the source intact" "$t/memory/lessons.md" "Archive append entry"
+
+    t=$(mk_tmp); mkdir -p "$t/memory" "$t/parent"
+    seed_one mk "Archive mkdir entry" "$t/memory/lessons.md"
+    chmod 555 "$t/parent"
+    err=$(bash "$PRUNE" --dir "$t/memory" --archive "$t/parent/arch" --conf "$t/absent.conf" --apply 2>&1 >/dev/null)
+    rc=$?
+    chmod 755 "$t/parent"
+    [ "$rc" -eq 2 ] && pass "uncreatable archive dir exits 2" || fail "uncreatable archive dir exits 2" "got exit $rc"
+    if printf '%s' "$err" | grep -qF "Error:" && printf '%s' "$err" | grep -qF "/parent/arch"; then
+        pass "uncreatable archive dir names the directory"
+    else
+        fail "uncreatable archive dir names the directory" "stderr was: $err"
+    fi
+
+    t=$(mk_tmp); mkdir -p "$t/memory" "$t/notmp"
+    seed_one tm "Tmpdir entry" "$t/memory/lessons.md"
+    chmod 555 "$t/notmp"
+    err=$(TMPDIR="$t/notmp" bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply 2>&1 >/dev/null)
+    rc=$?
+    chmod 755 "$t/notmp"
+    [ "$rc" -eq 2 ] && pass "unwritable TMPDIR exits 2" || fail "unwritable TMPDIR exits 2" "got exit $rc"
+    if printf '%s' "$err" | grep -qF "Error:" && printf '%s' "$err" | grep -qF "$t/notmp"; then
+        pass "unwritable TMPDIR names the temp directory"
+    else
+        fail "unwritable TMPDIR names the temp directory" "stderr was: $err"
+    fi
+    assert_file_contains "unwritable TMPDIR leaves the source intact" "$t/memory/lessons.md" "Tmpdir entry"
+fi
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))

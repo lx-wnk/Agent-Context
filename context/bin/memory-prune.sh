@@ -231,8 +231,13 @@ process_file() {
     fi
 
     local tmp keep_tmp had_expired=0
-    tmp=$(mktemp "${TMPDIR:-/tmp}/memprune.arch.XXXXXX")
-    keep_tmp=$(mktemp "${TMPDIR:-/tmp}/memprune.keep.XXXXXX")
+    tmp=$(mktemp "${TMPDIR:-/tmp}/memprune.arch.XXXXXX" 2>/dev/null) || tmp=""
+    keep_tmp=$(mktemp "${TMPDIR:-/tmp}/memprune.keep.XXXXXX" 2>/dev/null) || keep_tmp=""
+    if [ -z "$tmp" ] || [ -z "$keep_tmp" ]; then
+        rm -f "$tmp" "$keep_tmp" 2>/dev/null || true
+        echo "Error: cannot create a temp file in ${TMPDIR:-/tmp} — $file was left unchanged." >&2
+        exit 2
+    fi
 
     while IFS= read -r line || [ -n "$line" ]; do
         local entry_date ttl_days ttl_token expiry mark
@@ -289,12 +294,24 @@ process_file() {
                       if ($1 == "") printf "    EXPIRED → %s\n", rest;
                       else printf "    EXPIRED (%s) → %s\n", $1, rest }' "$tmp"
         if [ "$APPLY" -eq 1 ]; then
-            mkdir -p "$ARCHIVE_DIR"
+            # Both writes precede the source rewrite, so a failure here costs nothing — but it has
+            # to leave through the declared exit 2, not a set -e death at exit 1. The leading
+            # 2>/dev/null is applied before the append, so a failing >> reports through the message
+            # below instead of a raw "Permission denied".
+            mkdir -p "$ARCHIVE_DIR" 2>/dev/null || {
+                rm -f "$tmp" "$keep_tmp"
+                echo "Error: cannot create the archive directory $ARCHIVE_DIR — $dest was left unchanged." >&2
+                exit 2
+            }
             {
                 printf '## From %s (archived %s)\n\n' "$base" "$TODAY"
                 cut -f2- "$tmp"
                 printf '\n'
-            } >> "$ARCHIVE_FILE"
+            } 2>/dev/null >> "$ARCHIVE_FILE" || {
+                rm -f "$tmp" "$keep_tmp"
+                echo "Error: cannot write the archive $ARCHIVE_FILE — $dest was left unchanged." >&2
+                exit 2
+            }
             # Atomic replace: rename within the same directory so an interrupt can never
             # leave the project-owned memory file truncated. The archive append above already
             # happened, so any failure here leaves a DUPLICATE — say so and stop at exit 2
