@@ -10,9 +10,14 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ### Fixed
 
-- **Recursive memory scan** — expanded domains (`memory/<domain>/*.md`) were never pruned; the scan only looked one level deep. It now recurses, and follows symlinked memory directories and files (rewriting the target, not the link).
+- **Recursive memory scan** — expanded domains (`memory/<domain>/*.md`) were never pruned; the scan only looked one level deep. It now recurses, and follows symlinked memory directories and files that resolve inside the scanned tree (rewriting the target, not the link).
 - **Archive self-destruct on non-canonical paths** — a trailing slash on `--dir`/`--archive` (what tab-completion produces) made the archive-exclusion glob miss, so the archive was scanned as a source and its rewrite erased every entry prior runs had moved there. Paths are canonicalized up front and a second guard refuses to rewrite anything inside the archive.
 - **Prune error handling** — an unreadable memory file no longer aborts the scan, a failed rewrite exits 2 naming the file (instead of dying at an undeclared exit 1 or reporting success), the conf can no longer override the script's own `APPLY`/`MEM_DIR`/`ARCHIVE_DIR`/shared TTL table, and the dry-run preview no longer truncates an entry at an embedded tab.
+
+### Security
+
+- **`.conf` files are parsed, never sourced** — `budget.conf` and `hooks.conf` are project-owned and can arrive via `git pull` from a repository nobody vetted, yet all four shared consumers ran them with `.`, which executes every command in the file. `bin/conf-read.sh` (new, shared) reads whitelisted `KEY=value` pairs without evaluating them, and `bin/memory-prune.sh`, `bin/check-token-budget.sh`, `bin/check-map-budget.sh` and `hooks/lib.sh` all route through it.
+- **Memory pruning stays inside the memory tree** — a symlinked memory file that resolved outside the scanned directory was read, previewed and rewritten at its out-of-tree target, and its content was copied into the in-repo archive. Such a file is now reported and skipped, and the containment check is re-asserted immediately before the rewrite. The scan is also NUL-delimited, so a newline in a directory name can no longer split one path into two.
 
 ### Upgrade note
 

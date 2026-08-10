@@ -212,11 +212,14 @@ ln -s "$t/real" "$t/memory"
 bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
 assert_file_not_contains "symlinked memory dir is scanned" "$t/real/lessons.md" "Behind a symlinked dir"
 
-t=$(mk_tmp); mkdir -p "$t/memory" "$t/shared"
-seed_one shared "Shared lesson entry" "$t/shared/lessons.md"
-ln -s "$t/shared/lessons.md" "$t/memory/lessons.md"
+# A symlink that resolves back INTO the memory tree is still rewritten at its target — mv over
+# the link would swap a deliberately shared file for a private copy. Targets outside the tree
+# are a different case, covered by test 24.
+t=$(mk_tmp); mkdir -p "$t/memory/shared"
+seed_one shared "Shared lesson entry" "$t/memory/shared/lessons.md"
+ln -s "$t/memory/shared/lessons.md" "$t/memory/lessons.md"
 bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
-assert_file_not_contains "symlinked memory file is pruned at its target" "$t/shared/lessons.md" "Shared lesson entry"
+assert_file_not_contains "in-tree symlink is pruned at its target" "$t/memory/shared/lessons.md" "Shared lesson entry"
 [ -L "$t/memory/lessons.md" ] \
     && pass "rewrite keeps the symlink, replacing the target" \
     || fail "rewrite keeps the symlink, replacing the target" "link was replaced by a regular file"
@@ -433,6 +436,37 @@ rc=$?
 [ ! -e "$t/SUBST_RAN" ] && [ "$rc" -eq 2 ] \
     && pass "command substitution in a conf value stays literal and exits 2" \
     || fail "command substitution in a conf value stays literal and exits 2" "canary=$([ -e "$t/SUBST_RAN" ] && echo ran || echo absent) rc=$rc"
+
+# 24. A memory file that RESOLVES outside the memory directory is a link-following escape: a
+# repository shipping only `memory/lessons.md -> ~/private-notes.md` otherwise reaches any file
+# the developer can write, and the archive lives in the repo, so the next push exfiltrates it.
+t=$(mk_tmp); mkdir -p "$t/memory" "$t/outside"
+seed_one victim "Out-of-tree entry" "$t/outside/lessons.md"
+ln -s "$t/outside/lessons.md" "$t/memory/lessons.md"
+out=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" 2>/dev/null)
+printf '%s' "$out" | grep -qF "Out-of-tree entry" \
+    && fail "dry-run does not disclose out-of-tree content" "the preview printed the target's line" \
+    || pass "dry-run does not disclose out-of-tree content"
+err=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply 2>&1 >/dev/null)
+rc=$?
+assert_file_contains "out-of-tree symlink target is not rewritten" "$t/outside/lessons.md" "Out-of-tree entry"
+printf '%s' "$err" | grep -qF "outside the memory directory" \
+    && pass "out-of-tree symlink target is reported" \
+    || fail "out-of-tree symlink target is reported" "stderr was: $err"
+[ "$rc" -eq 0 ] && pass "out-of-tree symlink keeps the exit code at 0" \
+    || fail "out-of-tree symlink keeps the exit code at 0" "got exit $rc"
+
+# 25. `find` emits newline-separated paths, so a directory name containing a newline splits into
+# a second, independent path — here a relative one, resolved against the CWD, fully outside the
+# memory tree. NUL delimiting makes the separator unforgeable and keeps the real file scannable.
+t=$(mk_tmp); mkdir -p "$t/victimdir"
+inject_dir="$t/memory/$(printf 'x\nvictimdir')"
+mkdir -p "$inject_dir"
+seed_one inj "Inside the newline directory" "$inject_dir/lessons.md"
+seed_one esc "Injected path entry" "$t/victimdir/lessons.md"
+( cd "$t" && bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply ) >/dev/null 2>&1
+assert_file_contains "a newline in a directory name injects no second path" "$t/victimdir/lessons.md" "Injected path entry"
+assert_file_not_contains "the real file inside the newline directory is still scanned" "$inject_dir/lessons.md" "Inside the newline directory"
 
 echo ""
 echo "================================================"

@@ -4,7 +4,8 @@ set -euo pipefail
 # Memory rotation / decay: archive expired dated memory entries.
 #
 # Scans memory/ recursively, so expanded domains (memory/<domain>/*.md) are covered too.
-# Symlinked files and symlinked sub-directories are followed. Skips the archive/ directory
+# Symlinked files and symlinked sub-directories are followed as long as they resolve INSIDE the
+# scanned directory; a link out of the tree is reported and skipped. Skips the archive/ directory
 # itself, and index.md/todo.md at any depth.
 #
 # Reads the dated-entry metadata the workflow already requires on every lesson:
@@ -220,6 +221,17 @@ process_file() {
     esac
 
     dest=$(resolve_link "$file")
+    # resolve_link follows the link to its physical target on purpose, which is also a read and
+    # write primitive for anything outside the tree: a repository shipping nothing but
+    # `memory/lessons.md -> ~/private-notes.md` otherwise reaches every file the developer can
+    # write, and the archive lives inside the repository, so the next push carries it out.
+    # Same containment shape as the archive guard below — the quoted variable matches literally.
+    case "$dest" in
+        "$MEM_DIR"/*) ;;
+        *)
+            echo "Warning: skipping $file — it resolves to $dest, outside the memory directory $MEM_DIR." >&2
+            return 0 ;;
+    esac
     # Independent of the find-level exclusion: whatever route the scan took to get here, a file
     # inside the archive is never a source. Rewriting one would erase the append just made to it.
     case "$file" in "$ARCHIVE_DIR"/*) return 0 ;; esac
@@ -325,6 +337,18 @@ process_file() {
                 echo "       The expired entr(ies) are now BOTH in $ARCHIVE_FILE and still in $dest." >&2
                 exit 2
             }
+            # dest was resolved before the file was read and before the archive was appended.
+            # Re-assert containment here, at the moment the write lands, so a link repointed
+            # during that window cannot redirect the rewrite out of the tree.
+            local dest_now
+            dest_now=$(resolve_link "$file")
+            case "$dest_now" in "$MEM_DIR"/*) ;; *) dest_now="" ;; esac
+            if [ "$dest_now" != "$dest" ]; then
+                rm -f "$dest_tmp" "$tmp" "$keep_tmp"
+                echo "Error: $file changed where it points while it was processed — $dest was not rewritten." >&2
+                echo "       The expired entr(ies) are now BOTH in $ARCHIVE_FILE and still in $dest." >&2
+                exit 2
+            fi
             cp "$keep_tmp" "$dest_tmp" && mv "$dest_tmp" "$dest" || {
                 rm -f "$dest_tmp" "$tmp" "$keep_tmp"
                 echo "Error: failed to rewrite $dest." >&2
@@ -341,16 +365,26 @@ echo "Memory decay scan — $MEM_DIR (today: $TODAY)"
 [ "$APPLY" -eq 1 ] && echo "Mode: APPLY (files will be rewritten)" || echo "Mode: dry-run (no changes; pass --apply to archive)"
 echo ""
 
+# BSD sort gained -z on macOS 12. Without it the scan keeps find's own order, which is stable
+# for a given tree and only reorders the per-file blocks of the report.
+sort_paths() {
+    if printf '\0' | sort -z >/dev/null 2>&1; then sort -z; else cat; fi
+}
+
 # Recursive: expanded domains live in memory/<domain>/*.md. The archive is excluded, or
 # every run would re-scan and re-archive what the previous run moved there.
-# -L follows symlinks: a project may symlink its memory dir or share a single lessons.md.
+# -L follows symlinks: a project may symlink its memory dir. Targets outside the tree are
+# rejected per file in process_file.
+# NUL-delimited: a newline is legal in a directory name, and git stores one, so a
+# newline-separated scan splits a single path into two — the second fragment being an
+# independent path outside the tree that the loop would then read and rewrite.
 # Process substitution, not a pipe — a pipe would run the loop in a subshell and discard
 # expired_count and scanned_files.
-while IFS= read -r f; do
+while IFS= read -r -d '' f; do
     [ -e "$f" ] || continue
     scanned_files=$((scanned_files + 1))
     process_file "$f"
-done < <(find -L "$MEM_DIR" -type f -name '*.md' -not -path "$ARCHIVE_DIR/*" 2>/dev/null | sort)
+done < <(find -L "$MEM_DIR" -type f -name '*.md' -not -path "$ARCHIVE_DIR/*" -print0 2>/dev/null | sort_paths)
 
 if [ "$scanned_files" -eq 0 ] && [ -n "$(ls -A "$MEM_DIR" 2>/dev/null)" ]; then
     echo "Warning: $MEM_DIR is not empty but no .md file was readable — broken symlink?" >&2
