@@ -175,6 +175,10 @@ validate_ttl_map() {
     set +f
 }
 
+## Both lookups hand their hit back through TTL_MATCH rather than stdout: a command substitution
+## forks a subshell per call, and resolve_ttl probes up to four tables for every dated entry.
+TTL_MATCH=""
+
 lookup_ttl_map() {
     local map="$1" want="$2" token
     set -f
@@ -182,7 +186,7 @@ lookup_ttl_map() {
     for token in $map; do
         if [ "${token%%=*}" = "$want" ]; then
             set +f
-            printf '%s' "${token#*=}"
+            TTL_MATCH="${token#*=}"
             return 0
         fi
     done
@@ -192,11 +196,12 @@ lookup_ttl_map() {
 
 ## Exact basename beats catch-all; within each, the conf beats the shared table.
 resolve_ttl() {
-    local base="$1" v
-    if v=$(lookup_ttl_map "$MEMORY_TTL_DEFAULTS" "$base"); then printf '%s' "$v"; return 0; fi
-    if v=$(lookup_ttl_map "$SHARED_TTL_DEFAULTS" "$base"); then printf '%s' "$v"; return 0; fi
-    if v=$(lookup_ttl_map "$MEMORY_TTL_DEFAULTS" '*'); then printf '%s' "$v"; return 0; fi
-    if v=$(lookup_ttl_map "$SHARED_TTL_DEFAULTS" '*'); then printf '%s' "$v"; return 0; fi
+    local base="$1"
+    if lookup_ttl_map "$MEMORY_TTL_DEFAULTS" "$base"; then return 0; fi
+    if lookup_ttl_map "$SHARED_TTL_DEFAULTS" "$base"; then return 0; fi
+    if lookup_ttl_map "$MEMORY_TTL_DEFAULTS" '*'; then return 0; fi
+    if lookup_ttl_map "$SHARED_TTL_DEFAULTS" '*'; then return 0; fi
+    TTL_MATCH=""
     return 1
 }
 
@@ -255,6 +260,13 @@ resolve_link() {
     printf '%s/%s' "$dir" "$leaf"
 }
 
+## Per-line metadata patterns. Held in variables because bash 3.2 treats a quoted regex on the
+## right of =~ as a literal string; an unquoted variable is the form that works across versions.
+## All three match leftmost, which is the `grep -oE … | head -1` semantics they replaced.
+ENTRY_DATE_RE='\((20[0-9]{2}-[0-9]{2}-[0-9]{2})\)'
+TTL_DAYS_RE='ttl:([0-9]+)d'
+TTL_TOKEN_RE='ttl:[A-Za-z0-9]+'
+
 ## Collected per file: lines to archive, written only in --apply mode.
 process_file() {
     local file="$1"
@@ -298,22 +310,21 @@ process_file() {
     fi
 
     while IFS= read -r line || [ -n "$line" ]; do
-        local entry_date ttl_days ttl_token expiry mark
-        ## Extract (YYYY-MM-DD) and ttl:Nd.
-        entry_date=$(printf '%s\n' "$line" | grep -oE '\(20[0-9]{2}-[0-9]{2}-[0-9]{2}\)' | head -1 | tr -d '()' || true)
-        ttl_days=$(printf '%s\n' "$line" | grep -oE 'ttl:[0-9]+d' | head -1 | grep -oE '[0-9]+' || true)
+        local entry_date="" ttl_days="" ttl_token="" expiry mark
+        if [[ $line =~ $ENTRY_DATE_RE ]]; then entry_date="${BASH_REMATCH[1]}"; fi
 
         if [ -z "$entry_date" ]; then
             printf '%s\n' "$line" >> "$keep_tmp"
             continue
         fi
 
+        if [[ $line =~ $TTL_DAYS_RE ]]; then ttl_days="${BASH_REMATCH[1]}"; fi
+
         mark=""
         if [ -z "$ttl_days" ]; then
             ## ttl_token additionally catches ttl:infinite and any other self-declared TTL, so a
-            ## file default never overrides an explicit one. Only computed here, where it is read —
-            ## every other line class (already-numeric ttl, or no ttl: at all) skips the pipeline.
-            ttl_token=$(printf '%s\n' "$line" | grep -oE 'ttl:[A-Za-z0-9]+' | head -1 || true)
+            ## file default never overrides an explicit one. Only computed here, where it is read.
+            if [[ $line =~ $TTL_TOKEN_RE ]]; then ttl_token="${BASH_REMATCH[0]}"; fi
             if [ -n "$ttl_token" ]; then
                 if [ "$ttl_token" != "ttl:infinite" ]; then
                     ## Matches ttl:[A-Za-z0-9]+ but not the numeric ttl:Nd form above and not
@@ -326,7 +337,7 @@ process_file() {
                 continue
             fi
             local default_ttl=""
-            default_ttl=$(resolve_ttl "$base") || default_ttl=""
+            if resolve_ttl "$base"; then default_ttl="$TTL_MATCH"; fi
             if [ -z "$default_ttl" ] || [ "$default_ttl" = "infinite" ]; then
                 printf '%s\n' "$line" >> "$keep_tmp"
                 continue
