@@ -102,20 +102,22 @@ people.md=infinite
 user.md=infinite
 "
 
-# The conf may set MEMORY_TTL_DEFAULTS — and nothing else this script relies on. It is sourced
-# in a SUBSHELL and only that one key is read back, so a conf cannot flip APPLY, redirect
-# MEM_DIR/ARCHIVE_DIR past their validation, or blank out SHARED_TTL_DEFAULTS. The other keys
-# in budget.conf (MAX_EFFECTIVE_LINES, INCLUDE_FILES, MAP_FILE, …) belong to other scripts and
-# are simply ignored here.
-MEMORY_TTL_DEFAULTS=""
-if [ -f "$CONF" ]; then
-    MEMORY_TTL_DEFAULTS=$(
-        set +e
-        # shellcheck disable=SC1090
-        . "$CONF" >/dev/null 2>&1
-        printf '%s' "${MEMORY_TTL_DEFAULTS:-}"
-    ) || MEMORY_TTL_DEFAULTS=""
+# The conf is project-owned DATA that can arrive via `git pull` from a repository the developer
+# does not control. It is parsed, never executed: conf_get copies out the one key named below,
+# literally, with no shell semantics at all. So a conf carries no commands, cannot flip APPLY,
+# cannot redirect MEM_DIR/ARCHIVE_DIR past their validation and cannot blank SHARED_TTL_DEFAULTS.
+# The other keys in budget.conf (MAX_EFFECTIVE_LINES, INCLUDE_FILES, MAP_FILE, …) belong to other
+# scripts; asking for one key by name is what makes that a whitelist rather than a convention.
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+if [ ! -r "$BIN_DIR/conf-read.sh" ]; then
+    echo "Error: $BIN_DIR/conf-read.sh is missing — re-run the Agent-Context update to restore it." >&2
+    exit 2
 fi
+# shellcheck source=conf-read.sh
+. "$BIN_DIR/conf-read.sh"
+
+MEMORY_TTL_DEFAULTS=""
+conf_get_into MEMORY_TTL_DEFAULTS "$CONF" MEMORY_TTL_DEFAULTS || MEMORY_TTL_DEFAULTS=""
 
 # Converts YYYY-MM-DD to a Unix epoch. Empty output on parse failure.
 date_to_epoch() {

@@ -257,10 +257,11 @@ else
         || fail "failed rewrite names both copies" "stderr was: $err"
 fi
 
-# 17. The conf may contribute MEMORY_TTL_DEFAULTS and nothing else. Sourcing it into the script's
-# own scope let it flip APPLY, redirect MEM_DIR past its validation, or blank the shared table.
-# APPLY on its own, so the assertion cannot pass merely because another hostile key emptied
-# the scan — the default dry-run has to survive a conf that asks for a rewrite.
+# 17. Only MEMORY_TTL_DEFAULTS is read out of the conf; every other key in it is ignored, so no
+# conf key reaches APPLY, MEM_DIR/ARCHIVE_DIR or the shared table. Test 23 covers the other half
+# of the same property — that the file is parsed rather than executed. APPLY is asserted on its
+# own, so the result cannot pass merely because another key emptied the scan: the default
+# dry-run has to survive a conf that asks for a rewrite.
 t=$(mk_tmp); seed_defaults "$t/memory"
 printf 'APPLY=1\n' > "$t/apply.conf"
 bash "$PRUNE" --dir "$t/memory" --conf "$t/apply.conf" >/dev/null 2>&1
@@ -408,6 +409,30 @@ else
     fi
     assert_file_contains "unwritable TMPDIR leaves the source intact" "$t/memory/lessons.md" "Tmpdir entry"
 fi
+
+# 23. The conf is DATA, not a script. It is parsed for MEMORY_TTL_DEFAULTS and never executed,
+# so a budget.conf arriving via `git pull` from an untrusted repository cannot run a command —
+# not even in the default dry-run the CHANGELOG recommends as the safe first step.
+t=$(mk_tmp); seed_defaults "$t/memory"
+canary="$t/PAYLOAD_RAN"
+printf 'MEMORY_TTL_DEFAULTS="lessons.md=90d"\ntouch %s\n' "$canary" > "$t/payload.conf"
+bash "$PRUNE" --dir "$t/memory" --conf "$t/payload.conf" >/dev/null 2>&1
+[ -e "$canary" ] && fail "conf payload is never executed (dry-run)" "the conf command ran" \
+    || pass "conf payload is never executed (dry-run)"
+bash "$PRUNE" --dir "$t/memory" --conf "$t/payload.conf" --apply >/dev/null 2>&1
+[ -e "$canary" ] && fail "conf payload is never executed (--apply)" "the conf command ran" \
+    || pass "conf payload is never executed (--apply)"
+assert_file_not_contains "the parsed key still applies while the payload is ignored" "$t/memory/lessons.md" "Dated but no ttl"
+
+# A command substitution inside a value is literal text, so it reaches the validator unevaluated
+# and is rejected there like any other malformed value.
+t=$(mk_tmp); seed_defaults "$t/memory"
+printf 'MEMORY_TTL_DEFAULTS="lessons.md=$(touch %s/SUBST_RAN)d"\n' "$t" > "$t/subst.conf"
+bash "$PRUNE" --dir "$t/memory" --conf "$t/subst.conf" --apply >/dev/null 2>&1
+rc=$?
+[ ! -e "$t/SUBST_RAN" ] && [ "$rc" -eq 2 ] \
+    && pass "command substitution in a conf value stays literal and exits 2" \
+    || fail "command substitution in a conf value stays literal and exits 2" "canary=$([ -e "$t/SUBST_RAN" ] && echo ran || echo absent) rc=$rc"
 
 echo ""
 echo "================================================"

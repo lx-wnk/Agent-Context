@@ -39,10 +39,21 @@ done
 MAX_EFFECTIVE_LINES=200
 MAX_EFFECTIVE_LINES_HARD=""
 INCLUDE_FILES=""
-if [ -f "$CONF" ]; then
-    # shellcheck disable=SC1090
-    . "$CONF"
+
+# The conf is project-owned DATA that can arrive via `git pull` from a repository the developer
+# does not control, so it is parsed rather than sourced — the three keys below are copied out
+# literally and nothing in the file is ever executed.
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+if [ ! -r "$BIN_DIR/conf-read.sh" ]; then
+    echo "Error: $BIN_DIR/conf-read.sh is missing — re-run the Agent-Context update to restore it." >&2
+    exit 2
 fi
+# shellcheck source=conf-read.sh
+. "$BIN_DIR/conf-read.sh"
+
+for _key in MAX_EFFECTIVE_LINES MAX_EFFECTIVE_LINES_HARD INCLUDE_FILES; do
+    conf_get_into "$_key" "$CONF" "$_key" || true
+done
 
 [ -n "$MAX_OVERRIDE" ] && MAX_EFFECTIVE_LINES="$MAX_OVERRIDE"
 # Hard cap defaults to the soft cap → backward compatible (fail exactly at the soft limit).
