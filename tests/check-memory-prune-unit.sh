@@ -314,6 +314,43 @@ printf '%s' "$err" | grep -qF "entry '*' is not key=value" \
     && pass "config error names the literal token, not a globbed filename" \
     || fail "config error names the literal token, not a globbed filename" "stderr was: $err"
 
+# 21. normalize_dir canonicalizes via `cd … && pwd -P` inside a command substitution, whose
+# failure printf swallows: an unsearchable --dir silently became the empty string (header
+# "Memory decay scan — ", zero files scanned, exit 0), and an --archive whose parent cannot be
+# searched silently relocated the archive to the filesystem root ("/arch/<week>.md").
+if [ "$(id -u)" -eq 0 ]; then
+    pass "unsearchable --dir exits 2 (skipped: running as root)"
+    pass "unsearchable --dir names the directory (skipped: running as root)"
+    pass "unsearchable --archive parent exits 2 (skipped: running as root)"
+    pass "unsearchable --archive parent names the directory (skipped: running as root)"
+else
+    t=$(mk_tmp); mkdir -p "$t/memory"
+    seed_one nodir "Unsearchable dir entry" "$t/memory/lessons.md"
+    chmod 000 "$t/memory"
+    err=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply 2>&1 >/dev/null)
+    rc=$?
+    chmod 755 "$t/memory"
+    [ "$rc" -eq 2 ] && pass "unsearchable --dir exits 2" || fail "unsearchable --dir exits 2" "got exit $rc"
+    if printf '%s' "$err" | grep -qF "Error:" && printf '%s' "$err" | grep -qF "$t/memory"; then
+        pass "unsearchable --dir names the directory"
+    else
+        fail "unsearchable --dir names the directory" "stderr was: $err"
+    fi
+
+    t=$(mk_tmp); mkdir -p "$t/memory" "$t/locked"
+    seed_one noarch "Unsearchable archive parent" "$t/memory/lessons.md"
+    chmod 000 "$t/locked"
+    err=$(bash "$PRUNE" --dir "$t/memory" --archive "$t/locked/arch" --conf "$t/absent.conf" --apply 2>&1 >/dev/null)
+    rc=$?
+    chmod 755 "$t/locked"
+    [ "$rc" -eq 2 ] && pass "unsearchable --archive parent exits 2" || fail "unsearchable --archive parent exits 2" "got exit $rc"
+    if printf '%s' "$err" | grep -qF "Error:" && printf '%s' "$err" | grep -qF "$t/locked"; then
+        pass "unsearchable --archive parent names the directory"
+    else
+        fail "unsearchable --archive parent names the directory" "stderr was: $err"
+    fi
+fi
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))

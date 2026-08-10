@@ -58,8 +58,10 @@ done
 # against a "-dir memory/" scan) makes the -path exclusion miss — the archive is then scanned
 # as a source file and its own rewrite wipes what earlier weeks put there.
 # Walks up to the first existing ancestor, so a not-yet-created archive still canonicalizes.
+# Returns 2 when the ancestor cannot be entered — a swallowed `cd` silently substituted the
+# empty string, which turned --dir into a no-op scan and relocated --archive to the root.
 normalize_dir() {
-    local d="$1" tail="" parent leaf
+    local d="$1" tail="" parent leaf abs
     while [ "${d%/}" != "$d" ] && [ "$d" != "/" ]; do d="${d%/}"; done
     [ -n "$d" ] || { printf '%s' "$1"; return 0; }
     while [ ! -d "$d" ]; do
@@ -69,7 +71,15 @@ normalize_dir() {
         tail="/$leaf$tail"
         d="$parent"
     done
-    printf '%s%s' "$(cd "$d" && pwd -P)" "$tail"
+    abs=$(cd "$d" 2>/dev/null && pwd -P) || {
+        if [ "$d" = "$1" ]; then
+            echo "Error: cannot resolve '$d' — the directory is not searchable." >&2
+        else
+            echo "Error: cannot resolve '$1' — its existing parent '$d' is not searchable." >&2
+        fi
+        return 2
+    }
+    printf '%s%s' "$abs" "$tail"
 }
 
 if [ ! -d "$MEM_DIR" ]; then
@@ -77,9 +87,9 @@ if [ ! -d "$MEM_DIR" ]; then
     exit 2
 fi
 
-MEM_DIR=$(normalize_dir "$MEM_DIR")
+MEM_DIR=$(normalize_dir "$MEM_DIR") || exit 2
 [ -z "$ARCHIVE_DIR" ] && ARCHIVE_DIR="$MEM_DIR/archive"
-ARCHIVE_DIR=$(normalize_dir "$ARCHIVE_DIR")
+ARCHIVE_DIR=$(normalize_dir "$ARCHIVE_DIR") || exit 2
 
 # Per-file TTL defaults, applied ONLY to dated entries that carry no ttl: of their own.
 # This table ships no `*` catch-all: a file nobody classified stays immortal until a project
