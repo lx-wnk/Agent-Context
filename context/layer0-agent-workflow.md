@@ -20,7 +20,7 @@
 ### Memory Decay
 
 - Dated entries expire when `today > date + ttl`; `ttl:infinite` never expires (architecture/security)
-- Dated entries without a `ttl:` fall back to a per-file default (`lessons.md` 90d; `preferences.md`, `people.md`, `user.md` infinite) — override per project in `budget.conf` via `MEMORY_TTL_DEFAULTS`
+- Dated entries without a `ttl:` fall back to a per-file default (`lessons.md` 90d; `preferences.md`, `people.md`, `user.md` infinite) — override per project in `.agent-context/budget.conf` via `MEMORY_TTL_DEFAULTS`
 - Archive expired entries (never delete): `bash .agent-context/bin/memory-prune.sh` (dry-run) then `--apply` → moves them to `memory/archive/<ISO-week>.md`
 
 ## Routing New Knowledge

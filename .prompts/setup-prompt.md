@@ -726,7 +726,7 @@ AGENTS.md                                PROJECT — customize freely
     stop-test-gate.sh                    🔒 SHARED — Stop test gate (auto-updated)
     subagent-scope.sh                    🔒 SHARED — SubagentStop scope check (auto-updated)
   hooks.conf                             PROJECT — hook toggles + toolchain (never overwritten)
-  budget.conf                            PROJECT — token-budget config (never overwritten)
+  budget.conf                            PROJECT — token-budget + memory-TTL config (never overwritten)
   knowledge-map.md                       PROJECT — maintained by agent, never recreate from template
   setup-decisions.json                   PROJECT — maintained by agent, never recreate from template
   decisions.json                         PROJECT — structured decisions (auto-reviewed)
