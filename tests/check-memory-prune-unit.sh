@@ -547,7 +547,48 @@ assert_file_not_contains "explicit ttl:30d still expires" "$t/memory/lessons.md"
 assert_file_not_contains "untagged line still falls back to the shared default" "$t/memory/lessons.md" "Untagged, falls through"
 assert_file_contains "ttl:infinite still survives after an explicit-ttl line" "$t/memory/lessons.md" "ttl_token branch finds infinite"
 
-# 29. No trap meant a SIGINT mid-scan left the per-file temp files behind under their random
+# 29. `Error: unknown argument: ...` was the only failure path without the `Error:` prefix every
+# other error message in this script uses.
+err=$(bash "$PRUNE" --bogus-flag 2>&1 >/dev/null)
+rc=$?
+[ "$rc" -eq 2 ] && pass "unknown argument exits 2" || fail "unknown argument exits 2" "got exit $rc"
+printf '%s' "$err" | grep -qF "Error: unknown argument: --bogus-flag" \
+    && pass "unknown argument uses the Error: prefix" \
+    || fail "unknown argument uses the Error: prefix" "stderr was: $err"
+
+# 30. Config loading used to be silent on every failure mode — a missing --conf, a conf with no
+# MEMORY_TTL_DEFAULTS entry, and a conf where the key is present but malformed (unclosed quote)
+# all looked identical to no conf at all. A header line now names the resolved conf and whether
+# defaults were loaded, and a malformed key additionally warns instead of being swallowed.
+t=$(mk_tmp); seed "$t/memory"
+
+out=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" 2>&1)
+printf '%s' "$out" | grep -qF "Config: $t/absent.conf not found — built-in defaults only" \
+    && pass "missing conf is reported by name" \
+    || fail "missing conf is reported by name" "stdout was: $out"
+
+printf 'MAX_EFFECTIVE_LINES=200\n' > "$t/noentry.conf"
+out=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/noentry.conf" 2>&1)
+printf '%s' "$out" | grep -qF "Config: $t/noentry.conf found, no MEMORY_TTL_DEFAULTS entry" \
+    && pass "conf without the key is reported as such" \
+    || fail "conf without the key is reported as such" "stdout was: $out"
+
+printf 'MEMORY_TTL_DEFAULTS="lessons.md=30d"\n' > "$t/good.conf"
+out=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/good.conf" 2>&1)
+printf '%s' "$out" | grep -qF "Config: $t/good.conf (MEMORY_TTL_DEFAULTS loaded)" \
+    && pass "a loaded conf is reported as loaded" \
+    || fail "a loaded conf is reported as loaded" "stdout was: $out"
+
+printf 'MEMORY_TTL_DEFAULTS="lessons.md=30d\n' > "$t/badquote.conf"
+out=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/badquote.conf" 2>&1)
+printf '%s' "$out" | grep -qF "Config: $t/badquote.conf found, MEMORY_TTL_DEFAULTS could not be parsed" \
+    && pass "an unparsable conf key is reported as such" \
+    || fail "an unparsable conf key is reported as such" "stdout was: $out"
+printf '%s' "$out" | grep -qF "Warning: $t/badquote.conf sets MEMORY_TTL_DEFAULTS but it could not be parsed" \
+    && pass "an unparsable conf key warns instead of being swallowed" \
+    || fail "an unparsable conf key warns instead of being swallowed" "stdout was: $out"
+
+# 31. No trap meant a SIGINT mid-scan left the per-file temp files behind under their random
 # mktemp names, holding memory content until TMPDIR was cleared. A trap that only cleans up
 # without also terminating the process is worse than doing nothing: the read loop resumes right
 # after the trap returns and its `>> "$keep_tmp"` calls recreate the file the trap just deleted,
