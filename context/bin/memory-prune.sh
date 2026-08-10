@@ -194,6 +194,30 @@ TODAY=$(date +%Y-%m-%d)
 expired_count=0
 scanned_files=0
 
+# Per-file temp files, promoted to script scope (not `local` to process_file) so the trap below
+# can reach whichever ones are live at the moment of a signal. A SIGINT mid-scan otherwise left
+# them behind under their random mktemp names, holding memory content until TMPDIR was cleared.
+tmp=""
+keep_tmp=""
+dest_tmp=""
+cleanup_temp_files() {
+    rm -f "${tmp:-}" "${keep_tmp:-}" "${dest_tmp:-}" 2>/dev/null || true
+}
+# A signal-only cleanup ("trap cleanup_temp_files INT ...", no exit) does NOT stop the script —
+# bash resumes the interrupted loop right after the trap returns. The loop's `>> "$keep_tmp"`
+# calls then recreate the file the trap just removed, silently DROPPING every line buffered
+# before the signal. Resetting the trap and re-sending the signal to ourselves makes the
+# process actually die from it (standard 128+signal exit), which is what stops the loop.
+die_on_signal() {
+    cleanup_temp_files
+    trap - "$1"
+    kill -s "$1" "$$"
+}
+trap cleanup_temp_files EXIT
+trap 'die_on_signal INT' INT
+trap 'die_on_signal TERM' TERM
+trap 'die_on_signal HUP' HUP
+
 # Resolves a symlinked memory file to its physical target. A rewrite has to replace the
 # TARGET's content — mv over the link would swap a deliberately shared file for a private copy.
 resolve_link() {
@@ -246,22 +270,20 @@ process_file() {
         return 0
     fi
 
-    local tmp keep_tmp had_expired=0
+    local had_expired=0
     tmp=$(mktemp "${TMPDIR:-/tmp}/memprune.arch.XXXXXX" 2>/dev/null) || tmp=""
     keep_tmp=$(mktemp "${TMPDIR:-/tmp}/memprune.keep.XXXXXX" 2>/dev/null) || keep_tmp=""
     if [ -z "$tmp" ] || [ -z "$keep_tmp" ]; then
-        rm -f "$tmp" "$keep_tmp" 2>/dev/null || true
+        # The EXIT trap cleans up whichever of the two mktemp calls succeeded.
         echo "Error: cannot create a temp file in ${TMPDIR:-/tmp} — $file was left unchanged." >&2
         exit 2
     fi
 
     while IFS= read -r line || [ -n "$line" ]; do
         local entry_date ttl_days ttl_token expiry mark
-        # Extract (YYYY-MM-DD) and ttl:Nd. ttl_token additionally catches ttl:infinite and
-        # any other self-declared TTL, so a file default never overrides an explicit one.
+        # Extract (YYYY-MM-DD) and ttl:Nd.
         entry_date=$(printf '%s\n' "$line" | grep -oE '\(20[0-9]{2}-[0-9]{2}-[0-9]{2}\)' | head -1 | tr -d '()' || true)
         ttl_days=$(printf '%s\n' "$line" | grep -oE 'ttl:[0-9]+d' | head -1 | grep -oE '[0-9]+' || true)
-        ttl_token=$(printf '%s\n' "$line" | grep -oE 'ttl:[A-Za-z0-9]+' | head -1 || true)
 
         if [ -z "$entry_date" ]; then
             printf '%s\n' "$line" >> "$keep_tmp"
@@ -270,8 +292,18 @@ process_file() {
 
         mark=""
         if [ -z "$ttl_days" ]; then
+            # ttl_token additionally catches ttl:infinite and any other self-declared TTL, so a
+            # file default never overrides an explicit one. Only computed here, where it is read —
+            # every other line class (already-numeric ttl, or no ttl: at all) skips the pipeline.
+            ttl_token=$(printf '%s\n' "$line" | grep -oE 'ttl:[A-Za-z0-9]+' | head -1 || true)
             if [ -n "$ttl_token" ]; then
-                # Self-declared but non-numeric (ttl:infinite) — honour it, keep the line.
+                if [ "$ttl_token" != "ttl:infinite" ]; then
+                    # Matches ttl:[A-Za-z0-9]+ but not the numeric ttl:Nd form above and not
+                    # ttl:infinite either — a typo like ttl:90 or ttl:infinitee. Warn rather than
+                    # silently treating a broken token as a deliberate immortal entry.
+                    echo "Warning: $file — malformed ttl token '$ttl_token' on a dated entry; kept, not archived: $line" >&2
+                fi
+                # Self-declared (ttl:infinite, or the malformed token warned above) — keep the line.
                 printf '%s\n' "$line" >> "$keep_tmp"
                 continue
             fi
@@ -318,7 +350,6 @@ process_file() {
             # 2>/dev/null is applied before the append, so a failing >> reports through the message
             # below instead of a raw "Permission denied".
             mkdir -p "$ARCHIVE_DIR" 2>/dev/null || {
-                rm -f "$tmp" "$keep_tmp"
                 echo "Error: cannot create the archive directory $ARCHIVE_DIR — $dest was left unchanged." >&2
                 exit 2
             }
@@ -327,7 +358,6 @@ process_file() {
                 cut -f2- "$tmp"
                 printf '\n'
             } 2>/dev/null >> "$ARCHIVE_FILE" || {
-                rm -f "$tmp" "$keep_tmp"
                 echo "Error: cannot write the archive $ARCHIVE_FILE — $dest was left unchanged." >&2
                 exit 2
             }
@@ -335,9 +365,7 @@ process_file() {
             # leave the project-owned memory file truncated. The archive append above already
             # happened, so any failure here leaves a DUPLICATE — say so and stop at exit 2
             # rather than letting set -e kill the run with an undeclared exit 1.
-            local dest_tmp
             dest_tmp=$(mktemp "$(dirname "$dest")/.memprune.XXXXXX" 2>/dev/null) || {
-                rm -f "$tmp" "$keep_tmp"
                 echo "Error: cannot create a temp file next to $dest — it was not rewritten." >&2
                 echo "       The expired entr(ies) are now BOTH in $ARCHIVE_FILE and still in $dest." >&2
                 exit 2
@@ -349,13 +377,11 @@ process_file() {
             dest_now=$(resolve_link "$file")
             case "$dest_now" in "$MEM_DIR"/*) ;; *) dest_now="" ;; esac
             if [ "$dest_now" != "$dest" ]; then
-                rm -f "$dest_tmp" "$tmp" "$keep_tmp"
                 echo "Error: $file changed where it points while it was processed — $dest was not rewritten." >&2
                 echo "       The expired entr(ies) are now BOTH in $ARCHIVE_FILE and still in $dest." >&2
                 exit 2
             fi
             cp "$keep_tmp" "$dest_tmp" && mv "$dest_tmp" "$dest" || {
-                rm -f "$dest_tmp" "$tmp" "$keep_tmp"
                 echo "Error: failed to rewrite $dest." >&2
                 echo "       The expired entr(ies) are now BOTH in $ARCHIVE_FILE and still in $dest." >&2
                 exit 2

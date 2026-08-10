@@ -500,6 +500,110 @@ rc=$?
     && pass "rejected conf value leaves files untouched" \
     || fail "rejected conf value leaves files untouched" "file changed"
 
+# 27. A malformed ttl: token (missing 'd', or a typo on 'infinite') must not be silently treated
+# as immortal like a deliberate ttl:infinite — it is warned to stderr and the entry is still kept
+# (not archived), same fail-safe direction as a deliberate infinite, but visible to the operator.
+t=$(mk_tmp); mkdir -p "$t/memory"
+cat > "$t/memory/lessons.md" <<'EOF'
+# Lessons Learned
+
+- **[missing-d]** Malformed ttl, no d suffix (2020-01-01) ttl:90 source:user conf:med
+- **[typo]** Malformed ttl, typo'd infinite (2020-01-01) ttl:infinitee source:user conf:med
+- **[ok]** Deliberate infinite stays silent (2020-01-01) ttl:infinite source:user conf:med
+EOF
+err=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply 2>&1 >/dev/null)
+rc=$?
+[ "$rc" -eq 0 ] && pass "malformed ttl token keeps the exit code at 0" \
+    || fail "malformed ttl token keeps the exit code at 0" "got exit $rc"
+assert_file_contains "malformed ttl token 'ttl:90' is kept, not archived" "$t/memory/lessons.md" "Malformed ttl, no d suffix"
+assert_file_contains "malformed ttl token 'ttl:infinitee' is kept, not archived" "$t/memory/lessons.md" "Malformed ttl, typo'd infinite"
+printf '%s' "$err" | grep -qF "malformed ttl token 'ttl:90'" \
+    && pass "malformed ttl token 'ttl:90' is warned to stderr" \
+    || fail "malformed ttl token 'ttl:90' is warned to stderr" "stderr was: $err"
+printf '%s' "$err" | grep -qF "malformed ttl token 'ttl:infinitee'" \
+    && pass "malformed ttl token 'ttl:infinitee' is warned to stderr" \
+    || fail "malformed ttl token 'ttl:infinitee' is warned to stderr" "stderr was: $err"
+printf '%s' "$err" | grep -qF "malformed ttl token 'ttl:infinite'" \
+    && fail "a deliberate ttl:infinite is not warned" "warned for a valid token: $err" \
+    || pass "a deliberate ttl:infinite is not warned"
+
+# 28. ttl_token is now computed only inside the branch that reads it (performance fix: it used to
+# run on every line, including ones that never look at it). A regression here would surface as an
+# unbound-variable crash under `set -u` on the line class that skips the branch entirely — exercise
+# both classes back to back in one file to prove the reordering changed nothing observable.
+t=$(mk_tmp); mkdir -p "$t/memory"
+cat > "$t/memory/lessons.md" <<'EOF'
+# Lessons Learned
+
+- **[explicit]** Explicit ttl skips the ttl_token branch (2020-01-01) ttl:30d source:user conf:med
+- **[untagged]** Untagged, falls through to the ttl_token branch (2020-01-01) source:user conf:med
+- **[infinite]** ttl_token branch finds infinite (2020-01-01) ttl:infinite source:user conf:med
+EOF
+err=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply 2>&1 >/dev/null)
+rc=$?
+[ "$rc" -eq 0 ] && pass "mixed explicit/default/infinite ttl lines do not crash" \
+    || fail "mixed explicit/default/infinite ttl lines do not crash" "got exit $rc: $err"
+assert_file_not_contains "explicit ttl:30d still expires" "$t/memory/lessons.md" "Explicit ttl skips"
+assert_file_not_contains "untagged line still falls back to the shared default" "$t/memory/lessons.md" "Untagged, falls through"
+assert_file_contains "ttl:infinite still survives after an explicit-ttl line" "$t/memory/lessons.md" "ttl_token branch finds infinite"
+
+# 29. No trap meant a SIGINT mid-scan left the per-file temp files behind under their random
+# mktemp names, holding memory content until TMPDIR was cleared. A trap that only cleans up
+# without also terminating the process is worse than doing nothing: the read loop resumes right
+# after the trap returns and its `>> "$keep_tmp"` calls recreate the file the trap just deleted,
+# silently dropping every line buffered before the signal. This exercises the real fix: the
+# process must actually die from the signal, not just tidy up and keep going.
+# Job control (`set -m`) is required in the *launching* shell for the background job to receive
+# SIGINT at all — POSIX has the shell set INT/QUIT to ignored for asynchronous commands otherwise,
+# which is why this is wrapped in its own `bash -c` rather than a plain `cmd &` in this script.
+if [ "$(id -u)" -eq 0 ]; then
+    pass "SIGINT terminates the run and cleans up temp files (skipped: running as root)"
+    pass "SIGINT does not corrupt the source file (skipped: running as root)"
+else
+    t=$(mk_tmp); mkdir -p "$t/memory"
+    {
+        echo "# Lessons Learned"
+        echo ""
+        for i in $(seq 1 400); do
+            printf -- '- **[e%d]** entry number %d (2020-01-01) ttl:90d source:user conf:med\n' "$i" "$i"
+        done
+    } > "$t/memory/lessons.md"
+    before=$(cat "$t/memory/lessons.md")
+    tdir=$(mk_tmp)
+    result=$(bash -c '
+        set -m
+        TMPDIR="$1" bash "$2" --dir "$3" --conf "$4" --apply >/dev/null 2>&1 &
+        pid=$!
+        found=0
+        i=0
+        while [ "$i" -lt 200 ]; do
+            if [ -n "$(find "$1" -name "memprune.*" 2>/dev/null)" ]; then found=1; break; fi
+            sleep 0.025
+            i=$((i + 1))
+        done
+        kill -INT "$pid" 2>/dev/null
+        wait "$pid" 2>/dev/null
+        printf "rc=%s found=%s\n" "$?" "$found"
+    ' _ "$tdir" "$PRUNE" "$t/memory" "$t/absent.conf" 2>&1)
+    sigint_rc=$(printf '%s' "$result" | grep -oE 'rc=[0-9]+' | cut -d= -f2)
+    sigint_found=$(printf '%s' "$result" | grep -oE 'found=[01]' | cut -d= -f2)
+    [ "$sigint_found" = "1" ] || fail "SIGINT test harness caught the run mid-scan" "temp files never appeared: $result"
+    [ "$sigint_rc" = "130" ] \
+        && pass "SIGINT terminates the run (exit 130, not a silent continue)" \
+        || fail "SIGINT terminates the run (exit 130, not a silent continue)" "got: $result"
+    leftover=$(find "$tdir" -name 'memprune.*' 2>/dev/null)
+    [ -z "$leftover" ] \
+        && pass "SIGINT terminates the run and cleans up temp files" \
+        || fail "SIGINT terminates the run and cleans up temp files" "leftover: $leftover"
+    after=$(cat "$t/memory/lessons.md")
+    [ "$before" = "$after" ] \
+        && pass "SIGINT does not corrupt the source file" \
+        || fail "SIGINT does not corrupt the source file" "file content changed after interrupt"
+    [ -d "$t/memory/archive" ] \
+        && fail "SIGINT leaves no partial archive" "archive/ exists" \
+        || pass "SIGINT leaves no partial archive"
+fi
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))
