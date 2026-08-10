@@ -468,6 +468,38 @@ seed_one esc "Injected path entry" "$t/victimdir/lessons.md"
 assert_file_contains "a newline in a directory name injects no second path" "$t/victimdir/lessons.md" "Injected path entry"
 assert_file_not_contains "the real file inside the newline directory is still scanned" "$inject_dir/lessons.md" "Inside the newline directory"
 
+# 26. A leading-zero TTL was read as octal. `ttl:09d` raised a fatal arithmetic error that killed
+# the read loop while the run still exited 0, so every later entry in the same file was silently
+# never archived. Only a leading zero with an 8 or 9 reproduces it — 007d and 030d are valid octal.
+t=$(mk_tmp); mkdir -p "$t/memory"
+cat > "$t/memory/lessons.md" <<'EOF'
+# Lessons Learned
+
+- **[octal]** Leading zero ttl (2020-01-01) ttl:09d source:user conf:med
+- **[after]** Expired after the poison line (2020-01-01) ttl:90d source:user conf:med
+EOF
+err=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply 2>&1 >/dev/null)
+rc=$?
+[ "$rc" -eq 0 ] && pass "leading-zero ttl keeps the exit code at 0" \
+    || fail "leading-zero ttl keeps the exit code at 0" "got exit $rc"
+printf '%s' "$err" | grep -qF "value too great" \
+    && fail "leading-zero ttl raises no arithmetic error" "stderr was: $err" \
+    || pass "leading-zero ttl raises no arithmetic error"
+assert_file_not_contains "ttl:09d is read as 9 days, not as octal" "$t/memory/lessons.md" "Leading zero ttl"
+assert_file_not_contains "an entry after the leading-zero line is still archived" "$t/memory/lessons.md" "Expired after the poison line"
+
+# The conf side fed the same octal to the arithmetic because the validator admitted it as
+# well-formed. It is rejected before any file is touched now.
+t=$(mk_tmp); seed_defaults "$t/memory"
+before=$(cat "$t/memory/glossary.md")
+printf 'MEMORY_TTL_DEFAULTS="glossary.md=09d"\n' > "$t/octal.conf"
+bash "$PRUNE" --dir "$t/memory" --conf "$t/octal.conf" --apply >/dev/null 2>&1
+rc=$?
+[ "$rc" -eq 2 ] && pass "conf value '09d' exits 2" || fail "conf value '09d' exits 2" "got exit $rc"
+[ "$(cat "$t/memory/glossary.md")" = "$before" ] \
+    && pass "rejected conf value leaves files untouched" \
+    || fail "rejected conf value leaves files untouched" "file changed"
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))

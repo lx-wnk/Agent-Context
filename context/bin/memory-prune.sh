@@ -146,7 +146,9 @@ validate_ttl_map() {
         case "$key" in
             */*) set +f; echo "Error: $label key '$key' must be a file basename, not a path." >&2; exit 2 ;;
         esac
-        if [ "$value" != "infinite" ] && ! printf '%s' "$value" | grep -qE '^[0-9]+d$'; then
+        # No leading zero: `$(( ))` reads one as octal, and 08/09 are not octal at all — an
+        # invalid one raised a fatal expansion error mid-scan while the run still exited 0.
+        if [ "$value" != "infinite" ] && ! printf '%s' "$value" | grep -qE '^([1-9][0-9]*|0)d$'; then
             set +f
             echo "Error: $label value for '$key' must be <N>d or infinite, got '$value'." >&2
             exit 2
@@ -290,7 +292,10 @@ process_file() {
             continue
         fi
 
-        expiry=$((entry_epoch + ttl_days * 86400))
+        # 10# forces base ten: an entry-declared ttl:09d is a leading zero the arithmetic would
+        # otherwise read as octal, and 08/09 are invalid octal — a fatal expansion error that
+        # terminated the read loop and left every later entry in the file unscanned.
+        expiry=$((entry_epoch + 10#$ttl_days * 86400))
         if [ "$NOW_EPOCH" -gt "$expiry" ]; then
             printf '%s\t%s\n' "$mark" "$line" >> "$tmp"
             had_expired=1

@@ -12,6 +12,7 @@ All notable changes to this project will be documented here. Format loosely foll
 
 - **Recursive memory scan** — expanded domains (`memory/<domain>/*.md`) were never pruned; the scan only looked one level deep. It now recurses, and follows symlinked memory directories and files that resolve inside the scanned tree (rewriting the target, not the link).
 - **Archive self-destruct on non-canonical paths** — a trailing slash on `--dir`/`--archive` (what tab-completion produces) made the archive-exclusion glob miss, so the archive was scanned as a source and its rewrite erased every entry prior runs had moved there. Paths are canonicalized up front and a second guard refuses to rewrite anything inside the archive.
+- **Leading-zero TTL parsed as octal** — a single `ttl:09d` entry raised a fatal arithmetic error that terminated the scan of that file while the run still reported success, so every genuinely expired entry after it was silently never archived. TTL arithmetic is now base ten, and a conf value with a leading zero is rejected before any file is touched.
 - **Prune error handling** — an unreadable memory file no longer aborts the scan, a failed rewrite exits 2 naming the file (instead of dying at an undeclared exit 1 or reporting success), the conf can no longer override the script's own `APPLY`/`MEM_DIR`/`ARCHIVE_DIR`/shared TTL table, and the dry-run preview no longer truncates an entry at an embedded tab.
 
 ### Security
