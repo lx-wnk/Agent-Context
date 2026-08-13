@@ -14,7 +14,7 @@
 - Every memory entry MUST include a date `(YYYY-MM-DD)` — enables staleness tracking
 - Memory stubs: max 15 lines, one per domain
 - Heavy references (>30 lines): create a skill in `.agent-context/skills/` with YAML trigger frontmatter
-- Each fact lives in exactly ONE place. No duplicates across files.
+- Each fact lives in exactly ONE place — across files, and across sibling repos in a multi-repo project (point across a repo boundary, never copy).
 - When a `memory/<domain>.md` stub reaches 15 lines, expand it into a directory — see `.agent-context/memory-maintenance.md` (Domain Expansion)
 
 ### Memory Decay
@@ -25,17 +25,18 @@
 
 ## Routing New Knowledge
 
-| Type                        | Target                                                                             |
-| --------------------------- | ---------------------------------------------------------------------------------- |
-| Project-wide convention     | `layer2-project-core.md`                                                           |
-| Domain-specific fact        | `memory/<domain>.md`                                                               |
-| Heavy reference (>30 lines) | `skills/<reference>.md`                                                            |
-| Gotcha / hard-won lesson    | `memory/lessons.md` (include `ttl:90d source:discovered conf:med` for new entries) |
-| Architecture decision       | `decisions.json`                                                                   |
-| External knowledge pointer  | `knowledge-map.md` (add row to Knowledge Sources + Task Routing)                   |
-| User profile detail         | `memory/user.md`                                                                   |
-| Agent behavior preference   | `memory/preferences.md`                                                            |
-| Team member / stakeholder   | `memory/people.md`                                                                 |
+| Type                                   | Target                                                                                                                               |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Project-wide convention                | `layer2-project-core.md`                                                                                                             |
+| Domain-specific fact                   | `memory/<domain>.md`                                                                                                                 |
+| Heavy reference (>30 lines)            | `skills/<reference>.md`                                                                                                              |
+| Gotcha / hard-won lesson               | `memory/lessons.md` (include `ttl:90d source:discovered conf:med` for new entries)                                                   |
+| Architecture decision                  | `decisions.json`                                                                                                                     |
+| External knowledge pointer             | `knowledge-map.md` (add row to Knowledge Sources + Task Routing)                                                                     |
+| User profile detail                    | `memory/user.md`                                                                                                                     |
+| Agent behavior preference              | `memory/preferences.md`                                                                                                              |
+| Team member / stakeholder              | `memory/people.md`                                                                                                                   |
+| Cross-repo lesson (multi-repo project) | the repo owning the code it describes; shared-contract facts (API shapes) → one canonical repo, siblings get a pointer, never a copy |
 
 ## Self-Improvement Loop
 
