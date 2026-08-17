@@ -6,7 +6,7 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ### Added
 
-- **Per-file memory TTL defaults** — `bin/memory-prune.sh` now applies a default TTL to dated entries that carry no `ttl:` of their own. Ships with `lessons.md=90d` and `preferences.md`/`people.md`/`user.md=infinite`; projects tune it via `MEMORY_TTL_DEFAULTS` in `.agent-context/budget.conf`, per key, with a `*` catch-all. An explicit `ttl:` on the entry always wins, `ttl:infinite` included, and a line without a `(YYYY-MM-DD)` date is never touched. Keys match by basename at any depth.
+- **Per-file memory TTL defaults** — `.agent-context/bin/memory-prune.sh` now applies a default TTL to dated entries that carry no `ttl:` of their own. Ships with `lessons.md=90d` and `preferences.md`/`people.md`/`user.md=infinite`; projects tune it via `MEMORY_TTL_DEFAULTS` in `.agent-context/budget.conf`, per key, with a `*` catch-all. An explicit `ttl:` on the entry always wins, `ttl:infinite` included, and a line without a `(YYYY-MM-DD)` date is never touched. Keys match by basename at any depth.
 
 ### Fixed
 
@@ -17,12 +17,12 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ### Security
 
-- **`.conf` files are parsed, never sourced** — `.agent-context/budget.conf` and `.agent-context/hooks.conf` are project-owned and can arrive via `git pull` from a repository nobody vetted, yet all four shared consumers ran them with `.`, which executes every command in the file. `bin/conf-read.sh` (new, shared) reads whitelisted `KEY=value` pairs without evaluating them, and `bin/memory-prune.sh`, `bin/check-token-budget.sh`, `bin/check-map-budget.sh` and `hooks/lib.sh` all route through it.
+- **`.conf` files are parsed, never sourced** — `.agent-context/budget.conf` and `.agent-context/hooks.conf` are project-owned and can arrive via `git pull` from a repository nobody vetted, yet all four shared consumers ran them with `.`, which executes every command in the file. `.agent-context/bin/conf-read.sh` (new, shared) reads whitelisted `KEY=value` pairs without evaluating them, and `.agent-context/bin/memory-prune.sh`, `.agent-context/bin/check-token-budget.sh`, `.agent-context/bin/check-map-budget.sh` and `.agent-context/hooks/lib.sh` all route through it.
 - **Memory pruning stays inside the memory tree** — a symlinked memory file that resolved outside the scanned directory was read, previewed and rewritten at its out-of-tree target, and its content was copied into the in-repo archive. Such a file is now reported and skipped, and the containment check is re-asserted immediately before the rewrite. The scan is also NUL-delimited, so a newline in a directory name can no longer split one path into two.
 
 ### Upgrade note
 
-`bin/memory-prune.sh` is a shared, auto-updated file, so this reaches every installation on the next update. Dated entries in `lessons.md` that carried no `ttl:` were previously immortal and now expire after 90 days — because such entries are typically old, **the first `--apply` after updating will archive noticeably more than before**. Nothing is deleted: entries move to `memory/archive/<ISO-week>.md` — but archiving is not erasure, so honoring a GDPR Art. 17 request for an entry that may hold third-party personal data also means removing it from `memory/archive/*.md`. The dry-run default previews the full list, so run `bash .agent-context/bin/memory-prune.sh` once and review it before passing `--apply`. To keep the old behavior for a file, add (or edit) `MEMORY_TTL_DEFAULTS` in `.agent-context/budget.conf` — `budget.conf` is a project-owned template, so an install from before this release will not have the block yet:
+`.agent-context/bin/memory-prune.sh` is a shared, auto-updated file, so this reaches every installation on the next update. Dated entries in `lessons.md` that carried no `ttl:` were previously immortal and now expire after 90 days — because such entries are typically old, **the first `--apply` after updating will archive noticeably more than before**. Nothing is deleted: entries move to `memory/archive/<ISO-week>.md` — but archiving is not erasure, so honoring a GDPR Art. 17 request for an entry that may hold third-party personal data also means removing it from `memory/archive/*.md`. The dry-run default previews the full list, so run `bash .agent-context/bin/memory-prune.sh` once and review it before passing `--apply`. To keep the old behavior for a file, add (or edit) `MEMORY_TTL_DEFAULTS` in `.agent-context/budget.conf` — `budget.conf` is a project-owned template, so an install from before this release will not have the block yet:
 
 ```
 MEMORY_TTL_DEFAULTS="
