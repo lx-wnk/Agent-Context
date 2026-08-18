@@ -24,9 +24,18 @@ TEST_CMD=""
 SUBAGENT_SCOPE="off"
 ALLOWED_SUBAGENT_PATHS=""
 
-if [ -f "$CONF_FILE" ]; then
-    # shellcheck disable=SC1090
-    . "$CONF_FILE"
+# hooks.conf is project-owned DATA that can arrive via `git pull` from a repository the developer
+# does not control, so it is parsed rather than sourced — the keys below are copied out literally
+# and nothing in the file is ever executed. A missing reader leaves the conservative defaults
+# above in place (master switch off) rather than failing the hook, which would block the session.
+CONF_READER="$HOOK_DIR/../bin/conf-read.sh"
+if [ -r "$CONF_READER" ]; then
+    # shellcheck source=../bin/conf-read.sh
+    . "$CONF_READER"
+    conf_load "$CONF_FILE" HOOKS_ENABLED PROTECT_SECRETS PROTECTED_GLOBS FORMAT_ON_EDIT FORMAT_CMD \
+        STOP_GATE TEST_CMD SUBAGENT_SCOPE ALLOWED_SUBAGENT_PATHS
+elif [ -f "$CONF_FILE" ]; then
+    echo "agent-context hooks: $CONF_READER is missing — hooks stay disabled. Re-run the update." >&2
 fi
 
 # Read all of stdin once into RAW for field extraction.

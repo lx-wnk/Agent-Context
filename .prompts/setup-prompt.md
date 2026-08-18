@@ -132,6 +132,7 @@ Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
 | `context/memory-maintenance.md`        | `.agent-context/memory-maintenance.md`        |
 | `.prompts/decision-review-prompt.md`   | `.agent-context/decision-review-prompt.md`    |
 | `.prompts/memory-review-prompt.md`     | `.agent-context/memory-review-prompt.md`      |
+| `context/bin/conf-read.sh`             | `.agent-context/bin/conf-read.sh`             |
 | `context/bin/check-token-budget.sh`    | `.agent-context/bin/check-token-budget.sh`    |
 | `context/bin/memory-prune.sh`          | `.agent-context/bin/memory-prune.sh`          |
 | `context/bin/discovery-digest.sh`      | `.agent-context/bin/discovery-digest.sh`      |
@@ -165,6 +166,8 @@ pids=()
     -o ".agent-context/decision-review-prompt.md.tmp" && mv ".agent-context/decision-review-prompt.md.tmp" ".agent-context/decision-review-prompt.md" || { rm -f ".agent-context/decision-review-prompt.md.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/.prompts/memory-review-prompt.md" \
     -o ".agent-context/memory-review-prompt.md.tmp" && mv ".agent-context/memory-review-prompt.md.tmp" ".agent-context/memory-review-prompt.md" || { rm -f ".agent-context/memory-review-prompt.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/conf-read.sh" \
+    -o ".agent-context/bin/conf-read.sh.tmp" && mv ".agent-context/bin/conf-read.sh.tmp" ".agent-context/bin/conf-read.sh" || { rm -f ".agent-context/bin/conf-read.sh.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/check-token-budget.sh" \
     -o ".agent-context/bin/check-token-budget.sh.tmp" && mv ".agent-context/bin/check-token-budget.sh.tmp" ".agent-context/bin/check-token-budget.sh" || { rm -f ".agent-context/bin/check-token-budget.sh.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/memory-prune.sh" \
@@ -711,6 +714,7 @@ AGENTS.md                                PROJECT — customize freely
   memory-review-prompt.md               🔒 SHARED — do NOT modify (auto-updated)
   decision-review-prompt.md              🔒 SHARED — do NOT modify (auto-updated)
   bin/
+    conf-read.sh                         🔒 SHARED — non-evaluating .conf parser (auto-updated)
     check-token-budget.sh                🔒 SHARED — always-on budget gate (auto-updated)
     memory-prune.sh                      🔒 SHARED — memory decay/archive (auto-updated)
     discovery-digest.sh                  🔒 SHARED — deterministic discovery inventory (auto-updated)
@@ -722,7 +726,7 @@ AGENTS.md                                PROJECT — customize freely
     stop-test-gate.sh                    🔒 SHARED — Stop test gate (auto-updated)
     subagent-scope.sh                    🔒 SHARED — SubagentStop scope check (auto-updated)
   hooks.conf                             PROJECT — hook toggles + toolchain (never overwritten)
-  budget.conf                            PROJECT — token-budget config (never overwritten)
+  budget.conf                            PROJECT — token-budget + memory-TTL config (never overwritten)
   knowledge-map.md                       PROJECT — maintained by agent, never recreate from template
   setup-decisions.json                   PROJECT — maintained by agent, never recreate from template
   decisions.json                         PROJECT — structured decisions (auto-reviewed)

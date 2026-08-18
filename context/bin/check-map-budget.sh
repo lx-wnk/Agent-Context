@@ -33,10 +33,19 @@ MAP_FILE=".agent-context/map.json"
 MAP_MAX_TOTAL_BYTES=16384
 MAP_MAX_NODES=60
 MAP_MAX_NODE_LINE_BYTES=400
-if [ -f "$CONF" ]; then
-    # shellcheck disable=SC1090
-    . "$CONF"
+
+# The conf is project-owned DATA that can arrive via `git pull` from a repository the developer
+# does not control, so it is parsed rather than sourced — the four keys below are copied out
+# literally and nothing in the file is ever executed.
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+if [ ! -r "$BIN_DIR/conf-read.sh" ]; then
+    echo "Error: $BIN_DIR/conf-read.sh is missing — re-run the Agent-Context update to restore it." >&2
+    exit 2
 fi
+# shellcheck source=conf-read.sh
+. "$BIN_DIR/conf-read.sh"
+
+conf_load "$CONF" MAP_FILE MAP_MAX_TOTAL_BYTES MAP_MAX_NODES MAP_MAX_NODE_LINE_BYTES
 [ -n "$MAP_OVERRIDE" ] && MAP_FILE="$MAP_OVERRIDE"
 
 for v in MAP_MAX_TOTAL_BYTES MAP_MAX_NODES MAP_MAX_NODE_LINE_BYTES; do

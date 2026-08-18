@@ -133,6 +133,26 @@ else
     pass "no hard cap → hard defaults to soft (fails at soft limit)"
 fi
 
+# 14. The conf is DATA, not a script. It is parsed for the keys this gate needs and never
+# executed, so a budget.conf arriving via `git pull` from an untrusted repository cannot run a
+# command on the developer's machine.
+t=$(mk_tmp)
+printf 'a\nb\nc\n' > "$t/layer.md"
+canary="$t/PAYLOAD_RAN"
+cat > "$t/payload.conf" <<EOF
+MAX_EFFECTIVE_LINES=10
+INCLUDE_FILES="$t/layer.md"
+touch $canary
+EOF
+bash "$ENGINE" --conf "$t/payload.conf" --quiet >/dev/null 2>&1
+[ -e "$canary" ] && fail "conf payload is never executed" "the conf command ran" \
+    || pass "conf payload is never executed"
+if bash "$ENGINE" --conf "$t/payload.conf" --quiet >/dev/null 2>&1; then
+    pass "the parsed keys still apply while the payload is ignored"
+else
+    fail "the parsed keys still apply while the payload is ignored" "exited non-zero"
+fi
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))

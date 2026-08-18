@@ -96,7 +96,8 @@ your-project/
     │   ├── check-token-budget.sh          ← Always-on budget audit
     │   ├── memory-prune.sh                ← Memory decay / archive
     │   ├── discovery-digest.sh            ← Deterministic discovery inventory
-    │   └── check-map-budget.sh            ← Discovery-map cap gate
+    │   ├── check-map-budget.sh            ← Discovery-map cap gate
+    │   └── conf-read.sh                   ← Non-evaluating .conf parser (sourced)
     ├── hooks/                             ← Shared hook scripts (auto-updated)
     │   ├── lib.sh
     │   ├── pre-protect-secrets.sh          ← PreToolUse: block secret writes
@@ -127,7 +128,7 @@ Pass `--force` for a **full from-scratch rediscovery**: it re-scans the entire c
 ```
 agent-context/
 ├── context/           # Shared agent context (copied to .agent-context/)
-│   ├── bin/           #   Shared tooling: token-budget gate, memory-prune
+│   ├── bin/           #   Shared tooling (budget gates, prune, digest, conf parser)
 │   └── hooks/         #   Shared hook scripts (lib + 4 hooks)
 ├── templates/         # Project setup templates (copied once, never overwritten)
 ├── tests/             # Pure-bash tests (install, coverage, budget, prune, hooks)
