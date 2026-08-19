@@ -12,6 +12,7 @@ Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides 
 
 - [The Problem](#the-problem)
 - [The Solution](#the-solution)
+- [Scope](#scope)
 - [Installation](#installation)
 - [Architecture](#architecture)
 - [Documentation](#documentation)
@@ -48,6 +49,16 @@ AGENTS.md                          (~35 lines — identity, quick rules)
 Auto-updates are built in: the agent fetches the setup prompt from remote, which auto-detects UPDATE mode, checks for new releases via the GitHub Releases API, and updates shared files. Project-owned files are never overwritten.
 
 See a fully installed project in [example.md](example.md).
+
+## Scope
+
+Agent Context answers one question: **what does the agent know when a session starts, and what gets pulled in afterwards.** It is deliberately not:
+
+- **A code index.** Structure, symbols, and call graphs are discoverable from the source, and writing them into context files measurably hurts agents (see [Research & References](docs/references.md)). The `discovery-map` skill records _why_ a subsystem exists, not what is inside it.
+- **A multi-agent orchestrator.** One agent, one context window. Delegation is a context-injection protocol (`agent-delegation.md`) — no roles, worktrees, or message bus.
+- **A permission system.** Your agent's own permission model stays in charge; installing Agent Context never weakens an existing guard. On top of it, four optional deterministic hooks ship with the framework — a secret-write block, an auto-formatter, a test gate, and a subagent scope check. Setup registers them, but they stay off until you set `HOOKS_ENABLED=1` in the project-owned `hooks.conf`. See [Enforcement & Hygiene](docs/enforcement.md).
+
+Tools that cover the adjacent layers are listed under [Neighbouring Systems](docs/references.md#neighbouring-systems).
 
 ## Installation
 

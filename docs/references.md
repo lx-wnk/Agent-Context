@@ -25,6 +25,13 @@
 - [Nx migrations.json](https://nx.dev/docs/reference/nx/migrations) — Persisted decision manifest for idempotent re-runs; basis for setup-decisions.json
 - [Copier: Template Updating](https://copier.readthedocs.io/en/stable/updating/) — Three-way merge approach for project-owned files (evaluated and adapted — conflict markers replaced with additive-only + integrity check)
 
+## Neighbouring Systems
+
+Adjacent tools solving a different layer of the same problem — worth combining, not substituting:
+
+- [ProjectAtlas](https://github.com/styler-ai/ProjectAtlas) — Rust CLI and MCP server keeping a SQLite index of repository structure, symbols, and graph relations, alongside curated folder and file _purposes_. Answers _where the code is_, machine-derived and incrementally refreshed, where the `discovery-map` skill answers _why a subsystem exists_.
+- [VOIT](https://github.com/yesitsfebreeze/voit) — Claude Code plugin running a four-tier agent workflow (Vision/Organize/Implement/Tweak) with branch-derived roles, per-worker worktrees, a fail-closed write-scope hook, and memory as an orphan-branch worktree. Answers _who does the work_; its [COMPARE.md](https://github.com/yesitsfebreeze/voit/blob/main/COMPARE.md) scores Agent-Context against it.
+
 ## Standards & Docs
 
 - [AGENTS.md specification](https://agents.md/) — Open standard for agent instructions, stewarded by the Agentic AI Foundation (Linux Foundation)
