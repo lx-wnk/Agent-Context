@@ -134,6 +134,7 @@ Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
 | `.prompts/memory-review-prompt.md`     | `.agent-context/memory-review-prompt.md`      |
 | `context/bin/conf-read.sh`             | `.agent-context/bin/conf-read.sh`             |
 | `context/bin/check-token-budget.sh`    | `.agent-context/bin/check-token-budget.sh`    |
+| `context/bin/measure-baseline.sh`      | `.agent-context/bin/measure-baseline.sh`      |
 | `context/bin/memory-prune.sh`          | `.agent-context/bin/memory-prune.sh`          |
 | `context/bin/discovery-digest.sh`      | `.agent-context/bin/discovery-digest.sh`      |
 | `context/bin/check-map-budget.sh`      | `.agent-context/bin/check-map-budget.sh`      |
@@ -170,6 +171,8 @@ pids=()
     -o ".agent-context/bin/conf-read.sh.tmp" && mv ".agent-context/bin/conf-read.sh.tmp" ".agent-context/bin/conf-read.sh" || { rm -f ".agent-context/bin/conf-read.sh.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/check-token-budget.sh" \
     -o ".agent-context/bin/check-token-budget.sh.tmp" && mv ".agent-context/bin/check-token-budget.sh.tmp" ".agent-context/bin/check-token-budget.sh" || { rm -f ".agent-context/bin/check-token-budget.sh.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/measure-baseline.sh" \
+    -o ".agent-context/bin/measure-baseline.sh.tmp" && mv ".agent-context/bin/measure-baseline.sh.tmp" ".agent-context/bin/measure-baseline.sh" || { rm -f ".agent-context/bin/measure-baseline.sh.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/memory-prune.sh" \
     -o ".agent-context/bin/memory-prune.sh.tmp" && mv ".agent-context/bin/memory-prune.sh.tmp" ".agent-context/bin/memory-prune.sh" || { rm -f ".agent-context/bin/memory-prune.sh.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/discovery-digest.sh" \
@@ -716,6 +719,7 @@ AGENTS.md                                PROJECT — customize freely
   bin/
     conf-read.sh                         🔒 SHARED — non-evaluating .conf parser (auto-updated)
     check-token-budget.sh                🔒 SHARED — always-on budget gate (auto-updated)
+    measure-baseline.sh                  🔒 SHARED — layered-vs-flat baseline report (auto-updated)
     memory-prune.sh                      🔒 SHARED — memory decay/archive (auto-updated)
     discovery-digest.sh                  🔒 SHARED — deterministic discovery inventory (auto-updated)
     check-map-budget.sh                  🔒 SHARED — discovery-map cap gate (auto-updated)
