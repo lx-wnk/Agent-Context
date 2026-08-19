@@ -30,6 +30,7 @@
 Adjacent tools solving a different layer of the same problem — worth combining, not substituting:
 
 - [ProjectAtlas](https://github.com/styler-ai/ProjectAtlas) — Rust CLI and MCP server keeping a SQLite index of repository structure, symbols, and graph relations, alongside curated folder and file _purposes_. Answers _where the code is_, machine-derived and incrementally refreshed, where the `discovery-map` skill answers _why a subsystem exists_.
+- [claude-mem](https://github.com/thedotmack/claude-mem) — hook-driven session memory: captures tool usage automatically, has an LLM compress it into observations, stores them in SQLite plus a vector index, and injects a bounded slice (50 observations, 10 sessions by default) into every session start. Overlaps this framework's `memory/` layer and takes the opposite side of the curation question — captured-and-compressed rather than written-by-hand — while leaving conventions, routing, and project identity untouched.
 - [VOIT](https://github.com/yesitsfebreeze/voit) — Claude Code plugin running a four-tier agent workflow (Vision/Organize/Implement/Tweak) with branch-derived roles, per-worker worktrees, a fail-closed write-scope hook, and memory as an orphan-branch worktree. Answers _who does the work_; its [COMPARE.md](https://github.com/yesitsfebreeze/voit/blob/main/COMPARE.md) scores Agent-Context against it.
 
 ## Standards & Docs
