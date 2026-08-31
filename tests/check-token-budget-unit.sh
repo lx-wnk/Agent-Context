@@ -153,6 +153,45 @@ else
     fail "the parsed keys still apply while the payload is ignored" "exited non-zero"
 fi
 
+# 15. --list resolves the closure without counting it — the file set is a separate question
+# from the file size, and measure-baseline.sh needs the answer before it can measure.
+t=$(mk_tmp)
+printf 'a\n' > "$t/one.md"
+printf 'b\n' > "$t/two.md"
+cat > "$t/list.conf" <<EOF
+MAX_EFFECTIVE_LINES=1
+INCLUDE_FILES="
+$t/one.md
+$t/two.md
+"
+EOF
+listed=$(bash "$ENGINE" --list --conf "$t/list.conf" 2>/dev/null | wc -l | tr -d '[:space:]')
+assert_eq "--list prints one path per resolved file" "2" "$listed"
+if bash "$ENGINE" --list --conf "$t/list.conf" >/dev/null 2>&1; then
+    pass "--list exits 0 even when the set is over budget"
+else
+    fail "--list exits 0 even when the set is over budget" "exited non-zero"
+fi
+
+# 16. --json carries totals and per-file rows, and keeps the gate's verdict.
+t=$(mk_tmp)
+printf 'a\nb\nc\n' > "$t/f.md"
+js=$(bash "$ENGINE" --json --max 99999 "$t/f.md" 2>/dev/null)
+assert_eq "--json reports effective lines" "3" "$(sed -n 's/.*"total_effective_lines": \([0-9]*\).*/\1/p' <<<"$js")"
+assert_eq "--json reports bytes" "6" "$(sed -n 's/.*"total_bytes": \([0-9]*\).*/\1/p' <<<"$js")"
+assert_eq "--json estimates tokens as ceil(bytes/4)" "2" "$(sed -n 's/.*"total_est_tokens": \([0-9]*\).*/\1/p' <<<"$js")"
+assert_eq "--json status passes within budget" "pass" "$(sed -n 's/.*"status": "\([a-z]*\)".*/\1/p' <<<"$js")"
+
+js=$(bash "$ENGINE" --json --max 1 "$t/f.md" 2>/dev/null)
+assert_eq "--json status fails over the hard cap" "fail" "$(sed -n 's/.*"status": "\([a-z]*\)".*/\1/p' <<<"$js")"
+
+# 17. A missing file is reported as absent rather than silently dropped from the array.
+t=$(mk_tmp)
+printf 'a\n' > "$t/f.md"
+js=$(bash "$ENGINE" --json --max 99999 "$t/f.md" "$t/gone.md" 2>/dev/null)
+assert_eq "--json lists the missing file too" "2" "$(grep -c '"path"' <<<"$js")"
+assert_eq "--json marks it absent" "1" "$(grep -c '"present": false' <<<"$js")"
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))

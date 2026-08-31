@@ -23,6 +23,23 @@ Four Claude Code hooks ship as shared scripts in `.agent-context/hooks/`, govern
 bash .agent-context/bin/check-token-budget.sh
 ```
 
+## Baseline Measurement
+
+The token budget says whether the always-on closure is small. It does not say what layering actually buys, and "loads less" is a claim until something counts it. `.agent-context/bin/measure-baseline.sh` counts both halves:
+
+```bash
+bash .agent-context/bin/measure-baseline.sh          # table
+bash .agent-context/bin/measure-baseline.sh --json   # same numbers, machine-readable
+```
+
+- **layered** — the always-on closure, i.e. `INCLUDE_FILES` from `budget.conf`, read at every session start.
+- **on-demand** — `memory/` (minus `memory/archive/`), `skills/`, `agent-delegation.md`, `memory-maintenance.md`, and any `map.json`: project knowledge pulled only when a task's keywords match it.
+- **flat** — the sum, i.e. the pre-layering shape where one file holds everything.
+
+Each set is reported as effective instruction lines, file bytes, and `ceil(bytes/4)` as a token estimate. Counting is delegated to `check-token-budget.sh --json`, so one engine defines both the gate and the report and the two can never disagree.
+
+**Read the delta honestly.** It is the always-on load a flat setup pays on every session and a layered one does not — an **upper bound**, reached only by a task that needs none of the on-demand set. A task that pulls two skills pays for those two skills. Nothing here models file reads the agent "would otherwise have done"; the moment a measurement starts counting hypothetical reads it stops being a measurement.
+
 ## Memory Decay
 
 Dated memory entries carry a TTL (`(2026-01-15) ttl:90d`). `.agent-context/bin/memory-prune.sh` archives expired entries into `memory/archive/<ISO-week>.md` — dry-run by default, never deletes:

@@ -9,7 +9,13 @@ set -euo pipefail
 # the always-on baseline from silently bloating. It is a guardrail, not an exact tokenizer.
 #
 # Usage:
-#   check-token-budget.sh [--conf PATH] [--max N] [--quiet] [FILE...]
+#   check-token-budget.sh [--conf PATH] [--max N] [--quiet|--json] [--list] [FILE...]
+#
+# --json  prints one machine-readable object instead of the table (totals first, then a
+#         per-file array) and keeps the same exit codes, so a gate and a measurement can
+#         share one run. --list prints the resolved file set, one path per line, and stops
+#         before counting — it answers "which files is the closure" without answering
+#         "how big is it". Both are what measure-baseline.sh consumes.
 #
 # Resolution order for the file set and limit:
 #   1. Explicit FILE arguments override the conf's INCLUDE_FILES.
@@ -21,6 +27,8 @@ set -euo pipefail
 CONF=".agent-context/budget.conf"
 MAX_OVERRIDE=""
 QUIET=0
+JSON=0
+LIST=0
 FILES=()
 
 while [ "$#" -gt 0 ]; do
@@ -30,6 +38,8 @@ while [ "$#" -gt 0 ]; do
         --max) MAX_OVERRIDE="${2:-}"; shift 2 ;;
         --max=*) MAX_OVERRIDE="${1#--max=}"; shift ;;
         --quiet) QUIET=1; shift ;;
+        --json) JSON=1; QUIET=1; shift ;;
+        --list) LIST=1; shift ;;
         --) shift; while [ "$#" -gt 0 ]; do FILES+=("$1"); shift; done ;;
         -*) echo "Unknown option: $1" >&2; exit 2 ;;
         *) FILES+=("$1"); shift ;;
@@ -70,6 +80,11 @@ if [ "${#FILES[@]}" -eq 0 ]; then
     exit 2
 fi
 
+if [ "$LIST" -eq 1 ]; then
+    printf '%s\n' "${FILES[@]}"
+    exit 0
+fi
+
 for _cap in MAX_EFFECTIVE_LINES MAX_EFFECTIVE_LINES_HARD; do
     eval "_v=\${$_cap}"
     if ! [[ "$_v" =~ ^[0-9]+$ ]]; then
@@ -106,19 +121,56 @@ count_effective() {
     ' "$1"
 }
 
+# Byte counts feed the token estimate. A file enters the context window verbatim —
+# comments and blank lines included — so bytes, not effective lines, are what a tokenizer
+# would see. The two numbers answer different questions and are both reported.
+count_bytes() { wc -c < "$1" | tr -d '[:space:]'; }
+
+# JSON string escaping for the few characters a path could legally carry.
+json_escape() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+
 total=0
+total_bytes=0
 missing=0
 rows=""
+json_files=""
 for f in "${FILES[@]}"; do
     if [ ! -f "$f" ]; then
         rows="${rows}  MISSING  ${f}\n"
         missing=1
+        json_files="${json_files}    { \"path\": \"$(json_escape "$f")\", \"present\": false, \"effective_lines\": 0, \"bytes\": 0 },\n"
         continue
     fi
     c=$(count_effective "$f")
+    b=$(count_bytes "$f")
     total=$((total + c))
+    total_bytes=$((total_bytes + b))
     rows="${rows}$(printf '  %5d  %s' "$c" "$f")\n"
+    json_files="${json_files}    { \"path\": \"$(json_escape "$f")\", \"present\": true, \"effective_lines\": ${c}, \"bytes\": ${b} },\n"
 done
+
+# ceil(bytes/4) — the byte heuristic every provider-agnostic estimate uses. Not a tokenizer.
+est_tokens=$(( (total_bytes + 3) / 4 ))
+
+if [ "$JSON" -eq 1 ]; then
+    if [ "$total" -gt "$MAX_EFFECTIVE_LINES_HARD" ]; then status="fail"
+    elif [ "$total" -gt "$MAX_EFFECTIVE_LINES" ]; then status="warn"
+    else status="pass"
+    fi
+    echo "{"
+    echo "  \"total_effective_lines\": ${total},"
+    echo "  \"total_bytes\": ${total_bytes},"
+    echo "  \"total_est_tokens\": ${est_tokens},"
+    echo "  \"soft_cap\": ${MAX_EFFECTIVE_LINES},"
+    echo "  \"hard_cap\": ${MAX_EFFECTIVE_LINES_HARD},"
+    echo "  \"missing_files\": ${missing},"
+    echo "  \"status\": \"${status}\","
+    echo "  \"files\": ["
+    printf '%b' "${json_files%,\\n}" | sed -e '$ s/,$//'
+    echo ""
+    echo "  ]"
+    echo "}"
+fi
 
 if [ "$QUIET" -ne 1 ]; then
     echo "Token-budget audit (effective instruction lines, always-on closure):"

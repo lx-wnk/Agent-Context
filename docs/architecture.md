@@ -94,6 +94,7 @@ your-project/
     ├── budget.conf                        ← Token-budget config (project-owned)
     ├── bin/                               ← Shared tooling (auto-updated)
     │   ├── check-token-budget.sh          ← Always-on budget audit
+    │   ├── measure-baseline.sh            ← Layered vs. flat baseline report
     │   ├── memory-prune.sh                ← Memory decay / archive
     │   ├── discovery-digest.sh            ← Deterministic discovery inventory
     │   ├── check-map-budget.sh            ← Discovery-map cap gate
@@ -128,7 +129,7 @@ Pass `--force` for a **full from-scratch rediscovery**: it re-scans the entire c
 ```
 agent-context/
 ├── context/           # Shared agent context (copied to .agent-context/)
-│   ├── bin/           #   Shared tooling (budget gates, prune, digest, conf parser)
+│   ├── bin/           #   Shared tooling (budget gates, baseline report, prune, digest, conf parser)
 │   └── hooks/         #   Shared hook scripts (lib + 4 hooks)
 ├── templates/         # Project setup templates (copied once, never overwritten)
 ├── tests/             # Pure-bash tests (install, coverage, budget, prune, hooks)

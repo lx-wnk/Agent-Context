@@ -46,6 +46,8 @@ AGENTS.md                          (~35 lines — identity, quick rules)
 
 **Baseline:** AGENTS.md + all layers. Full reference (skills, memory): loaded only when trigger keywords match.
 
+**Measured, not asserted.** `bin/measure-baseline.sh` counts the always-on closure against the flat equivalent — the same knowledge in a single file — and reports both. On a real 28-file installation the lazy half is 25,113 of 44,797 bytes: **~56% of the project's context stays out of a session until a task asks for it.** That is an upper bound, not a per-session average: a task that pulls two skills pays for those two skills, and no modelled "reads avoided" enter the number. See [Baseline Measurement](docs/enforcement.md#baseline-measurement).
+
 Auto-updates are built in: the agent fetches the setup prompt from remote, which auto-detects UPDATE mode, checks for new releases via the GitHub Releases API, and updates shared files. Project-owned files are never overwritten.
 
 See a fully installed project in [example.md](example.md).
