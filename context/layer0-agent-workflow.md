@@ -25,17 +25,17 @@
 
 ## Routing New Knowledge
 
-| Type                        | Target                                                                                                                                                                 |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Project-wide convention     | `layer2-project-core.md`                                                                                                                                               |
-| Domain-specific fact        | `memory/<domain>.md`                                                                                                                                                   |
-| Heavy reference (>30 lines) | `skills/<reference>.md`                                                                                                                                                |
-| Gotcha / lesson (any repo)  | `memory/lessons.md` in the repo owning the code (tag `ttl:90d source:discovered conf:med`); API contracts in the canonical repo, siblings point via `knowledge-map.md` |
-| Architecture decision       | `decisions.json`                                                                                                                                                       |
-| External knowledge pointer  | `knowledge-map.md` (add row to Knowledge Sources + Task Routing)                                                                                                       |
-| User profile detail         | `memory/user.md`                                                                                                                                                       |
-| Agent behavior preference   | `memory/preferences.md`                                                                                                                                                |
-| Team member / stakeholder   | `memory/people.md`                                                                                                                                                     |
+| Type                        | Target                                                                                                                                                                             |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Project-wide convention     | `layer2-project-core.md`                                                                                                                                                           |
+| Domain-specific fact        | `memory/<domain>.md`                                                                                                                                                               |
+| Heavy reference (>30 lines) | `skills/<reference>.md`                                                                                                                                                            |
+| Gotcha / lesson (any repo)  | `memory/lessons.md` in the repo owning the code (tag new entries `ttl:90d source:discovered conf:med`); API contracts in the canonical repo, siblings point via `knowledge-map.md` |
+| Architecture decision       | `decisions.json`                                                                                                                                                                   |
+| External knowledge pointer  | `knowledge-map.md` (add row to Knowledge Sources + Task Routing)                                                                                                                   |
+| User profile detail         | `memory/user.md`                                                                                                                                                                   |
+| Agent behavior preference   | `memory/preferences.md`                                                                                                                                                            |
+| Team member / stakeholder   | `memory/people.md`                                                                                                                                                                 |
 
 ## Self-Improvement Loop
 
