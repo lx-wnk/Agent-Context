@@ -25,18 +25,17 @@
 
 ## Routing New Knowledge
 
-| Type                        | Target                                                                             |
-| --------------------------- | ---------------------------------------------------------------------------------- |
-| Project-wide convention     | `layer2-project-core.md`                                                           |
-| Domain-specific fact        | `memory/<domain>.md`                                                               |
-| Heavy reference (>30 lines) | `skills/<reference>.md`                                                            |
-| Gotcha / hard-won lesson    | `memory/lessons.md` (include `ttl:90d source:discovered conf:med` for new entries) |
-| Architecture decision       | `decisions.json`                                                                   |
-| External knowledge pointer  | `knowledge-map.md` (add row to Knowledge Sources + Task Routing)                   |
-| User profile detail         | `memory/user.md`                                                                   |
-| Agent behavior preference   | `memory/preferences.md`                                                            |
-| Team member / stakeholder   | `memory/people.md`                                                                 |
-| Cross-repo lesson           | repo owning the code; contract facts (API shapes) → canonical repo, siblings point |
+| Type                        | Target                                                                                                                                                                             |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Project-wide convention     | `layer2-project-core.md`                                                                                                                                                           |
+| Domain-specific fact        | `memory/<domain>.md`                                                                                                                                                               |
+| Heavy reference (>30 lines) | `skills/<reference>.md`                                                                                                                                                            |
+| Gotcha / lesson (any repo)  | `memory/lessons.md` in the repo owning the code (tag new entries `ttl:90d source:discovered conf:med`); API contracts in the canonical repo, siblings point via `knowledge-map.md` |
+| Architecture decision       | `decisions.json`                                                                                                                                                                   |
+| External knowledge pointer  | `knowledge-map.md` (add row to Knowledge Sources + Task Routing)                                                                                                                   |
+| User profile detail         | `memory/user.md`                                                                                                                                                                   |
+| Agent behavior preference   | `memory/preferences.md`                                                                                                                                                            |
+| Team member / stakeholder   | `memory/people.md`                                                                                                                                                                 |
 
 ## Self-Improvement Loop
 
