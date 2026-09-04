@@ -14,7 +14,7 @@
 - Every memory entry MUST include a date `(YYYY-MM-DD)` — enables staleness tracking
 - Memory stubs: max 15 lines, one per domain
 - Heavy references (>30 lines): create a skill in `.agent-context/skills/` with YAML trigger frontmatter
-- Each fact lives in exactly ONE place. No duplicates across files.
+- Each fact lives in exactly ONE place — across files and across sibling repos in a multi-repo project (reference across a repo boundary; never copy)
 - When a `memory/<domain>.md` stub reaches 15 lines, expand it into a directory — see `.agent-context/memory-maintenance.md` (Domain Expansion)
 
 ### Memory Decay
@@ -36,6 +36,7 @@
 | User profile detail         | `memory/user.md`                                                                   |
 | Agent behavior preference   | `memory/preferences.md`                                                            |
 | Team member / stakeholder   | `memory/people.md`                                                                 |
+| Cross-repo lesson           | repo owning the code; contract facts (API shapes) → canonical repo, siblings point |
 
 ## Self-Improvement Loop
 
