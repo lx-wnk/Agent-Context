@@ -42,7 +42,7 @@ Updates can be triggered manually by fetching the setup prompt from remote and f
 
 1. Reads `.agent-context/.agent-context-version` (local) and fetches the latest release tag from the GitHub API (remote, cached for 1 hour)
 2. **If already up-to-date and templates intact:** exits immediately — no Claude spawn needed
-3. **If versions differ:** spawns Claude, which downloads shared files in parallel, writes the new version
+3. **If versions differ:** spawns Claude with the setup prompt fetched from that same release tag, so its download table always matches the files it downloads; Claude downloads shared files in parallel, writes the new version
 4. **If API fails:** falls back to the cached version; warns if the cache is stale
 
 ### What the agent sees at runtime

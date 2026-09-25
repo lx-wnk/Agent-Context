@@ -371,6 +371,19 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# resolve_prompt_url: prompt is pinned to the same tag as the downloaded files
+# ---------------------------------------------------------------------------
+RAW="https://raw.githubusercontent.com/lx-wnk/Agent-Context"
+assert_eq "resolve_prompt_url pins a release tag" \
+    "$RAW/0.9.0/.prompts/setup-prompt.md" "$(resolve_prompt_url "0.9.0")"
+assert_eq "resolve_prompt_url keeps a v-prefixed tag" \
+    "$RAW/v1.2.3/.prompts/setup-prompt.md" "$(resolve_prompt_url "v1.2.3")"
+assert_eq "resolve_prompt_url falls back to main when lookup failed" \
+    "$RAW/main/.prompts/setup-prompt.md" "$(resolve_prompt_url "")"
+assert_eq "resolve_prompt_url falls back to main on a malformed version" \
+    "$RAW/main/.prompts/setup-prompt.md" "$(resolve_prompt_url "../evil")"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

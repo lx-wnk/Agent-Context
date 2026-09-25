@@ -106,7 +106,7 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
    - **SETUP:** abort with an informative message — version selection is required
    - **UPDATE:** inform the user that releases could not be checked, skip to Step 4
      > **Note:** When invoked via `install.sh`, a shell-level fast-path runs before this agent starts and exits early when everything is up-to-date. If this agent is running, the shell-level check already confirmed a full update is needed (or `--force` was passed). Direct invocation without `install.sh` always runs the full update flow.
-4. If `INTERACTIVE_MODE=false`: skip the version prompt entirely, use the latest stable release automatically — do not present a table or ask any question. Then log the mode and target version:
+4. If `INTERACTIVE_MODE=false`: skip the version prompt entirely — do not present a table or ask any question. If your launching instruction contains `TARGET VERSION: <tag>` (set by `install.sh`, which fetched this prompt from that same tag), use exactly `<tag>`; otherwise use the latest stable release. Then log the mode and target version:
    ```bash
    echo "[agent-context] Mode: UPDATE (0.3.0 → 0.5.0)" >> .agent-context/setup.log
    # or for SETUP:
