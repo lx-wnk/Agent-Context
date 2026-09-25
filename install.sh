@@ -49,7 +49,6 @@ validate_version_string() {
     [[ "$1" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]
 }
 
-# The prompt's download table must match the tag the files are fetched from; main only as fallback.
 resolve_prompt_url() {
     local ref="main"
     if validate_version_string "${1:-}"; then
@@ -88,8 +87,8 @@ get_latest_version() {
     if [ "$FORCE" -ne 1 ] && [ -f "$CACHE_FILE" ]; then
         local now mtime cache_age
         now=$(date +%s)
-        # BSD stat (macOS): stat -f %m; GNU stat (Linux): stat -c %Y.
-        mtime=$(stat -f %m "$CACHE_FILE" 2>/dev/null || stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0)
+        # GNU first: GNU stat reads `-f %m` as --file-system and prints fs info to stdout; BSD rejects -c silently.
+        mtime=$(stat -c %Y "$CACHE_FILE" 2>/dev/null || stat -f %m "$CACHE_FILE" 2>/dev/null || echo 0)
         cache_age=$(( now - mtime ))
         # Negative cache_age means the system clock jumped backward — treat as stale.
         if [ "$cache_age" -ge 0 ] && [ "$cache_age" -lt "$CACHE_TTL" ]; then

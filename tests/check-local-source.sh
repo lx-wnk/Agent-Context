@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/check-local-source.sh — integration test for install.sh --local-source / AGENT_CONTEXT_SOURCE.
 #
-# Uses a `claude` stub (no real CLI, no network) to assert install.sh: bypasses the up-to-date
+# Uses `claude` and `curl` stubs (no real CLI, no network) to assert install.sh: bypasses the up-to-date
 # short-circuit, points the agent at the LOCAL prompt, and injects the LOCAL SOURCE MODE directive
 # so the agent copies files from the local clone instead of downloading.
 
@@ -39,6 +39,17 @@ cat > "$STUB/claude" <<'EOF'
 exit 0
 EOF
 chmod +x "$STUB/claude"
+
+# curl stub: the releases API always answers 2.0.0, so no run touches the network.
+cat > "$STUB/curl" <<'EOF'
+#!/usr/bin/env bash
+echo '{"tag_name": "2.0.0"}'
+EOF
+chmod +x "$STUB/curl"
+export XDG_CACHE_HOME
+XDG_CACHE_HOME=$(mk_tmp)
+VERSION_CACHE="$XDG_CACHE_HOME/agent-context/latest-version"
+mkdir -p "$(dirname "$VERSION_CACHE")"
 
 # run_install <target-dir> <args...> -> sets CAP (captured prompt args, newline-joined) and RC.
 run_install() {
@@ -87,18 +98,27 @@ TGT=$(mk_tmp)
 rc=$?
 [ "$rc" -eq 1 ] && pass "non-clone source exits 1" || fail "non-clone source exits 1" "got $rc"
 
-# 5. --force injects the full-rediscovery directive (offline: --force skips the short-circuit).
+# 5. --force injects the full-rediscovery directive and bypasses a fresh version cache (1.0.0 → API 2.0.0).
 TGT=$(mk_tmp)
-cap5="$(mk_tmp)/cap"
-( cd "$TGT" && CAPTURE="$cap5" PATH="$STUB:$PATH" bash "$INSTALL" --force >/dev/null 2>&1 )
-{ [ -f "$cap5" ] && tr '\0' '\n' < "$cap5" | grep -q "FULL REDISCOVERY"; } \
+echo "1.0.0" > "$VERSION_CACHE"
+run_install "$TGT" --force
+printf '%s' "$CAP" | grep -q "FULL REDISCOVERY" \
     && pass "--force injects the FULL REDISCOVERY directive" || fail "--force directive" "not in prompt"
+printf '%s' "$CAP" | grep -q "TARGET VERSION: 2.0.0" \
+    && pass "--force bypasses the version cache" || fail "--force cache bypass" "prompt not pinned to the API tag"
+printf '%s' "$CAP" | grep -q "Fetch https://raw.githubusercontent.com/lx-wnk/Agent-Context/2.0.0/.prompts/setup-prompt.md" \
+    && pass "prompt is fetched from the pinned release tag" || fail "pinned prompt URL" "not in prompt"
 
 # 6. --discover does NOT build headless — it hands off to the interactive /discover when no map exists.
+#    Also exercises the cache-hit path (fresh 1.0.0 cache, no --force) that reads the cache mtime via stat.
 TGT=$(mk_tmp)
-out6="$( cd "$TGT" && PATH="$STUB:$PATH" bash "$INSTALL" --discover 2>&1 )"
+echo "1.0.0" > "$VERSION_CACHE"
+cap6="$(mk_tmp)/cap"
+out6="$( cd "$TGT" && CAPTURE="$cap6" PATH="$STUB:$PATH" bash "$INSTALL" --discover 2>&1 )"
 printf '%s' "$out6" | grep -q "No discovery map was built" \
     && pass "--discover hands off to interactive /discover (no fake build)" || fail "--discover hand-off" "no hand-off message in output"
+{ [ -f "$cap6" ] && tr '\0' '\n' < "$cap6" | grep -q "TARGET VERSION: 1.0.0"; } \
+    && pass "a fresh version cache pins the target" || fail "cache-hit target" "prompt not pinned to the cached tag"
 
 echo ""
 echo "================================================"
