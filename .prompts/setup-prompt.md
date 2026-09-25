@@ -39,9 +39,9 @@ Any file **not** in a built-in AI-doc path or a directory supplied via `--ai-dir
 
 ---
 
-## Step 0: Interactive Mode Detection (MUST run first, before anything else)
+## Step 0: Interactive Mode Detection (run first)
 
-**This is the very first action. Run it immediately before reading or acting on any other step.**
+Run this before reading or acting on any other step — later steps branch on `INTERACTIVE_MODE`.
 
 Run this bash command and store the result:
 
@@ -768,7 +768,7 @@ bash .agent-context/bin/discovery-digest.sh > .agent-context/discovery-digest.md
 
 Pass the digest's contents to every subagent as orientation. It is an **accelerator, not a whitelist** — subagents must still scan deeper than the digest lists. The "Documentation inventory" and "Distillation candidates" tables in the digest are the authoritative list of docs to process (every row must end up either routed+distilled or explicitly classified `ignore` — none silently skipped). Delete `.agent-context/discovery-digest.md` at the end of the run (it is a transient scratch file, not project knowledge).
 
-Launch **7 parallel subagents** to scan the project. All subagents are **mandatory** — every one MUST execute, none may be skipped. Running them in parallel maximizes speed.
+Launch **7 parallel subagents** to scan the project, and run all seven — each covers a source type the others don't, so skipping one silently drops knowledge from the map.
 
 #### Subagent 1: Documentation & Knowledge Scanner
 
