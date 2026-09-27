@@ -4,6 +4,11 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Fixed
+
+- **`--local-source` was only recognized as the first argument** — `install.sh --force --local-source ./clone` silently ran a remote install, and `--local-source` without a path did the same. The flag is now honored in any position, and a missing path exits 1.
+- **Stale-cache warning never printed** — `get_latest_version` ran inside `$(...)`, so the `CACHE_STALE` flag it set was lost with the subshell and the fast-path never warned that its "already up to date" rested on a stale cache. It now sets `LATEST_VERSION`/`CACHE_STALE` in the caller's shell.
+
 ## [0.9.0] - 2026-09-25
 
 ### Added
