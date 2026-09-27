@@ -22,7 +22,7 @@ When a lesson has proven itself (applied 3+ times, never questioned), suggest pr
 
 ## Knowledge Map Triggers
 
-Update `.agent-context/knowledge-map.md` immediately when any of the following occurs — same non-negotiable rule as all other self-improvement triggers (next action after discovery, before continuing):
+Update `.agent-context/knowledge-map.md` as the next action after any of the following, before continuing other work (same timing as the self-improvement triggers in `layer0-agent-workflow.md`):
 
 | Event                                              | Action                                                   |
 | -------------------------------------------------- | -------------------------------------------------------- |

@@ -1,6 +1,6 @@
 # AGENTS.md — Project Bootstrap
 
-> All agents MUST read and follow this file.
+> All agents read and follow this file.
 
 ## Identity
 

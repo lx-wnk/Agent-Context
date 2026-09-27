@@ -23,12 +23,12 @@ Skip files that are empty or contain only comments.
 Note: When a domain stub grows beyond 15 lines, it expands into a directory.
 e.g., `memory/cart.md` becomes `memory/cart/` with sub-files.
 The original `memory/cart.md` stays as an index pointing to sub-files.
-See Layer 0 → Domain Expansion for rules.
+See `.agent-context/memory-maintenance.md` → Domain Expansion for rules.
 -->
 
 ## Knowledge Map
 
-External knowledge sources and task-based routing to project docs, architecture files, and other structured knowledge. Updated when knowledge sources change — see Layer 0 → Knowledge Map Triggers.
+External knowledge sources and task-based routing to project docs, architecture files, and other structured knowledge. Updated when knowledge sources change — see `.agent-context/memory-maintenance.md` → Knowledge Map Triggers.
 
 @.agent-context/knowledge-map.md
 

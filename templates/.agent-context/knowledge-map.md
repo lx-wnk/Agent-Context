@@ -1,7 +1,7 @@
 # Knowledge Map
 
 > Universal knowledge index for this project. Updated automatically by the agent when knowledge sources change — row-level edits only, other content is preserved.
-> See Layer 0 → Knowledge Map Triggers for the update rules.
+> See `.agent-context/memory-maintenance.md` → Knowledge Map Triggers for the update rules.
 
 ## Task Routing
 

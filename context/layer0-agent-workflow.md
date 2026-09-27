@@ -39,7 +39,7 @@
 
 ## Self-Improvement Loop
 
-> **MUST — Non-negotiable.** Every trigger below MUST result in an immediate write — the very next action after the discovery, before continuing other work. Do not batch or defer.
+> Write each trigger below to memory as the very next action after the discovery, before continuing other work — deferred saves are lost when the session ends or the context is compacted.
 
 ### Triggers
 

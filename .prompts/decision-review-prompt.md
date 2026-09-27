@@ -11,12 +11,12 @@ Recommended schedule: daily at 8:00 AM. You can also run this prompt manually at
 ## Your Task
 
 Review all decisions in `.agent-context/decisions.json` and process expired entries based on their weight.
-Work efficiently — report errors immediately, output the final summary at the end.
+Report errors as they occur; output the final summary at the end.
 
 ## Step 1: Read & Parse
 
 1. Read `.agent-context/decisions.json` — if missing or empty (`[]`), return `ok: true` with "No decisions to review"
-2. If the file exists but cannot be parsed as JSON, return `ok: false` with the parse error and first 200 characters of file content. Do NOT attempt automatic repair.
+2. If the file exists but cannot be parsed as JSON, return `ok: false` with the parse error and first 200 characters of file content. Leave the file untouched — a malformed file needs human review, not automatic repair.
 3. Determine today's date
 
 ### Expected JSON Schema
@@ -59,9 +59,7 @@ If `.agent-context/memory/decisions.md` exists and contains content beyond stub 
 
 ## Step 3: Process Expired Decisions
 
-Filter for entries where `reviewDate <= today`. For each expired entry, apply the graduation logic:
-
-For each expired decision, determine the action based on `weight`:
+Filter for entries where `reviewDate <= today`. For each expired entry, determine the action based on `weight`:
 
 | Weight     | Condition                                        | Action                                                          |
 | ---------- | ------------------------------------------------ | --------------------------------------------------------------- |
@@ -93,8 +91,7 @@ Then remove the entry from the JSON array.
 ## Step 4: Write Back
 
 1. Write the modified array back to `.agent-context/decisions.json`
-2. Ensure valid JSON formatting
-3. After writing, re-read the file and confirm it parses correctly as a JSON array. If validation fails, return `ok: false` with the error.
+2. Re-read the file and confirm it parses as a JSON array. If validation fails, return `ok: false` with the error.
 
 ## Step 5: Summary
 

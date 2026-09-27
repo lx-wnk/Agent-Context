@@ -10,7 +10,7 @@ Recommended schedule: 1st of each month at 9:00 AM. You can also run this prompt
 ## Your Task
 
 Review all memory files in `.agent-context/memory/` for staleness, duplicates, and graduation candidates.
-Work efficiently — report errors immediately, output the final summary at the end.
+Report errors as they occur; output the final summary at the end.
 
 ## Step 1: Inventory
 
