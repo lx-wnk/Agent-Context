@@ -40,9 +40,10 @@ exit 0
 EOF
 chmod +x "$STUB/claude"
 
-# curl stub: the releases API always answers 2.0.0, so no run touches the network.
+# curl stub: the releases API answers 2.0.0 (or fails with CURL_FAIL=1), so no run touches the network.
 cat > "$STUB/curl" <<'EOF'
 #!/usr/bin/env bash
+[ -n "${CURL_FAIL:-}" ] && exit 22
 echo '{"tag_name": "2.0.0"}'
 EOF
 chmod +x "$STUB/curl"
@@ -119,6 +120,32 @@ printf '%s' "$out6" | grep -q "No discovery map was built" \
     && pass "--discover hands off to interactive /discover (no fake build)" || fail "--discover hand-off" "no hand-off message in output"
 { [ -f "$cap6" ] && tr '\0' '\n' < "$cap6" | grep -q "TARGET VERSION: 1.0.0"; } \
     && pass "a fresh version cache pins the target" || fail "cache-hit target" "prompt not pinned to the cached tag"
+
+# 7. --local-source is honored after another flag, not only as the first argument.
+TGT=$(mk_tmp)
+run_install "$TGT" --force --local-source "$SRC"
+printf '%s' "$CAP" | grep -q "LOCAL SOURCE MODE" \
+    && pass "--local-source is honored in any position" || fail "--local-source position" "fell back to a remote install"
+
+# 8. --local-source without a path fails loudly instead of silently installing from remote.
+TGT=$(mk_tmp)
+run_install "$TGT" --local-source
+{ [ "$RC" -eq 1 ] && [ -z "$CAP" ]; } \
+    && pass "--local-source without a path exits 1" || fail "--local-source without a path" "rc=$RC, agent invoked: $([ -n "$CAP" ] && echo yes || echo no)"
+
+# 9. API down + stale cache matching the installed version: the fast-path warns that the check is stale.
+TGT=$(mk_tmp)
+mkdir -p "$TGT/.agent-context/skills"
+printf '1.0.0\n' > "$TGT/.agent-context/.agent-context-version"
+for f in AGENTS.md .agent-context/layer1-bootstrap.md .agent-context/layer2-project-core.md \
+    .agent-context/layer3-guidebook.md .agent-context/skills/index.md; do
+    printf 'x\n' > "$TGT/$f"
+done
+echo "1.0.0" > "$VERSION_CACHE"
+touch -t 200001010000 "$VERSION_CACHE"
+out9="$( cd "$TGT" && CURL_FAIL=1 PATH="$STUB:$PATH" bash "$INSTALL" 2>&1 )"
+printf '%s' "$out9" | grep -q "version check based on stale cached data" \
+    && pass "stale-cache fallback warns on the up-to-date fast-path" || fail "stale-cache warning" "warning missing: $out9"
 
 echo ""
 echo "================================================"
