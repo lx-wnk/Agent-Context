@@ -100,13 +100,15 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
 
 > **Local source mode:** If your launching instruction contains `LOCAL SOURCE MODE` (set by `install.sh --local-source <path>`), SKIP this entire step — do not query the GitHub releases API and do not pick a version. Take the target version from `<path>/CHANGELOG.md` (latest entry). In Steps 2 and 3, copy every file from `<path>/<relative-path>` instead of fetching from GitHub (do not build any `<tag>` URL).
 
+> **Pinned target:** If your launching instruction contains `TARGET VERSION: <tag>` (set by `install.sh`, which fetched this prompt from that same tag), skip sub-steps 2–3 and 5–7 — do not query the releases API; the target is exactly `<tag>`. If `<tag>` is older than the installed version, never downgrade: log it and skip to Step 4.
+
 1. Read `.agent-context/.agent-context-version` (default `0.0.0` if missing)
 2. Fetch the release list from `https://api.github.com/repos/lx-wnk/Agent-Context/releases`
 3. If the fetch fails or returns no releases:
    - **SETUP:** abort with an informative message — version selection is required
    - **UPDATE:** inform the user that releases could not be checked, skip to Step 4
      > **Note:** When invoked via `install.sh`, a shell-level fast-path runs before this agent starts and exits early when everything is up-to-date. If this agent is running, the shell-level check already confirmed a full update is needed (or `--force` was passed). Direct invocation without `install.sh` always runs the full update flow.
-4. If `INTERACTIVE_MODE=false`: skip the version prompt entirely, use the latest stable release automatically — do not present a table or ask any question. Then log the mode and target version:
+4. If `INTERACTIVE_MODE=false`: skip the version prompt entirely — do not present a table or ask any question. Use the pinned target (see above) if there is one; otherwise use the latest stable release. Then log the mode and target version:
    ```bash
    echo "[agent-context] Mode: UPDATE (0.3.0 → 0.5.0)" >> .agent-context/setup.log
    # or for SETUP:

@@ -4,6 +4,8 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-25
+
 ### Added
 
 - **Per-file memory TTL defaults** — `.agent-context/bin/memory-prune.sh` now applies a default TTL to dated entries that carry no `ttl:` of their own. Ships with `lessons.md=90d` and `preferences.md`/`people.md`/`user.md=infinite`; projects tune it via `MEMORY_TTL_DEFAULTS` in `.agent-context/budget.conf`, per key, with a `*` catch-all. An explicit `ttl:` on the entry always wins, `ttl:infinite` included, and a line without a `(YYYY-MM-DD)` date is never touched. Keys match by basename at any depth.
@@ -15,6 +17,8 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ### Fixed
 
+- **Installer fetched the setup prompt from `main`, the files from the release tag** — `install.sh` always read `.prompts/setup-prompt.md` from `main`, while the prompt downloaded every shared file from the latest release tag. Any shared file merged to `main` before the next release therefore 404'd and rolled the whole update back (e.g. `context/bin/conf-read.sh` against `0.8.1`). The prompt is now fetched from the same release tag and told to install exactly that tag (`TARGET VERSION: <tag>`); `main` is only the fallback when the release lookup fails. `--force` is now parsed before the lookup, so it bypasses the version cache as documented. A pinned target is never a downgrade and skips the agent's own release lookup.
+- **Installer crashed on Linux once a version cache existed** — `stat -f %m` ran first, which GNU `stat` reads as `--file-system` and answers on stdout, so the cache age became garbage and `set -u` aborted `install.sh`. GNU `stat -c %Y` now runs first.
 - **Stale "Layer 0 →" pointers** — `discovery-map.md`, `templates/.agent-context/knowledge-map.md` and `layer3-guidebook.md` sent agents to "Layer 0 → Knowledge Map Triggers" and "Layer 0 → Domain Expansion", but both sections now live in `.agent-context/memory-maintenance.md`. The pointers now name that file.
 - **Recursive memory scan** — expanded domains (`memory/<domain>/*.md`) were never pruned; the scan only looked one level deep. It now recurses, and follows symlinked memory directories and files that resolve inside the scanned tree (rewriting the target, not the link).
 - **Archive self-destruct on non-canonical paths** — a trailing slash on `--dir`/`--archive` (what tab-completion produces) made the archive-exclusion glob miss, so the archive was scanned as a source and its rewrite erased every entry prior runs had moved there. Paths are canonicalized up front and a second guard refuses to rewrite anything inside the archive.

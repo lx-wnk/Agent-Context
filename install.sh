@@ -49,6 +49,14 @@ validate_version_string() {
     [[ "$1" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]
 }
 
+resolve_prompt_url() {
+    local ref="main"
+    if validate_version_string "${1:-}"; then
+        ref="$1"
+    fi
+    echo "https://raw.githubusercontent.com/lx-wnk/Agent-Context/$ref/.prompts/setup-prompt.md"
+}
+
 # XDG_CACHE_HOME or HOME may be relative/empty on hardened/CI systems — fall back to /tmp.
 resolve_cache_dir() {
     local raw
@@ -79,8 +87,8 @@ get_latest_version() {
     if [ "$FORCE" -ne 1 ] && [ -f "$CACHE_FILE" ]; then
         local now mtime cache_age
         now=$(date +%s)
-        # BSD stat (macOS): stat -f %m; GNU stat (Linux): stat -c %Y.
-        mtime=$(stat -f %m "$CACHE_FILE" 2>/dev/null || stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0)
+        # GNU first: GNU stat reads `-f %m` as --file-system and prints fs info to stdout; BSD rejects -c silently.
+        mtime=$(stat -c %Y "$CACHE_FILE" 2>/dev/null || stat -f %m "$CACHE_FILE" 2>/dev/null || echo 0)
         cache_age=$(( now - mtime ))
         # Negative cache_age means the system clock jumped backward — treat as stale.
         if [ "$cache_age" -ge 0 ] && [ "$cache_age" -lt "$CACHE_TTL" ]; then
@@ -113,7 +121,6 @@ main() {
         exit 1
     fi
 
-    PROMPT_URL="https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/.prompts/setup-prompt.md"
     ALLOWED_TOOLS="Edit,Write,Read,Bash,Glob,Grep,WebFetch,WebSearch,Agent"
     LOG=".agent-context/setup.log"
 
@@ -124,8 +131,18 @@ main() {
     #   existing install, merging into existing knowledge without deleting still-valid facts
     # --discover: after install, check for a discovery map and, if absent, hand off to the interactive
     #   /discover command (a rich map needs fan-out discovery, which is not run by this headless installer)
-    PROMPT_INSTRUCTION="Fetch $PROMPT_URL and follow its instructions exactly."
     LOCAL_PROMPT=""
+    LATEST_VERSION=""
+    AI_DIRS=""
+    DISCOVER=0
+    for arg in "$@"; do
+        case "$arg" in
+            --ai-dirs=*) AI_DIRS="${arg#--ai-dirs=}" ;;
+            --force) FORCE=1 ;;
+            --discover) DISCOVER=1 ;;
+        esac
+    done
+
     if [ "${1:-}" = "--local-source" ]; then
         AGENT_CONTEXT_SOURCE="${2:-}"
     fi
@@ -147,22 +164,18 @@ main() {
 
     if [ -n "$LOCAL_PROMPT" ]; then
         PROMPT_INSTRUCTION="Read $LOCAL_PROMPT and follow its instructions exactly."
+    else
+        LATEST_VERSION=$(get_latest_version | tr -d '[:space:]')
+        PROMPT_INSTRUCTION="Fetch $(resolve_prompt_url "$LATEST_VERSION") and follow its instructions exactly."
+        if validate_version_string "$LATEST_VERSION"; then
+            PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION TARGET VERSION: $LATEST_VERSION — install exactly this release tag in Steps 2 and 3; do not pick another."
+        fi
     fi
 
     # Tell the agent to source everything locally instead of downloading.
     if [ -n "${AGENT_CONTEXT_SOURCE:-}" ]; then
         PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION LOCAL SOURCE MODE: do NOT download from GitHub. Install every shared file (Step 2) and every template (Step 3) by copying from the local clone at $_abs_source using the same relative paths (e.g. copy $_abs_source/context/bin/check-map-budget.sh to .agent-context/bin/check-map-budget.sh). Skip the remote version lookup and all <tag> URL building; take the target version from $_abs_source/CHANGELOG.md (latest entry)."
     fi
-
-    AI_DIRS=""
-    DISCOVER=0
-    for arg in "$@"; do
-        case "$arg" in
-            --ai-dirs=*) AI_DIRS="${arg#--ai-dirs=}" ;;
-            --force) FORCE=1 ;;
-            --discover) DISCOVER=1 ;;
-        esac
-    done
 
     if [ -n "$AI_DIRS" ]; then
         PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION Additional AI directories to treat as migratable (extends built-in defaults): $AI_DIRS"
@@ -178,7 +191,6 @@ main() {
     # real content still needs migration, and missing templates need restoration.
     if [ "$FORCE" -ne 1 ] && [ -f ".agent-context/.agent-context-version" ]; then
         INSTALLED_VERSION=$(tr -d '[:space:]' < ".agent-context/.agent-context-version")
-        LATEST_VERSION=$(get_latest_version | tr -d '[:space:]')
         # Strip optional leading 'v' so "v0.5.3" and "0.5.3" compare as equal.
         # An empty INSTALLED_VERSION (e.g. blank version file) intentionally falls through:
         # the equality check is false, so the full update flow runs.
