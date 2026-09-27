@@ -56,7 +56,7 @@ are pulled only when a task needs them.
    - `memory/<node>.md` — the curated depth note for each node (only meaningful things).
    - Append routing rows to `.agent-context/knowledge-map.md` Task Routing table
      (`Working on <area> → memory/<node>.md`), following the row-edit convention in
-     Layer 0 → Knowledge Map Triggers. Edit rows only; preserve other content.
+     `.agent-context/memory-maintenance.md` → Knowledge Map Triggers. Edit rows only; preserve other content.
 4. Run the cap gate (see Hard rule). Split hierarchically if needed.
 
 ## Re-run (incremental)
