@@ -58,7 +58,7 @@ Line counts are for the shipped files and templates before discovery fills them 
 
 **Measured, not asserted.** `.agent-context/bin/measure-baseline.sh` counts the always-on closure against the flat equivalent — the same knowledge in a single file — and reports both. On a fresh install of the shipped templates, before discovery adds any project knowledge, 12,077 of 28,558 bytes stay out of a session until a task asks for them (42.3% by estimated token); a project's own memory and skills grow the on-demand side. Reproduce it with `bash tests/check-install-smoke.sh <dir>`, then `bash .agent-context/bin/measure-baseline.sh` inside `<dir>`. That is an upper bound, not a per-session average: a task that pulls two skills pays for those two skills, and no modelled "reads avoided" enter the number. See [Baseline Measurement](docs/enforcement.md#baseline-measurement).
 
-Updates run on demand: re-run the install one-liner. `install.sh` resolves the latest release via the GitHub Releases API, exits early if that version is already installed, and otherwise pins the setup agent to that release tag. The setup prompt detects UPDATE mode, replaces the shared files, and re-syncs project knowledge only for documentation sources that changed since the last run (`--force` re-scans everything). Project-owned files are never overwritten.
+Updates run on demand: re-run the install one-liner. `install.sh` resolves the latest release via the GitHub Releases API, exits early if that version is already installed, and otherwise downloads that release and replaces the shared files. The setup agent then detects UPDATE mode and re-syncs project knowledge only for documentation sources that changed since the last run (`--force` re-scans everything). Project-owned files are never overwritten.
 
 See a fully installed project in [example.md](example.md).
 
@@ -68,7 +68,7 @@ Agent Context answers one question: **what does the agent know when a session st
 
 - **A code index.** Structure, symbols, and call graphs are discoverable from the source, and writing them into context files measurably hurts agents (see [Research & References](docs/references.md)). The `discovery-map` skill records _why_ a subsystem exists, not what is inside it.
 - **A multi-agent orchestrator.** One agent, one context window. Delegation is a context-injection protocol (`agent-delegation.md`) — no roles, worktrees, or message bus.
-- **A permission system.** Your agent's own permission model stays in charge during normal sessions — with one exception: the installer runs its setup agent with permission checks disabled (see [What the installer runs](#what-the-installer-runs)). On top of it, four optional deterministic hooks ship with the framework — a secret-write block, an auto-formatter, a test gate, and a subagent scope check. Setup registers them, but they stay off until you set `HOOKS_ENABLED=1` in the project-owned `hooks.conf`. See [Enforcement & Hygiene](docs/enforcement.md).
+- **A permission system.** Your agent's own permission model stays in charge during normal sessions — the installer's setup agent runs with a restricted tool allowlist, without network access (see [What the installer runs](#what-the-installer-runs)). On top of it, four optional deterministic hooks ship with the framework — a secret-write block, an auto-formatter, a test gate, and a subagent scope check. Setup registers them, but they stay off until you set `HOOKS_ENABLED=1` in the project-owned `hooks.conf`. See [Enforcement & Hygiene](docs/enforcement.md).
 
 Tools that cover the adjacent layers are listed under [Neighbouring Systems](docs/references.md#neighbouring-systems).
 
@@ -86,7 +86,12 @@ Run this one-liner from your project root:
 
 #### What the installer runs
 
-`install.sh` resolves the latest release, downloads that release's setup prompt itself (and stops if the download fails), then starts `claude -p` headless in a restricted mode: `--permission-mode acceptEdits`, `--strict-mcp-config` (none of your MCP servers), WebFetch and WebSearch denied, and `--allowedTools` limited to Read, Write, Edit, Glob, Grep, Agent and scoped shell commands — `curl` to this repository's GitHub URLs only, file commands (`mkdir`, `mv`, `cp`, `rm -f`/`chmod +x` under `.agent-context/`), read-only `git` plus `git rm`, checksum and text tools, and the two shipped scripts it runs. Any other command is denied rather than prompted. The agent reads your repository's docs to build the context layers and can still edit files in the project — install into repositories whose content you trust.
+The work is split: `install.sh` does every mechanical step itself, and an agent only handles knowledge.
+
+1. `install.sh` resolves the latest release and downloads its source archive (or uses your clone with `--local-source`). If the lookup or download fails, it stops before any agent starts.
+2. It installs the shared files into `.agent-context/` and `.claude/commands/`. A same-named command of yours is kept.
+3. It starts `claude -p` headless on that release's setup prompt, restricted: `--permission-mode acceptEdits`, `--strict-mcp-config` (none of your MCP servers), WebFetch and WebSearch denied, and `--allowedTools` limited to Read, Write, Edit, Glob, Grep, Agent and non-network shell commands (file commands, read-only `git` plus `git rm`, checksum and text tools, and the two shipped scripts it runs). The agent has no network access; any other command is denied rather than prompted. It reads your repository's docs to fill the context layers and can edit files in the project — install into repositories whose content you trust.
+4. After the agent finishes, `install.sh` registers the four hooks in `.claude/settings.json` (creating it, or adding only the entries it lacks), points `.claude/CLAUDE.md` at `AGENTS.md`, and checks that every shared file matches the release. Only then does it write `.agent-context/.agent-context-version`. Anything missing is listed, and the run exits with code 2.
 
 #### Flags
 
