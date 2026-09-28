@@ -28,9 +28,9 @@ JSON=0
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        --dir) ROOT="${2:-}"; shift 2 ;;
+        --dir) [ "$#" -ge 2 ] || { echo "Error: --dir requires an argument" >&2; exit 2; }; ROOT="$2"; shift 2 ;;
         --dir=*) ROOT="${1#--dir=}"; shift ;;
-        --conf) CONF="${2:-}"; shift 2 ;;
+        --conf) [ "$#" -ge 2 ] || { echo "Error: --conf requires an argument" >&2; exit 2; }; CONF="$2"; shift 2 ;;
         --conf=*) CONF="${1#--conf=}"; shift ;;
         --json) JSON=1; shift ;;
         *) echo "Unknown argument: $1" >&2; exit 2 ;;
@@ -86,8 +86,7 @@ done
 
 # A file that already loads at startup is not "on demand", however it was discovered.
 ondemand=()
-for c in $(printf '%s\n' "${candidates[@]:-}" | sort -u); do
-    [ -n "$c" ] || continue
+for c in ${candidates[@]+"${candidates[@]}"}; do
     dup=0
     for l in "${layered[@]}"; do
         [ "$c" = "$l" ] && { dup=1; break; }
@@ -126,10 +125,25 @@ pct() { awk -v a="$1" -v b="$2" 'BEGIN { if (b == 0) print "0.0"; else printf "%
 PCT_LINES="$(pct "$O_LINES" "$F_LINES")"
 PCT_TOKENS="$(pct "$O_TOKENS" "$F_TOKENS")"
 
+json_escape() {
+    printf '%s\n' "$1" | LC_ALL=C awk '
+        BEGIN { for (i = 1; i < 32; i++) if (i != 10) esc[sprintf("%c", i)] = sprintf("\\u%04x", i) }
+        {
+            out = ""
+            for (i = 1; i <= length($0); i++) {
+                c = substr($0, i, 1)
+                if (c == "\\" || c == "\"") out = out "\\" c
+                else if (c in esc) out = out esc[c]
+                else out = out c
+            }
+            printf "%s%s", (NR > 1 ? "\\n" : ""), out
+        }'
+}
+
 if [ "$JSON" -eq 1 ]; then
     cat <<JSON
 {
-  "root": "$ROOT",
+  "root": "$(json_escape "$ROOT")",
   "layered":   { "files": $L_COUNT, "effective_lines": $L_LINES, "bytes": $L_BYTES, "est_tokens": $L_TOKENS },
   "on_demand": { "files": $O_COUNT, "effective_lines": $O_LINES, "bytes": $O_BYTES, "est_tokens": $O_TOKENS },
   "flat":      { "files": $F_COUNT, "effective_lines": $F_LINES, "bytes": $F_BYTES, "est_tokens": $F_TOKENS },
