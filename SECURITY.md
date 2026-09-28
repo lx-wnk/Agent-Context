@@ -16,4 +16,4 @@ Only the latest released version is supported. Check [releases](https://github.c
 
 ## Scope
 
-Agent-Context is a dev tooling framework that installs files and git hooks into host projects. Please report any vulnerability that could execute unintended code or exfiltrate data during installation, updates, or hook execution.
+Agent-Context is a dev tooling framework that installs files and Claude Code hooks into host projects. Its installer runs a headless setup agent with permission checks disabled that reads the host repository's docs (see [README → What the installer runs](README.md#what-the-installer-runs)). Please report any vulnerability that could execute unintended code or exfiltrate data during installation, updates, or hook execution — including instructions planted in repository content that the setup agent would follow.

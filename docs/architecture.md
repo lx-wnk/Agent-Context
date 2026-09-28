@@ -122,7 +122,7 @@ your-project/
 
 Paste the contents of [`.prompts/setup-prompt.md`](../.prompts/setup-prompt.md) directly into a Claude Code session if you prefer to confirm each step interactively.
 
-Pass `--force` for a **full from-scratch rediscovery**: it re-scans the entire codebase at setup depth even on an existing install and merges into your knowledge without deleting still-valid facts (a normal update only reconciles deltas). Pass `--discover` to check for a [discovery map](discovery-map.md) after the run and, if none exists, point you to the interactive `/discover` command — the headless installer does not build the map itself (a rich map needs fan-out discovery, which runs reliably only in an interactive session).
+The installer flags (`--force`, `--discover`, `--local-source`, `--ai-dirs`) apply to the one-liner, not to a pasted prompt — see [README → Flags](../README.md#flags).
 
 ## Repository Structure
 

@@ -25,10 +25,19 @@ All notable changes to this project will be documented here. Format loosely foll
 - **A CRLF `hooks.conf` switched every hook off** — `HOOKS_ENABLED=1\r` never equalled `1`. `conf-read.sh` now strips a trailing CR.
 - **An escaped quote truncated a conf value** — `TEST_CMD="echo \"hi\" && false"` was read as `echo \`, a test gate that always passes. `conf-read.sh` does not do shell escaping, so such a key is now ignored and named on stderr instead of silently shortened.
 
+### Docs
+
+- **The README claimed installing never weakens a permission guard** — the installer runs its setup agent with `--dangerously-skip-permissions`. The README now says so, lists what the installer runs and names the repository-content injection surface; `SECURITY.md` scope covers it.
+- **The one-liner silently dropped flags** — `bash -c "$(curl …)" --force` binds `--force` to `$0`. The README documents the `_ --force` form and a flag table.
+- **0.9.0 entry** — release date corrected to 2026-09-27; the new `measure-baseline.sh` is listed.
+
 ## [0.9.0] - 2026-09-25
+
+## [0.9.0] - 2026-09-27
 
 ### Added
 
+- **Measured layered-vs-flat baseline** — new shared `.agent-context/bin/measure-baseline.sh` reports what layering keeps out of every session: effective lines, bytes and a token estimate for the always-on set, the on-demand set and their flat sum. `check-token-budget.sh` gained `--json` output, which the measurement reuses so one engine defines both the gate and the numbers.
 - **Per-file memory TTL defaults** — `.agent-context/bin/memory-prune.sh` now applies a default TTL to dated entries that carry no `ttl:` of their own. Ships with `lessons.md=90d` and `preferences.md`/`people.md`/`user.md=infinite`; projects tune it via `MEMORY_TTL_DEFAULTS` in `.agent-context/budget.conf`, per key, with a `*` catch-all. An explicit `ttl:` on the entry always wins, `ttl:infinite` included, and a line without a `(YYYY-MM-DD)` date is never touched. Keys match by basename at any depth.
 - **Cross-repo lesson routing** — `layer0-agent-workflow.md` now covers multi-repo projects (e.g. frontend ↔ backend): the "Routing New Knowledge" table's gotcha row now points at the owning repo's `memory/lessons.md`, and the one-place rule is extended across repo boundaries. A lesson lives in the repo owning the code it describes; a shared-contract fact (API shape) has one canonical repo while sibling repos hold a pointer, never a copy. Ships entirely in the shared always-on layer, so it reaches existing installations on their next update; projects that want to declare their sibling repos do so in their own `layer1-bootstrap.md`.
 
