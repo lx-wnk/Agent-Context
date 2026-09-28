@@ -168,6 +168,17 @@ out9="$( cd "$TGT" && CURL_FAIL=1 PATH="$STUB:$PATH" bash "$INSTALL" 2>&1 )"
 printf '%s' "$out9" | grep -q "version check based on stale cached data" \
     && pass "stale-cache fallback warns on the up-to-date fast-path" || fail "stale-cache warning" "warning missing: $out9"
 
+# 13. Sourcing install.sh from zsh must not run the installer (the BASH_SOURCE guard is bash-only).
+if command -v zsh >/dev/null 2>&1; then
+    TGT=$(mk_tmp)
+    cap13="$(mk_tmp)/cap"
+    ( cd "$TGT" && CAPTURE="$cap13" PATH="$STUB:$PATH" zsh -c "source '$INSTALL'" >/dev/null 2>&1 )
+    { [ ! -f "$cap13" ] && [ ! -e "$TGT/.agent-context" ]; } \
+        && pass "sourcing from zsh does not run the installer" || fail "zsh source guard" "installer ran when sourced from zsh"
+else
+    echo "  SKIP  zsh source guard (zsh not installed)"
+fi
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))
