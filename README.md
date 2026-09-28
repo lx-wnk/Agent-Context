@@ -86,7 +86,7 @@ Run this one-liner from your project root:
 
 #### What the installer runs
 
-`install.sh` resolves the latest release, then starts `claude -p` headless with `--dangerously-skip-permissions` and the tools Read, Write, Edit, Glob, Grep, Bash, WebFetch, WebSearch and Agent. The agent follows that release's setup prompt and reads your repository's docs to build the context layers. No permission prompt interrupts it, so text in those docs is read by an agent that can run shell commands and reach the network — install into repositories whose content you trust.
+`install.sh` resolves the latest release, downloads that release's setup prompt itself (and stops if the download fails), then starts `claude -p` headless in a restricted mode: `--permission-mode acceptEdits`, `--strict-mcp-config` (none of your MCP servers), WebFetch and WebSearch denied, and `--allowedTools` limited to Read, Write, Edit, Glob, Grep, Agent and scoped shell commands — `curl` to this repository's GitHub URLs only, file commands (`mkdir`, `mv`, `cp`, `rm -f`/`chmod +x` under `.agent-context/`), read-only `git` plus `git rm`, checksum and text tools, and the two shipped scripts it runs. Any other command is denied rather than prompted. The agent reads your repository's docs to build the context layers and can still edit files in the project — install into repositories whose content you trust.
 
 #### Flags
 

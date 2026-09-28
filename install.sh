@@ -215,7 +215,16 @@ main() {
         exit 1
     fi
 
-    ALLOWED_TOOLS="Edit,Write,Read,Bash,Glob,Grep,WebFetch,WebSearch,Agent"
+    ALLOWED_TOOLS="Read,Write,Edit,Glob,Grep,Agent"
+    ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(curl -fsSL https://raw.githubusercontent.com/lx-wnk/Agent-Context/*)"
+    ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(curl -fsSL https://api.github.com/repos/lx-wnk/Agent-Context/*)"
+    ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(mkdir:*),Bash(mv:*),Bash(cp:*),Bash(chmod +x:*)"
+    ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(rm -f:*)"
+    ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(git ls-files:*),Bash(git rm:*),Bash(git status:*),Bash(git log:*)"
+    ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(sha256sum:*),Bash(shasum:*),Bash(echo:*),Bash(printf:*),Bash(cat:*)"
+    ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(grep:*),Bash(wc:*),Bash(head:*),Bash(tail:*),Bash(ls:*),Bash(test:*)"
+    ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(bash *.agent-context/bin/discovery-digest.sh*)"
+    ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(bash *.agent-context/bin/check-token-budget.sh*)"
     LOG=".agent-context/setup.log"
 
     # --local-source <path> (or env AGENT_CONTEXT_SOURCE): install every shared file and template from
@@ -269,15 +278,20 @@ main() {
         LOCAL_PROMPT="$_abs_source/.prompts/setup-prompt.md"
     fi
 
-    if [ -n "$LOCAL_PROMPT" ]; then
-        PROMPT_INSTRUCTION="Read $LOCAL_PROMPT and follow its instructions exactly."
-    else
+    INSTALLED_VERSION=""
+    if [ -f ".agent-context/.agent-context-version" ]; then
+        INSTALLED_VERSION=$(tr -d '[:space:]' < ".agent-context/.agent-context-version")
+    fi
+
+    DIRECTIVES=""
+    if [ -z "$LOCAL_PROMPT" ]; then
         get_latest_version
-        PROMPT_INSTRUCTION="Fetch $(resolve_prompt_url "$LATEST_VERSION") and follow its instructions exactly."
+        PROMPT_URL=$(resolve_prompt_url "$LATEST_VERSION")
         if validate_version_string "$LATEST_VERSION"; then
-            PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION TARGET VERSION: $LATEST_VERSION — install exactly this release tag in Steps 2 and 3; do not pick another."
+            DIRECTIVES=" TARGET VERSION: $LATEST_VERSION — install exactly this release tag in Steps 2 and 3; do not pick another."
         fi
     fi
+    PROMPT_INSTRUCTION="$DIRECTIVES"
 
     # Tell the agent to source everything locally instead of downloading.
     if [ -n "${AGENT_CONTEXT_SOURCE:-}" ]; then
@@ -292,6 +306,12 @@ main() {
         PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION FORCE / FULL REDISCOVERY: skip all up-to-date checks and, even on an existing install, run a complete from-scratch discovery — re-scan the entire codebase and rebuild the knowledge inventory at SETUP depth, do not merely reconcile deltas. Merge into the existing memory/decisions/knowledge-map; never delete a still-valid fact (move it, don't lose it)."
     fi
 
+    PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION HEADLESS: no user is present; never wait for input, decide per the prompt's headless rules."
+    if validate_version_string "$INSTALLED_VERSION"; then
+        PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION INSTALLED VERSION: $INSTALLED_VERSION"
+    else
+        PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION INSTALLED VERSION: none"
+    fi
 
     migrate_import_paths
     ensure_hooks_local_conf_ignored
@@ -301,7 +321,6 @@ main() {
     # Guards: version match alone is not proof of a complete installation — a CLAUDE.md with
     # real content still needs migration, and missing templates need restoration.
     if [ "$FORCE" -ne 1 ] && [ -f ".agent-context/.agent-context-version" ]; then
-        INSTALLED_VERSION=$(tr -d '[:space:]' < ".agent-context/.agent-context-version")
         # Strip optional leading 'v' so "v0.5.3" and "0.5.3" compare as equal.
         # An empty INSTALLED_VERSION (e.g. blank version file) intentionally falls through:
         # the equality check is false, so the full update flow runs.
@@ -341,6 +360,17 @@ main() {
     fi
 
     mkdir -p .agent-context
+    if [ -n "$LOCAL_PROMPT" ]; then
+        PROMPT_FILE="$LOCAL_PROMPT"
+    else
+        PROMPT_FILE="$PWD/$(mktemp .agent-context/setup-prompt.XXXXXX)"
+        trap 'rm -f "$PROMPT_FILE"' EXIT
+        if ! curl -fsSL --max-time 30 "$PROMPT_URL" -o "$PROMPT_FILE"; then
+            echo "Error: could not download the setup prompt from $PROMPT_URL — no agent was started." >&2
+            exit 1
+        fi
+    fi
+    PROMPT_INSTRUCTION="Read $PROMPT_FILE and follow its instructions exactly.$PROMPT_INSTRUCTION"
     : > "$LOG"
 
     echo "Starting agent-context setup in $(pwd)..."
@@ -350,8 +380,11 @@ main() {
 
     AGENT_CONTEXT_SETUP=1 claude -p "$PROMPT_INSTRUCTION" \
         --allowedTools "$ALLOWED_TOOLS" \
+        --disallowedTools "WebFetch,WebSearch" \
+        --add-dir "${_abs_source:-$PWD}" \
+        --permission-mode acceptEdits \
+        --strict-mcp-config \
         --output-format text \
-        --dangerously-skip-permissions \
         --session-id "$SESSION_ID" \
         < /dev/null > /dev/null &
     CLAUDE_PID=$!
