@@ -4,16 +4,17 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
-### Fixed
-
-- **discovery-digest missed files and invented Makefile targets; the map cap counted lines and characters** — `discovery-digest.sh` no longer drops files with non-ASCII names, no longer hides a top-level `bin/` (Symfony `bin/console`, Rails `bin/`) and no longer lists Makefile variable assignments (`FOO:=`) as targets. `check-map-budget.sh` counts `"id":` occurrences instead of lines, as `budget.conf` documents, and measures the per-line cap in bytes under any locale.
-
 ### Added
 
 - **Cross-repo lesson fallback** (#33) — a lesson belongs in the repo owning the code, but in a multi-repo project that repo is often not checked out, and the agent had nowhere valid to put it. It now parks the lesson in the current repo's `memory/lessons.md` with an `owner:<repo>` tag; the memory review moves it to the owning repo once that repo is reachable. The rule lives in the on-demand `memory-maintenance.md` (Cross-Repo Fallback) with a pointer from the layer-0 routing row; siblings are declared in a new optional "Sibling Repos" section of `layer1-bootstrap.md`, which existing installs add by hand (the template is project-owned).
 
+### Changed
+
+- **The token-budget gate measures what actually loads** — `check-token-budget.sh` follows the `@` imports from `.claude/CLAUDE.md` (and a root `CLAUDE.md`), each resolved relative to the importing file, and warns about imports that point at no file. A new `SESSION_START_FILES` key lists files the agent reads at every session start without an import; the template ships `memory/lessons.md` and `memory/preferences.md` there, so they now count toward the budget. `INCLUDE_FILES` becomes a legacy additive list: its entries still count, but each one no import reaches prints a note, so a stale entry such as an unimported `knowledge-map.md` no longer counts silently. A missing `MAX_EFFECTIVE_LINES_HARD` defaults to 250 instead of the soft cap, and HTML comments are counted correctly (text between two comments on one line and lines after an unclosed `<!--` count; `<!--` inside backticks is plain text).
+
 ### Fixed
 
+- **discovery-digest missed files and invented Makefile targets; the map cap counted lines and characters** — `discovery-digest.sh` no longer drops files with non-ASCII names, no longer hides a top-level `bin/` (Symfony `bin/console`, Rails `bin/`) and no longer lists Makefile variable assignments (`FOO:=`) as targets. `check-map-budget.sh` counts `"id":` occurrences instead of lines, as `budget.conf` documents, and measures the per-line cap in bytes under any locale.
 - **memory-prune rewrites kept neither mode nor hard links, and could lose a concurrent write** — a rewritten memory file became mode 0600 and lost its hard links; now the mode is kept and a hard-linked file is written in place. A file that changes while it is being processed aborts that run with exit 2 instead of being overwritten. Entry dates are computed in-process — about 20× faster on large files, impossible dates such as 2026-02-30 are never expired, and expiry is by calendar day on both BSD and GNU. A missing value for `--dir`/`--conf`/`--archive` exits 2 as documented, and the dry-run shows paths relative to the memory directory with control characters stripped.
 
 ### Security
@@ -21,6 +22,8 @@ All notable changes to this project will be documented here. Format loosely foll
 - **A pulled `hooks.conf` could switch hooks on and choose the commands they run** — `HOOKS_ENABLED`, `TEST_CMD` and `FORMAT_CMD` now take effect only from the gitignored, per-developer `.agent-context/hooks.local.conf` and are ignored in the committed `hooks.conf`; every other hook setting still comes from `hooks.conf`. `install.sh` adds `/.agent-context/hooks.local.conf` to `.gitignore` and, when the committed file still sets one of the three keys, says so.
 
 ### Upgrade note
+
+Existing `budget.conf` files are project-owned and keep their `INCLUDE_FILES`. Entries an import already reaches are deduplicated silently; an entry nothing imports prints a note on every run until you remove it. To count the session-start reads, add `SESSION_START_FILES` with `.agent-context/memory/lessons.md` and `.agent-context/memory/preferences.md`.
 
 Hooks that were enabled in the committed `hooks.conf` are **off** after this update until each developer moves `HOOKS_ENABLED`, `TEST_CMD` and `FORMAT_CMD` into `.agent-context/hooks.local.conf`. This is deliberate: copying them automatically would re-trust exactly the committed values the change stops trusting.
 
