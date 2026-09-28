@@ -31,8 +31,6 @@ All notable changes to this project will be documented here. Format loosely foll
 - **The one-liner silently dropped flags** — `bash -c "$(curl …)" --force` binds `--force` to `$0`. The README documents the `_ --force` form and a flag table.
 - **0.9.0 entry** — release date corrected to 2026-09-27; the new `measure-baseline.sh` is listed.
 
-## [0.9.0] - 2026-09-25
-
 ## [0.9.0] - 2026-09-27
 
 ### Added
