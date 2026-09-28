@@ -145,6 +145,18 @@ update_claude_md() {
     fi
 }
 
+# 0 when $1 is a higher x.y.z than $2 (leading v ignored); both must be valid version strings.
+version_gt() {
+    local IFS=. a b i
+    read -r -a a <<< "${1#v}"
+    read -r -a b <<< "${2#v}"
+    for i in 0 1 2; do
+        [ "$((10#${a[i]}))" -gt "$((10#${b[i]}))" ] && return 0
+        [ "$((10#${a[i]}))" -lt "$((10#${b[i]}))" ] && return 1
+    done
+    return 1
+}
+
 validate_version_string() {
     [[ "$1" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]
 }
@@ -505,6 +517,11 @@ main() {
 
     if [ -z "$SOURCE_ROOT" ]; then
         TARGET_TAG="$LATEST_VERSION"
+        if validate_version_string "$INSTALLED_VERSION" && validate_version_string "$TARGET_TAG" \
+            && version_gt "$INSTALLED_VERSION" "$TARGET_TAG"; then
+            echo "agent-context $INSTALLED_VERSION is newer than the latest release $TARGET_TAG — nothing downgraded."
+            exit 0
+        fi
         fetch_release "$TARGET_TAG" || exit 1
     fi
 

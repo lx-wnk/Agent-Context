@@ -40,9 +40,9 @@ Paste [`.prompts/setup-prompt.md`](../.prompts/setup-prompt.md) into Claude Code
 
 Updates are not automatic. Re-run the installer one-liner, or fetch the setup prompt from remote and follow its instructions (see `agent-startup.md`). The installer:
 
-1. Reads `.agent-context/.agent-context-version` (local) and fetches the latest release tag from the GitHub API (remote, cached for 1 hour)
+1. Reads `.agent-context/.agent-context-version` (local) and fetches the latest release tag from the GitHub API (remote, cached for 1 hour); a newer install is never downgraded
 2. **If already up-to-date and templates intact:** exits immediately — no Claude spawn needed
-3. **If versions differ:** spawns Claude with the setup prompt fetched from that same release tag, so its download table always matches the files it downloads; Claude downloads shared files in parallel, writes the new version
+3. **If versions differ:** downloads that release's archive, installs the shared files and slash commands itself, then spawns Claude — restricted to knowledge work, without network access or writes to `.claude/` — on the setup prompt from the same archive; afterwards it merges the hook entries into `.claude/settings.json`, verifies every shared file and only then writes the new version
 4. **If API fails:** falls back to the cached version; warns if the cache is stale
 
 During an UPDATE the agent re-syncs knowledge only for sources that changed since the last run, or are new; if nothing changed, the knowledge scan is skipped and only the token-budget check runs (setup-prompt Step 5.0). A full rescan is what `--force` or `/discover` is for.
