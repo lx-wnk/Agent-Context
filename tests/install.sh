@@ -20,25 +20,13 @@ set +e  # install.sh activates set -e; tests intentionally omit it to accumulate
 
 PASS=0
 FAIL=0
-TMP_ROOTS=()
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-cleanup() {
-    for d in "${TMP_ROOTS[@]:-}"; do
-        [ -d "$d" ] && rm -rf "$d"
-    done
-}
-trap cleanup EXIT
-
-mk_tmp() {
-    local d
-    d=$(mktemp -d "${TMPDIR:-/tmp}/agent-context.XXXXXX")
-    TMP_ROOTS+=("$d")
-    echo "$d"
-}
+# shellcheck source=tests/lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 pass() { printf "  PASS  %s\n" "$1"; PASS=$(( PASS + 1 )); }
 fail() { printf "  FAIL  %s\n    => %s\n" "$1" "$2"; FAIL=$(( FAIL + 1 )); }
@@ -67,16 +55,6 @@ assert_file_not_contains() {
         fail "$label" "pattern '$pattern' unexpectedly found in $file"
     else
         pass "$label"
-    fi
-}
-
-assert_exit_0() {
-    local label="$1"
-    shift
-    if "$@" >/dev/null 2>&1; then
-        pass "$label"
-    else
-        fail "$label" "command exited non-zero: $*"
     fi
 }
 

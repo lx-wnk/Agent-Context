@@ -11,10 +11,8 @@ DIGEST="$REPO_ROOT/context/bin/discovery-digest.sh"
 
 PASS=0
 FAIL=0
-TMP_ROOTS=()
-cleanup() { for d in "${TMP_ROOTS[@]:-}"; do [ -d "$d" ] && rm -rf "$d"; done; }
-trap cleanup EXIT
-mk_tmp() { local d; d=$(mktemp -d "${TMPDIR:-/tmp}/digest-test.XXXXXX"); TMP_ROOTS+=("$d"); echo "$d"; }
+# shellcheck source=tests/lib.sh
+source "$REPO_ROOT/tests/lib.sh"
 pass() { printf "  PASS  %s\n" "$1"; PASS=$((PASS + 1)); }
 fail() { printf "  FAIL  %s\n    => %s\n" "$1" "$2"; FAIL=$((FAIL + 1)); }
 assert_has() { printf '%s' "$2" | grep -qF "$3" && pass "$1" || fail "$1" "missing '$3'"; }

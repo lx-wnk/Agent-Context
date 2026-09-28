@@ -12,10 +12,8 @@ HOOKS="$REPO_ROOT/context/hooks"
 
 PASS=0
 FAIL=0
-TMP_ROOTS=()
-cleanup() { for d in "${TMP_ROOTS[@]:-}"; do [ -d "$d" ] && rm -rf "$d"; done; }
-trap cleanup EXIT
-mk_tmp() { local d; d=$(mktemp -d "${TMPDIR:-/tmp}/hooks-test.XXXXXX"); TMP_ROOTS+=("$d"); echo "$d"; }
+# shellcheck source=tests/lib.sh
+source "$REPO_ROOT/tests/lib.sh"
 pass() { printf "  PASS  %s\n" "$1"; PASS=$((PASS + 1)); }
 fail() { printf "  FAIL  %s\n    => %s\n" "$1" "$2"; FAIL=$((FAIL + 1)); }
 

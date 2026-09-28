@@ -12,10 +12,8 @@ SRC_BIN="$REPO_ROOT/context/bin"
 
 PASS=0
 FAIL=0
-TMP_ROOTS=()
-
-cleanup() { for d in "${TMP_ROOTS[@]:-}"; do [ -d "$d" ] && rm -rf "$d"; done; }
-trap cleanup EXIT
+# shellcheck source=tests/lib.sh
+source "$REPO_ROOT/tests/lib.sh"
 
 pass() { printf "  PASS  %s\n" "$1"; PASS=$((PASS + 1)); }
 fail() { printf "  FAIL  %s\n    => %s\n" "$1" "$2"; FAIL=$((FAIL + 1)); }
@@ -25,8 +23,7 @@ assert_eq() { [ "$2" = "$3" ] && pass "$1" || fail "$1" "expected '$2', got '$3'
 # plus whatever on-demand content the caller adds afterwards.
 mk_project() {
     local d
-    d=$(mktemp -d "${TMPDIR:-/tmp}/baseline.XXXXXX")
-    TMP_ROOTS+=("$d")
+    d=$(mk_tmp)
     mkdir -p "$d/.agent-context/bin" "$d/.agent-context/memory" "$d/.agent-context/skills" "$d/.claude"
     cp "$SRC_BIN/check-token-budget.sh" "$SRC_BIN/conf-read.sh" "$SRC_BIN/measure-baseline.sh" "$d/.agent-context/bin/"
     cp "$REPO_ROOT/templates/.agent-context/budget.conf" "$d/.agent-context/budget.conf"

@@ -59,12 +59,7 @@ resolve_prompt_url() {
 
 # XDG_CACHE_HOME or HOME may be relative/empty on hardened/CI systems — fall back to /tmp.
 resolve_cache_dir() {
-    local raw
-    if [ "${1+set}" = "set" ]; then
-        raw="$1"
-    else
-        raw="${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}"
-    fi
+    local raw="$1"
     case "$raw" in
         /*)
             case "$raw" in
@@ -76,7 +71,7 @@ resolve_cache_dir() {
     esac
 }
 
-CACHE_DIR=$(resolve_cache_dir)
+CACHE_DIR=$(resolve_cache_dir "${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}")
 CACHE_FILE="$CACHE_DIR/latest-version"
 CACHE_TTL=3600
 
@@ -105,7 +100,9 @@ get_latest_version() {
         if mkdir -p "$CACHE_DIR" 2>/dev/null; then
             local tmp_cache
             if tmp_cache=$(mktemp "$CACHE_DIR/latest-version.XXXXXX" 2>/dev/null); then
-                echo "$version" > "$tmp_cache" && mv "$tmp_cache" "$CACHE_FILE" || rm -f "$tmp_cache"
+                if ! { echo "$version" > "$tmp_cache" && mv "$tmp_cache" "$CACHE_FILE"; }; then
+                    rm -f "$tmp_cache"
+                fi
             fi
         fi
     elif [ -f "$CACHE_FILE" ]; then
@@ -245,7 +242,7 @@ main() {
     fi
 
     mkdir -p .agent-context
-    > "$LOG"
+    : > "$LOG"
 
     echo "Starting agent-context setup in $(pwd)..."
     if [ "$SESSION_ID" != "unknown" ]; then
