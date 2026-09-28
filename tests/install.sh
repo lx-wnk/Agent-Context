@@ -390,6 +390,18 @@ assert_eq "migration is idempotent" "$before" "$(cat "$t/.claude/CLAUDE.md" "$t/
 assert_eq "second run reports nothing" "" "$out"
 
 t=$(mk_tmp)
+mkdir -p "$t/.agent-context"
+printf '%s\n' '> Shared base: @.agent-context/base-principles.md' \
+    'See `@.agent-context/x.md` in code.' '```' '@.agent-context/fenced.md' '```' \
+    'mail@.agent-context/not-an-import' '- (@.agent-context/skills/a.md) and @.agent-context/b.md' \
+    > "$t/.agent-context/layer2-project-core.md"
+(cd "$t" && migrate_import_paths >/dev/null)
+assert_eq "inline and non-default nested imports migrated; code, fences and non-imports kept" \
+    "$(printf '%s\n' '> Shared base: @base-principles.md' 'See `@.agent-context/x.md` in code.' '```' \
+        '@.agent-context/fenced.md' '```' 'mail@.agent-context/not-an-import' '- (@skills/a.md) and @b.md')" \
+    "$(cat "$t/.agent-context/layer2-project-core.md")"
+
+t=$(mk_tmp)
 mkdir -p "$t/.agent-context" "$t/elsewhere"
 printf '@.agent-context/base-principles.md\n' > "$t/elsewhere/layer2.md"
 ln -s "$t/elsewhere/layer2.md" "$t/.agent-context/layer2-project-core.md"
