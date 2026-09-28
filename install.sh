@@ -112,7 +112,8 @@ missing_critical_templates() {
                  ".agent-context/layer1-bootstrap.md" \
                  ".agent-context/layer2-project-core.md" \
                  ".agent-context/layer3-guidebook.md" \
-                 ".agent-context/skills/index.md"; do
+                 ".agent-context/skills/index.md" \
+                 ".agent-context/knowledge-map.md"; do
         [ -f "$_tmpl" ] || echo "$_tmpl"
     done
 }
@@ -341,22 +342,16 @@ EOF
         || echo ".claude/settings.json (Agent-Context hooks not registered)"
 }
 
-# XDG_CACHE_HOME or HOME may be relative/empty on hardened/CI systems — fall back to /tmp.
+# Prints nothing (no cache) for a relative, empty or ..-containing base: a shared /tmp dir is not safe.
 resolve_cache_dir() {
-    local raw="$1"
-    case "$raw" in
-        /*)
-            case "$raw" in
-                */..*) echo "/tmp/agent-context" ;;
-                *)     echo "$raw/agent-context" ;;
-            esac
-            ;;
-        *) echo "/tmp/agent-context" ;;
+    case "$1" in
+        */..*) ;;
+        /*) echo "$1/agent-context" ;;
     esac
 }
 
-CACHE_DIR=$(resolve_cache_dir "${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}")
-CACHE_FILE="$CACHE_DIR/latest-version"
+CACHE_DIR=$(resolve_cache_dir "${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}")
+CACHE_FILE="${CACHE_DIR:+$CACHE_DIR/latest-version}"
 CACHE_TTL=3600
 
 # Set by get_latest_version in the caller's shell — never call it inside $(...), the flags would be lost.
@@ -364,7 +359,10 @@ CACHE_STALE=0
 LATEST_VERSION=""
 
 get_latest_version() {
-    if [ "$FORCE" -ne 1 ] && [ -f "$CACHE_FILE" ]; then
+    local cached=""
+    [ -n "$CACHE_FILE" ] && [ -f "$CACHE_FILE" ] && cached=$(tr -d '[:space:]' < "$CACHE_FILE")
+    validate_version_string "$cached" || cached=""
+    if [ "$FORCE" -ne 1 ] && [ -n "$cached" ]; then
         local now mtime cache_age
         now=$(date +%s)
         # GNU first: GNU stat reads `-f %m` as --file-system and prints fs info to stdout; BSD rejects -c silently.
@@ -372,7 +370,7 @@ get_latest_version() {
         cache_age=$(( now - mtime ))
         # Negative cache_age means the system clock jumped backward — treat as stale.
         if [ "$cache_age" -ge 0 ] && [ "$cache_age" -lt "$CACHE_TTL" ]; then
-            LATEST_VERSION=$(tr -d '[:space:]' < "$CACHE_FILE")
+            LATEST_VERSION="$cached"
             return
         fi
     fi
@@ -381,7 +379,8 @@ get_latest_version() {
         "https://api.github.com/repos/lx-wnk/Agent-Context/releases/latest" 2>/dev/null) || true
     version=$(printf '%s\n' "$api_response" | awk -F'"' '/"tag_name"/{for(i=1;i<=NF;i++) if($i=="tag_name"){print $(i+2); exit}}') || true
     if validate_version_string "$version"; then
-        if mkdir -p "$CACHE_DIR" 2>/dev/null; then
+        # shellcheck disable=SC2174  # only the agent-context dir itself must be private
+        if [ -n "$CACHE_DIR" ] && mkdir -p -m 700 "$CACHE_DIR" 2>/dev/null; then
             local tmp_cache
             if tmp_cache=$(mktemp "$CACHE_DIR/latest-version.XXXXXX" 2>/dev/null); then
                 if ! { echo "$version" > "$tmp_cache" && mv "$tmp_cache" "$CACHE_FILE"; }; then
@@ -389,12 +388,42 @@ get_latest_version() {
                 fi
             fi
         fi
-    elif [ -f "$CACHE_FILE" ]; then
+    elif [ -n "$cached" ]; then
         echo "Warning: GitHub API request failed; using stale cached version." >&2
         CACHE_STALE=1
-        version=$(tr -d '[:space:]' < "$CACHE_FILE")
+        version="$cached"
     fi
     LATEST_VERSION="$version"
+}
+
+# The version file is written only after verification — never by the agent.
+restore_version_file() {
+    if [ -n "$VERSION_BEFORE_RUN" ]; then
+        printf '%s\n' "$VERSION_BEFORE_RUN" > "$VERSION_FILE"
+    else
+        rm -f "$VERSION_FILE"
+    fi
+}
+
+# Prints a lowercase v4 UUID, or nothing when none can be generated (claude rejects other session ids).
+new_session_id() {
+    local id
+    id=$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/null) || return 0
+    id=$(printf '%s' "$id" | tr 'A-F' 'a-f')
+    [[ "$id" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$ ]] && echo "$id"
+    return 0
+}
+
+usage() {
+    cat <<'EOF'
+Usage: bash install.sh [--force] [--discover] [--local-source <path>] [--ai-dirs <dirs>]
+
+  --force                 full from-scratch rediscovery, merging into existing knowledge
+  --discover              after the run, point to the interactive /discover if no map exists
+  --local-source <path>   install from a local Agent-Context clone (env: AGENT_CONTEXT_SOURCE)
+  --ai-dirs <dirs>        comma-separated extra AI-doc dirs to treat as migratable
+  -h, --help              show this help
+EOF
 }
 
 main() {
@@ -412,15 +441,9 @@ main() {
     ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(bash *.agent-context/bin/discovery-digest.sh*)"
     ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(bash *.agent-context/bin/check-token-budget.sh*)"
     LOG=".agent-context/setup.log"
+    AGENT_OUTPUT=".agent-context/setup-output.md"
     VERSION_FILE=".agent-context/.agent-context-version"
 
-    # --local-source <path> (or env AGENT_CONTEXT_SOURCE): install from a local clone instead of the
-    #   downloaded release. Combine with --force for a full rediscovery.
-    # --ai-dirs=<dirs>: comma-separated extra AI-doc dirs to treat as migratable (e.g. --ai-dirs=".cursor,.ai-custom")
-    # --force: full from-scratch rediscovery — re-scan the whole codebase at SETUP depth even on an
-    #   existing install, merging into existing knowledge without deleting still-valid facts
-    # --discover: after install, check for a discovery map and, if absent, hand off to the interactive
-    #   /discover command (a rich map needs fan-out discovery, which is not run by this headless installer)
     SOURCE_ROOT=""
     TARGET_TAG=""
     AI_DIRS=""
@@ -428,7 +451,15 @@ main() {
     LOCAL_SOURCE_FLAG=0
     while [ "$#" -gt 0 ]; do
         case "$1" in
+            -h | --help) usage; exit 0 ;;
             --ai-dirs=*) AI_DIRS="${1#--ai-dirs=}" ;;
+            --ai-dirs)
+                case "${2:-}" in
+                    "" | -*) echo "Error: --ai-dirs requires a value" >&2; usage >&2; exit 2 ;;
+                esac
+                AI_DIRS="$2"
+                shift
+                ;;
             --force) FORCE=1 ;;
             --discover) DISCOVER=1 ;;
             --local-source=*)
@@ -444,12 +475,16 @@ main() {
                     *) AGENT_CONTEXT_SOURCE="$2"; shift ;;
                 esac
                 ;;
+            *) echo "Error: unknown option: $1" >&2; usage >&2; exit 2 ;;
         esac
         shift
     done
     if [ "$LOCAL_SOURCE_FLAG" -eq 1 ] && [ -z "$AGENT_CONTEXT_SOURCE" ]; then
         echo "Error: --local-source requires a path" >&2
         exit 1
+    fi
+    if [ "$LOCAL_SOURCE_FLAG" -eq 0 ] && [ -n "${AGENT_CONTEXT_SOURCE:-}" ]; then
+        echo "Note: AGENT_CONTEXT_SOURCE is set — installing from $AGENT_CONTEXT_SOURCE instead of the latest release."
     fi
 
     if [ -n "${AGENT_CONTEXT_SOURCE:-}" ]; then
@@ -511,11 +546,12 @@ main() {
         fi
     fi
 
-    SESSION_ID=$(uuidgen 2>/dev/null \
-        || cat /proc/sys/kernel/random/uuid 2>/dev/null \
-        || od -An -N16 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n' | awk '{print substr($0,1,8)"-"substr($0,9,4)"-"substr($0,13,4)"-"substr($0,17,4)"-"substr($0,21,12)}' \
-        || echo "unknown")
-    export CLAUDE_SESSION_ID="$SESSION_ID"
+    SESSION_ID=$(new_session_id)
+    SESSION_ARGS=()
+    if [ -n "$SESSION_ID" ]; then
+        SESSION_ARGS=(--session-id "$SESSION_ID")
+        export CLAUDE_SESSION_ID="$SESSION_ID"
+    fi
 
     if ! command -v claude &>/dev/null; then
         echo "Error: claude CLI not found. Install it from https://claude.ai/code" >&2
@@ -555,23 +591,26 @@ main() {
     install_shared_files "$SOURCE_ROOT" || exit 1
     VERSION_BEFORE_RUN=""
     [ -f "$VERSION_FILE" ] && VERSION_BEFORE_RUN=$(cat "$VERSION_FILE")
+    rm -f "$LOG" "$AGENT_OUTPUT"
     : > "$LOG"
 
     echo "Starting agent-context setup in $(pwd)..."
-    if [ "$SESSION_ID" != "unknown" ]; then
+    if [ -n "$SESSION_ID" ]; then
         echo "Session ID: $SESSION_ID  (run 'claude --resume $SESSION_ID' to resume if needed)"
     fi
 
-    AGENT_CONTEXT_SETUP=1 claude -p "$PROMPT_INSTRUCTION" \
+    AGENT_CONTEXT_SETUP=1 AI_DIRS="$AI_DIRS" claude -p "$PROMPT_INSTRUCTION" \
         --allowedTools "$ALLOWED_TOOLS" \
         --disallowedTools "WebFetch,WebSearch" \
         --add-dir "$SOURCE_ROOT" \
         --permission-mode acceptEdits \
         --strict-mcp-config \
         --output-format text \
-        --session-id "$SESSION_ID" \
-        < /dev/null > /dev/null &
+        ${SESSION_ARGS[@]+"${SESSION_ARGS[@]}"} \
+        < /dev/null > "$AGENT_OUTPUT" &
     CLAUDE_PID=$!
+    # A background job ignores the terminal's SIGINT, so Ctrl-C must stop the agent explicitly.
+    trap 'kill "$CLAUDE_PID" 2>/dev/null; restore_version_file; echo "" >&2; echo "Interrupted — the setup agent was stopped; see $LOG." >&2; exit 130' INT TERM
 
     # The latest log line stays open, so the waiting dots trail the step that is running;
     # the newline is only written once the next line arrives.
@@ -605,13 +644,15 @@ main() {
     show_progress
     AGENT_EXIT=0
     wait "$CLAUDE_PID" || AGENT_EXIT=$?
+    trap - INT TERM
     EXIT_CODE=$AGENT_EXIT
+    restore_version_file
 
-    # The version file is written only below, after verification — never by the agent.
-    if [ -n "$VERSION_BEFORE_RUN" ]; then
-        printf '%s\n' "$VERSION_BEFORE_RUN" > "$VERSION_FILE"
-    else
-        rm -f "$VERSION_FILE"
+    if [ -s "$AGENT_OUTPUT" ]; then
+        echo ""
+        echo "Setup agent output (last 40 lines):"
+        tail -n 40 "$AGENT_OUTPUT"
+        echo ""
     fi
 
     if [ "$EXIT_CODE" -eq 0 ] && ! grep -q "^\[agent-context\] Done\." "$LOG" 2>/dev/null; then
@@ -659,11 +700,11 @@ main() {
     fi
 
     if [ "$AGENT_EXIT" -ne 0 ]; then
-        echo "Error: the setup agent exited with code $AGENT_EXIT — CLAUDE.md was left unchanged; see $LOG." >&2
+        echo "Error: the setup agent exited with code $AGENT_EXIT — CLAUDE.md was left unchanged; see $LOG and $AGENT_OUTPUT." >&2
     elif [ "$EXIT_CODE" -ne 0 ]; then
-        echo "The version file was not updated; see $LOG." >&2
+        echo "The version file was not updated; see $LOG and $AGENT_OUTPUT." >&2
     else
-        rm -f "$LOG"
+        rm -f "$LOG" "$AGENT_OUTPUT"
     fi
     exit "$EXIT_CODE"
 }

@@ -84,6 +84,8 @@ Run this one-liner from your project root:
 
 **Requires:** [Claude Code CLI](https://claude.ai/code) installed and authenticated, and bash (the installer refuses other shells).
 
+If the download fails, the one-liner runs `bash -c ""` and still exits 0. In scripts or CI, use a form that fails with curl's exit code: `s=$(curl -fsSL https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/install.sh) && bash -c "$s" _ [flags]`.
+
 #### What the installer runs
 
 The work is split: `install.sh` does every mechanical step itself, and an agent only handles knowledge.
@@ -106,7 +108,10 @@ The one-liner runs through `bash -c`, whose first argument becomes `$0`. Put `_`
 | `--force`                                        | Full from-scratch rediscovery: re-scans the whole codebase at setup depth even on an existing install and merges into existing knowledge without deleting still-valid facts.      |
 | `--discover`                                     | After the run, checks for a [discovery map](docs/discovery-map.md) and, if none exists, points you to the interactive `/discover` command (the headless run never builds one).    |
 | `--local-source <path>`, `--local-source=<path>` | Installs from a local clone instead of GitHub; for developing Agent Context itself. Runs a normal update — add `--force` for a full rediscovery. Env var: `AGENT_CONTEXT_SOURCE`. |
-| `--ai-dirs=<dirs>`                               | Comma-separated extra AI-doc directories to treat as migratable (e.g. `--ai-dirs=".cursor,.ai-custom"`).                                                                          |
+| `--ai-dirs <dirs>`, `--ai-dirs=<dirs>`           | Comma-separated extra AI-doc directories to treat as migratable (e.g. `--ai-dirs=".cursor,.ai-custom"`).                                                                          |
+| `-h`, `--help`                                   | Prints the usage. An unknown flag prints it too and exits with code 2.                                                                                                            |
+
+The agent's final report is saved to `.agent-context/setup-output.md` and its last 40 lines are printed; the file is removed after a verified run and kept, with `setup.log`, after a failed or interrupted one (Ctrl-C stops the agent and exits 130).
 
 See [what gets created](docs/architecture.md#what-gets-created) and [alternative install](docs/architecture.md#alternative-paste-into-a-session).
 
