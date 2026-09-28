@@ -69,6 +69,8 @@ Create the log file at the very start (before Step 1) so `tail -f` can attach im
 mkdir -p .agent-context && > .agent-context/setup.log
 ```
 
+Every sub-step gets exactly one line of its own, in the form `[agent-context] Step <id>: <name> — <result>`, written when the sub-step ends; `install.sh` prints each log line on its own line, so never combine sub-steps into one line and log nothing else in between. The `MIGRATION_CLEANUP: ran` and `UNRESOLVED:` lines of Step 4.5 are the only additional lines.
+
 Example log entries:
 
 ```
@@ -77,7 +79,16 @@ Example log entries:
 [agent-context] Step 2/5: Installing shared files...
 [agent-context] Step 3/5: Processing template files...
 [agent-context] Step 4/5: Compatibility check...
+[agent-context] Step 4.5: Migration cleanup — skipped (no legacy AI dirs found)
+[agent-context] Step 4.6: Memory layout — already migrated
+[agent-context] Step 4.7: Hook registration — already registered
 [agent-context] Step 5/5: Knowledge re-sync...
+[agent-context] Step 5.0: Change gate — 2 of 14 sources changed, re-syncing those
+[agent-context] Step 5a: Fact inventory — 9 facts from 2 sources
+[agent-context] Step 5b: Routing — 7 appended, 2 already present
+[agent-context] Step 5c: Integrity check — all facts accounted for
+[agent-context] Step 5d: Knowledge map — 2 hashes refreshed
+[agent-context] Step 5e: Token budget — PASS (171 effective lines)
 [agent-context] Done.
 ```
 
@@ -421,7 +432,7 @@ done
 IFS="$OLD_IFS"
 ```
 
-If none found → skip to Step 5.
+If none found → skip to Step 4.6 (4.6 and 4.7 still run).
 
 ### 4.5b: Classify all files in old AI directories
 
@@ -588,7 +599,18 @@ If the user's `settings.json` already has entries for one of these events (e.g. 
 
 ## Step 5: Knowledge Re-Sync (UPDATE mode)
 
-After updating shared files (Steps 1–4), re-synchronize all project knowledge:
+After updating shared files (Steps 1–4), re-synchronize project knowledge — but only when a knowledge source actually changed. A release that only ships new shared files must not cost a full scan.
+
+### 5.0: Change gate
+
+Skip this gate and run 5a–5e in full when the launching instruction contains `FORCE / FULL REDISCOVERY`, or when `grep -q "MIGRATION_CLEANUP: ran" .agent-context/setup.log` succeeds.
+
+Otherwise compare the knowledge sources with `.agent-context/setup-decisions.json`:
+
+1. For every path recorded there, compute `sha256sum <path>` (`shasum -a 256` on macOS) and compare it with the recorded `sha256`. A missing file counts as changed.
+2. From `git ls-files --cached --others --exclude-standard`, list Markdown and structured-data documentation files outside `.agent-context/` that are not recorded yet and would qualify as a Knowledge Map Source (Global Constraint above).
+
+If nothing changed and nothing is new → log `[agent-context] Step 5.0: Change gate — no source changed, 5a–5d skipped`, run only 5e, and finish. Otherwise log how many sources changed and run 5a–5d **for the changed and new sources only**; unchanged sources keep their routing. Source-code knowledge is not re-scanned by this gate — a full code re-scan is what `--force` (or the interactive `/discover`) is for.
 
 ### 5a: Consolidated Fact Inventory
 

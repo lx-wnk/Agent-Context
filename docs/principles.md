@@ -23,9 +23,9 @@ A PHP convention loaded during a CSS fix is wasted context.
 
 Memory files are lightweight stubs (~10 lines) with quick facts. Full reference lives in skills, loaded only when trigger keywords match. This achieves near-zero baseline cost for heavy documentation.
 
-## 4. Full knowledge re-sync on every update
+## 4. Knowledge re-sync when knowledge changed
 
-Updates are not file patches. Every `setup-prompt.md` run (SETUP or UPDATE) performs a full knowledge re-synchronization: scan all knowledge sources (agent-context, source code, docs, architecture files), build a consolidated fact inventory, route facts to optimal targets, and verify global integrity. No fact is lost — it may move, but it must be traceable somewhere.
+Updates are not file patches, but they are not full rescans either. SETUP and `--force` perform a full knowledge synchronization: scan all knowledge sources (agent-context, source code, docs, architecture files), build a consolidated fact inventory, route facts to optimal targets, and verify global integrity. A normal UPDATE first checks which recorded sources changed (SHA256 against `setup-decisions.json`) or are new, re-syncs only those, and skips the scan when nothing changed — a release that only ships new shared files costs seconds, not minutes. Either way no fact is lost: it may move, but it must be traceable somewhere.
 
 ## 5. Self-maintaining knowledge map
 
