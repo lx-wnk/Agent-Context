@@ -4,10 +4,6 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
-### Fixed
-
-- **Setup deleted other tools' AI configuration without reading it** — `GEMINI.md`, `.claude/rules/`, `.cursorrules`, `.cursor/rules/` and `.github/copilot-instructions.md` were removed by the migration cleanup although their content was never inventoried. They are now read, routed into the layers and recorded in `setup-decisions.json` like any knowledge source, and never deleted or emptied — they keep working for teammates who use those tools. Only committed, unmodified legacy Agent-Context artefacts (`.ai/`, `--ai-dirs`) are removed, and `MIGRATION_CLEANUP: ran` is logged only after such a removal, so a project with a `.cursorrules` no longer bypasses the Step 5.0 change gate. After a cleanup, `knowledge-map.md` is updated row by row instead of rebuilt, a user's same-named command in `.claude/commands/` is kept instead of overwritten, and an untracked `memory/log.md` moves to `memory/archive/log.md` instead of being deleted.
-
 ### Added
 
 - **Cross-repo lesson fallback** (#33) — a lesson belongs in the repo owning the code, but in a multi-repo project that repo is often not checked out, and the agent had nowhere valid to put it. It now parks the lesson in the current repo's `memory/lessons.md` with an `owner:<repo>` tag; the memory review moves it to the owning repo once that repo is reachable. The rule lives in the on-demand `memory-maintenance.md` (Cross-Repo Fallback) with a pointer from the layer-0 routing row; siblings are declared in a new optional "Sibling Repos" section of `layer1-bootstrap.md`, which existing installs add by hand (the template is project-owned).
@@ -19,6 +15,7 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ### Fixed
 
+- **Setup deleted other tools' AI configuration without reading it** — `GEMINI.md`, `.claude/rules/`, `.cursorrules`, `.cursor/rules/` and `.github/copilot-instructions.md` were removed by the migration cleanup although their content was never inventoried. They are now read, routed into the layers and recorded in `setup-decisions.json` like any knowledge source, and never deleted or emptied — they keep working for teammates who use those tools. Only committed, unmodified legacy Agent-Context artefacts (`.ai/`, `--ai-dirs`) are removed, and `MIGRATION_CLEANUP: ran` is logged only after such a removal, so a project with a `.cursorrules` no longer bypasses the Step 5.0 change gate. After a cleanup, `knowledge-map.md` is updated row by row instead of rebuilt, a user's same-named command in `.claude/commands/` is kept instead of overwritten, and an untracked `memory/log.md` moves to `memory/archive/log.md` instead of being deleted.
 - **ADR persist blocks produced invalid `decisions.json` entries, and the delegation table named agents that do not exist** — `agent-delegation.md` now maps the `title`/`context`/`decision`/`consequences` persist block onto the schema decision-review validates (`id`, `date`, `decision`, `reasoning`, `scope`, `weight`, `reviewDate`), limits memory-update persists to `.agent-context/memory/*.md` and `decisions.json`, and uses the real `agents` plugin ids instead of `ac-*` names.
 - **Discovery map stays on demand** — the discovery-map skill used to append one always-on knowledge-map row per node (up to 60 with the default cap); it now keeps a single "unfamiliar area → map.json" row and leaves per-node routing to `map.json`. Node notes and sub-maps move to `memory/map/` (exempt from the 15-line stub cap), every sub-map is cap-gated, and "where does X live" no longer triggers a discovery run — layer 3 reads an existing map first and only offers discovery otherwise.
 - **Memory templates** — lesson graduation is now measurable ("confirmed in 3 separate sessions"), new installs no longer ship the legacy `memory/decisions.md` stub, `/discover` runs the budget script via `bash`, and the `user.md`/`todo.md` templates carry the required `(YYYY-MM-DD)` date hint.
@@ -28,6 +25,10 @@ All notable changes to this project will be documented here. Format loosely foll
 ### Security
 
 - **A pulled `hooks.conf` could switch hooks on and choose the commands they run** — `HOOKS_ENABLED`, `TEST_CMD` and `FORMAT_CMD` now take effect only from the gitignored, per-developer `.agent-context/hooks.local.conf` and are ignored in the committed `hooks.conf`; every other hook setting still comes from `hooks.conf`. `install.sh` adds `/.agent-context/hooks.local.conf` to `.gitignore` and, when the committed file still sets one of the three keys, says so.
+
+### Docs
+
+- **Root docs match the code again** — README and CLAUDE.md describe the update flow as it works since 0.9.x (the installer resolves and pins the release, exits early when it is installed, and re-syncs knowledge only for sources that changed); the install tree and the ownership diagram list what an install actually creates. The baseline figure is measured on the shipped templates (12,077 of 28,558 bytes, 42.3% by estimated token stay out of every session) and comes with the command to reproduce it. CONTRIBUTING covers shellcheck, CHANGELOG and commit conventions and the release process; `package.json` is versioned `0.0.0-dev` with license and repository metadata.
 
 ### Upgrade note
 
