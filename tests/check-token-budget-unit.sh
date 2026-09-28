@@ -17,6 +17,7 @@ source "$REPO_ROOT/tests/lib.sh"
 pass() { printf "  PASS  %s\n" "$1"; PASS=$((PASS + 1)); }
 fail() { printf "  FAIL  %s\n    => %s\n" "$1" "$2"; FAIL=$((FAIL + 1)); }
 assert_eq() { [ "$2" = "$3" ] && pass "$1" || fail "$1" "expected '$2', got '$3'"; }
+run_in() { local d="$1"; shift; (cd "$d" && bash "$ENGINE" "$@"); }
 
 echo "=== token-budget engine unit tests ==="
 echo ""
@@ -81,14 +82,14 @@ cat > "$t/budget.conf" <<EOF
 MAX_EFFECTIVE_LINES=10
 INCLUDE_FILES="$t/layer.md"
 EOF
-if bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1; then
+if run_in "$t" --conf "$t/budget.conf" --quiet >/dev/null 2>&1; then
     pass "conf-driven run within budget exits 0"
 else
     fail "conf-driven run within budget exits 0" "exited non-zero"
 fi
 
 # 10. Conf max can be overridden by --max.
-if bash "$ENGINE" --conf "$t/budget.conf" --max 1 --quiet >/dev/null 2>&1; then
+if run_in "$t" --conf "$t/budget.conf" --max 1 --quiet >/dev/null 2>&1; then
     fail "--max overrides conf (should fail at max 1)" "exited 0"
 else
     pass "--max overrides conf (fails at max 1)"
@@ -102,7 +103,7 @@ MAX_EFFECTIVE_LINES=3
 MAX_EFFECTIVE_LINES_HARD=10
 INCLUDE_FILES="$t/f.md"
 EOF
-err=$(bash "$ENGINE" --conf "$t/soft.conf" --quiet 2>&1 >/dev/null); code=$?
+err=$(run_in "$t" --conf "$t/soft.conf" --quiet 2>&1 >/dev/null); code=$?
 { [ "$code" -eq 0 ] && printf '%s' "$err" | grep -q "WARN"; } \
     && pass "over soft but under hard → WARN + exit 0" || fail "soft warn band" "code=$code err=$err"
 
@@ -112,22 +113,29 @@ MAX_EFFECTIVE_LINES=2
 MAX_EFFECTIVE_LINES_HARD=4
 INCLUDE_FILES="$t/f.md"
 EOF
-if bash "$ENGINE" --conf "$t/hard.conf" --quiet >/dev/null 2>&1; then
+if run_in "$t" --conf "$t/hard.conf" --quiet >/dev/null 2>&1; then
     fail "over hard cap → exit 1" "exited 0"
 else
     pass "over hard cap → exit 1"
 fi
 
-# 13. Backward compatible: no hard cap set → hard defaults to soft (fails exactly at the soft limit).
+# 13. No hard cap in the conf → hard defaults to 250, not to the soft cap (old project confs).
 cat > "$t/nohard.conf" <<EOF
 MAX_EFFECTIVE_LINES=4
 INCLUDE_FILES="$t/f.md"
 EOF
-if bash "$ENGINE" --conf "$t/nohard.conf" --quiet >/dev/null 2>&1; then
-    fail "no hard cap → fails at soft limit" "exited 0 (5 lines over soft 4)"
-else
-    pass "no hard cap → hard defaults to soft (fails at soft limit)"
-fi
+err=$(run_in "$t" --conf "$t/nohard.conf" --quiet 2>&1 >/dev/null); code=$?
+{ [ "$code" -eq 0 ] && printf '%s' "$err" | grep -q "WARN"; } \
+    && pass "no hard cap → over soft only warns" || fail "no hard cap warn band" "code=$code err=$err"
+js=$(run_in "$t" --conf "$t/nohard.conf" --json 2>/dev/null)
+assert_eq "no hard cap → hard_cap defaults to 250" "250" "$(sed -n 's/.*"hard_cap": \([0-9]*\).*/\1/p' <<<"$js")"
+awk 'BEGIN { for (i = 1; i <= 251; i++) print "rule " i }' > "$t/big.md"
+cat > "$t/nohard-big.conf" <<EOF
+MAX_EFFECTIVE_LINES=200
+INCLUDE_FILES="$t/big.md"
+EOF
+run_in "$t" --conf "$t/nohard-big.conf" --quiet >/dev/null 2>&1
+assert_eq "no hard cap → 251 lines fails" "1" "$?"
 
 # 14. The conf is DATA, not a script. It is parsed for the keys this gate needs and never
 # executed, so a budget.conf arriving via `git pull` from an untrusted repository cannot run a
@@ -140,10 +148,10 @@ MAX_EFFECTIVE_LINES=10
 INCLUDE_FILES="$t/layer.md"
 touch $canary
 EOF
-bash "$ENGINE" --conf "$t/payload.conf" --quiet >/dev/null 2>&1
+run_in "$t" --conf "$t/payload.conf" --quiet >/dev/null 2>&1
 [ -e "$canary" ] && fail "conf payload is never executed" "the conf command ran" \
     || pass "conf payload is never executed"
-if bash "$ENGINE" --conf "$t/payload.conf" --quiet >/dev/null 2>&1; then
+if run_in "$t" --conf "$t/payload.conf" --quiet >/dev/null 2>&1; then
     pass "the parsed keys still apply while the payload is ignored"
 else
     fail "the parsed keys still apply while the payload is ignored" "exited non-zero"
@@ -161,9 +169,9 @@ $t/one.md
 $t/two.md
 "
 EOF
-listed=$(bash "$ENGINE" --list --conf "$t/list.conf" 2>/dev/null | wc -l | tr -d '[:space:]')
+listed=$(run_in "$t" --list --conf "$t/list.conf" 2>/dev/null | wc -l | tr -d '[:space:]')
 assert_eq "--list prints one path per resolved file" "2" "$listed"
-if bash "$ENGINE" --list --conf "$t/list.conf" >/dev/null 2>&1; then
+if run_in "$t" --list --conf "$t/list.conf" >/dev/null 2>&1; then
     pass "--list exits 0 even when the set is over budget"
 else
     fail "--list exits 0 even when the set is over budget" "exited non-zero"
@@ -187,6 +195,65 @@ printf 'a\n' > "$t/f.md"
 js=$(bash "$ENGINE" --json --max 99999 "$t/f.md" "$t/gone.md" 2>/dev/null)
 assert_eq "--json lists the missing file too" "2" "$(grep -c '"path"' <<<"$js")"
 assert_eq "--json marks it absent" "1" "$(grep -c '"present": false' <<<"$js")"
+
+# 18. FP-74: comment removal is shortest-match, and an unclosed comment does not hide lines.
+t=$(mk_tmp)
+printf '<!-- a --> keep <!-- b -->\n' > "$t/f.md"
+assert_eq "text between two comments on one line counted" "1" "$(count_total "$t/f.md")"
+printf '<!-- a --> <!-- b -->\n' > "$t/f.md"
+assert_eq "two comments only on one line not counted" "0" "$(count_total "$t/f.md")"
+printf 'a\n<!--\nb\nc\nd\n' > "$t/f.md"
+assert_eq "unclosed comment: every loaded line counted" "5" "$(count_total "$t/f.md")"
+printf 'a\n<!-- note\nb\n-->\nc\n' > "$t/f.md"
+assert_eq "closed multi-line comment still skipped" "2" "$(count_total "$t/f.md")"
+printf 'use `<!--` for notes\nrule two\nrule three\n' > "$t/f.md"
+assert_eq "<!-- inside a code span is not a comment start" "3" "$(count_total "$t/f.md")"
+
+# 19. Import walk: the set is what Claude Code loads — @imports resolved relative to the importing
+# file, starting at .claude/CLAUDE.md (and root CLAUDE.md if present).
+mk_proj() {
+    local d
+    d=$(mk_tmp)
+    mkdir -p "$d/.claude" "$d/.agent-context"
+    printf '# P\n\n@../AGENTS.md\n' > "$d/.claude/CLAUDE.md"
+    printf 'a\n@.agent-context/layer2.md\n| x | @.agent-context/tbl.md |\nsee `@code-span.md` here\n```\n@fenced.md\n```\n' > "$d/AGENTS.md"
+    printf 'l2\n@base-principles.md\n' > "$d/.agent-context/layer2.md"
+    printf 'bp\n' > "$d/.agent-context/base-principles.md"
+    printf 't\n' > "$d/.agent-context/tbl.md"
+    printf 'decoy\n' > "$d/base-principles.md"
+    printf 'x\n' > "$d/code-span.md"
+    printf 'x\n' > "$d/fenced.md"
+    printf 'extra one\nextra two\n' > "$d/extra.md"
+    printf 'MAX_EFFECTIVE_LINES=100\n' > "$d/budget.conf"
+    echo "$d"
+}
+json_total() { sed -n 's/.*"total_effective_lines": \([0-9]*\).*/\1/p'; }
+P=$(mk_proj)
+listed=$(run_in "$P" --list --conf budget.conf 2>/dev/null | sort | tr '\n' ' ')
+assert_eq "walk resolves imports relative to the importing file" \
+    ".agent-context/base-principles.md .agent-context/layer2.md .agent-context/tbl.md .claude/CLAUDE.md AGENTS.md " "$listed"
+assert_eq "walked set is counted (2+7+2+1+1)" "13" "$(run_in "$P" --json --conf budget.conf 2>/dev/null | json_total)"
+assert_eq "imports in code spans and fences are ignored" "0" \
+    "$(run_in "$P" --list --conf budget.conf 2>/dev/null | grep -c -e 'code-span.md' -e 'fenced.md')"
+
+P=$(mk_proj)
+printf 'root rule\n' > "$P/CLAUDE.md"
+assert_eq "root CLAUDE.md is walked when present" "1" "$(run_in "$P" --list --conf budget.conf 2>/dev/null | grep -cx 'CLAUDE.md')"
+
+# 20. INCLUDE_FILES is optional and additive: a file nobody imports counts only when listed there.
+P=$(mk_proj)
+assert_eq "unimported file not counted without INCLUDE_FILES" "0" "$(run_in "$P" --list --conf budget.conf 2>/dev/null | grep -cx 'extra.md')"
+printf 'MAX_EFFECTIVE_LINES=100\nINCLUDE_FILES="\nextra.md\nAGENTS.md\n"\n' > "$P/budget.conf"
+assert_eq "INCLUDE_FILES adds an unimported file" "1" "$(run_in "$P" --list --conf budget.conf 2>/dev/null | grep -cx 'extra.md')"
+assert_eq "INCLUDE_FILES and walk are deduplicated" "1" "$(run_in "$P" --list --conf budget.conf 2>/dev/null | grep -cx 'AGENTS.md')"
+assert_eq "INCLUDE_FILES lines added to the walked total" "15" "$(run_in "$P" --json --conf budget.conf 2>/dev/null | json_total)"
+
+# 21. A dangling import warns but does not fail the gate.
+P=$(mk_proj)
+printf 'l2\n@base-principles.md\n@gone.md\n' > "$P/.agent-context/layer2.md"
+err=$(run_in "$P" --conf budget.conf --quiet 2>&1 >/dev/null); code=$?
+assert_eq "dangling import exits 0" "0" "$code"
+assert_eq "dangling import is reported" "1" "$(printf '%s\n' "$err" | grep -c 'gone.md')"
 
 echo ""
 echo "================================================"
