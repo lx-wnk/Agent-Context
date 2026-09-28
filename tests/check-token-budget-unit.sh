@@ -60,11 +60,8 @@ assert_eq "horizontal rules skipped" "2" "$(count_total "$t/f.md")"
 # 7. Over-budget input exits 1.
 t=$(mk_tmp)
 printf 'a\nb\nc\nd\n' > "$t/f.md"
-if bash "$ENGINE" --max 2 --quiet "$t/f.md" >/dev/null 2>&1; then
-    fail "over-budget exits non-zero" "exited 0"
-else
-    pass "over-budget exits non-zero"
-fi
+bash "$ENGINE" --max 2 --quiet "$t/f.md" >/dev/null 2>&1
+assert_eq "over-budget exits 1" "1" "$?"
 
 # 8. Within-budget input exits 0.
 t=$(mk_tmp)
@@ -89,11 +86,8 @@ else
 fi
 
 # 10. Conf max can be overridden by --max.
-if run_in "$t" --conf "$t/budget.conf" --max 1 --quiet >/dev/null 2>&1; then
-    fail "--max overrides conf (should fail at max 1)" "exited 0"
-else
-    pass "--max overrides conf (fails at max 1)"
-fi
+run_in "$t" --conf "$t/budget.conf" --max 1 --quiet >/dev/null 2>&1
+assert_eq "--max overrides conf (exits 1 at max 1)" "1" "$?"
 
 # 11. Soft/hard caps: a 5-line file between a soft cap of 3 and a hard cap of 10 WARNS but passes.
 t=$(mk_tmp)
@@ -113,11 +107,8 @@ MAX_EFFECTIVE_LINES=2
 MAX_EFFECTIVE_LINES_HARD=4
 INCLUDE_FILES="$t/f.md"
 EOF
-if run_in "$t" --conf "$t/hard.conf" --quiet >/dev/null 2>&1; then
-    fail "over hard cap → exit 1" "exited 0"
-else
-    pass "over hard cap → exit 1"
-fi
+run_in "$t" --conf "$t/hard.conf" --quiet >/dev/null 2>&1
+assert_eq "over hard cap → exit 1" "1" "$?"
 
 # 13. No hard cap in the conf → hard defaults to 250, not to the soft cap (old project confs).
 cat > "$t/nohard.conf" <<EOF
@@ -279,6 +270,41 @@ printf 'l2\n@base-principles.md\n@gone.md\n' > "$P/.agent-context/layer2.md"
 err=$(run_in "$P" --conf budget.conf --quiet 2>&1 >/dev/null); code=$?
 assert_eq "dangling import exits 0" "0" "$code"
 assert_eq "dangling import is reported" "1" "$(printf '%s\n' "$err" | grep -c 'gone.md')"
+
+# 22. Usage and config errors exit 2, never 1 — 1 means over budget.
+t=$(mk_tmp)
+printf 'a\n' > "$t/f.md"
+bash "$ENGINE" "$t/f.md" --max >/dev/null 2>&1
+assert_eq "--max without a value exits 2" "2" "$?"
+bash "$ENGINE" "$t/f.md" --conf >/dev/null 2>&1
+assert_eq "--conf without a value exits 2" "2" "$?"
+bash "$ENGINE" --bogus "$t/f.md" >/dev/null 2>&1
+assert_eq "unknown option exits 2" "2" "$?"
+bash "$ENGINE" --max abc "$t/f.md" >/dev/null 2>&1
+assert_eq "non-integer --max exits 2" "2" "$?"
+printf 'MAX_EFFECTIVE_LINES=ten\n' > "$t/bad.conf"
+bash "$ENGINE" --conf "$t/bad.conf" "$t/f.md" >/dev/null 2>&1
+assert_eq "non-integer cap in the conf exits 2" "2" "$?"
+
+# 23. Paths are data: backslashes are printed verbatim and JSON-escaped, never interpreted.
+t=$(mk_tmp)
+bs_name='a\nb\tc.md'
+tab_name="$(printf 'tab\there.md')"
+printf 'x\n' > "$t/$bs_name"
+printf 'y\n' > "$t/$tab_name"
+out=$(bash "$ENGINE" --max 99 "$t/$bs_name" 2>/dev/null)
+assert_eq "table prints a backslash path verbatim" "1" "$(grep -cF "$t/$bs_name" <<<"$out")"
+js=$(bash "$ENGINE" --json --max 99 "$t/$bs_name" "$t/$tab_name" 2>/dev/null)
+assert_eq "json escapes backslashes in a path" "1" "$(grep -cF '/a\\nb\\tc.md"' <<<"$js")"
+assert_eq "json escapes a control character in a path" "1" "$(grep -cF 'tab\u0009here.md"' <<<"$js")"
+assert_eq "json keeps one line per file" "2" "$(grep -c '"path"' <<<"$js")"
+
+# 24. INCLUDE_FILES entries are paths, not globs.
+t=$(mk_tmp)
+printf 'a\n' > "$t/one.md"
+printf 'b\n' > "$t/two.md"
+printf 'INCLUDE_FILES="*.md"\n' > "$t/glob.conf"
+assert_eq "INCLUDE_FILES glob is not expanded" "*.md" "$(run_in "$t" --list --conf glob.conf 2>/dev/null)"
 
 echo ""
 echo "================================================"

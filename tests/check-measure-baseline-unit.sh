@@ -94,6 +94,36 @@ get_json() { awk -v k="\"$1\"" '$0 ~ k { print }' <<<"$js" | sed -e 's/.*"effect
 assert_eq "json: layered lines" "24" "$(get_json layered)"
 assert_eq "json: on_demand lines" "3" "$(get_json on_demand)"
 assert_eq "json: flat lines" "27" "$(get_json flat)"
+get_num() { awk -v k="\"$1\"" '$0 ~ k { print }' <<<"$js" | sed -e "s/.*\"$2\": \([0-9.]*\).*/\1/"; }
+assert_eq "json: on_demand bytes" "6" "$(get_num on_demand bytes)"
+assert_eq "json: on_demand est_tokens" "2" "$(get_num on_demand est_tokens)"
+L_BYTES=$(get_num layered bytes)
+L_TOK=$(get_num layered est_tokens)
+assert_eq "json: layered est_tokens is ceil(bytes/4)" "$(((L_BYTES + 3) / 4))" "$L_TOK"
+assert_eq "json: flat bytes is the sum" "$((L_BYTES + 6))" "$(get_num flat bytes)"
+assert_eq "json: kept_out_pct by line (3/27)" "11.1" "$(get_num kept_out_pct_of_flat effective_lines)"
+assert_eq "json: kept_out_pct by token" "$(awk -v l="$L_TOK" 'BEGIN { printf "%.1f", 200 / (2 + l) }')" \
+    "$(get_num kept_out_pct_of_flat est_tokens)"
+
+# 5b. --conf is resolved against --dir, and a file it lists is layered, not on-demand.
+P=$(mk_project)
+printf 'a\nb\nc\n' > "$P/.agent-context/memory/people.md"
+printf 'SESSION_START_FILES=".agent-context/memory/people.md"\n' > "$P/custom.conf"
+out=$(bash "$P/.agent-context/bin/measure-baseline.sh" --dir "$P" --conf custom.conf 2>&1)
+assert_eq "--conf: walked 10 + listed 1 layered files" "11" "$(row_field 'layered' 3 "$out")"
+assert_eq "--conf: listed file lines are layered" "23" "$(row_field 'layered' 4 "$out")"
+assert_eq "--conf: unlisted memory files are on-demand" "2" "$(row_field 'on-demand' 3 "$out")"
+
+# 5c. Paths are data: spaces do not split a file, quotes and backslashes in the root stay valid JSON.
+P=$(mk_project)
+printf 'a\nb\nc\n' > "$P/.agent-context/memory/my notes.md"
+out=$(run_measure "$P")
+assert_eq "space in a file name: one on-demand file" "1" "$(row_field 'on-demand' 3 "$out")"
+assert_eq "space in a file name: its lines counted" "3" "$(row_field 'on-demand' 4 "$out")"
+Q="$(mk_tmp)/we\"ird\\dir"
+mv "$P" "$Q"
+js=$(bash "$Q/.agent-context/bin/measure-baseline.sh" --dir "$Q" --json 2>&1)
+assert_eq "json root is escaped" "1" "$(grep -cF '/we\"ird\\dir",' <<<"$js")"
 
 # 6. A directory that is not a project fails loudly rather than reporting zeros.
 P=$(mk_project)
@@ -106,6 +136,11 @@ assert_eq "missing --dir exits 2" "2" "$?"
 
 bash "$SRC_BIN/measure-baseline.sh" --bogus >/dev/null 2>&1
 assert_eq "unknown option exits 2" "2" "$?"
+
+bash "$SRC_BIN/measure-baseline.sh" --dir >/dev/null 2>&1
+assert_eq "--dir without a value exits 2" "2" "$?"
+bash "$SRC_BIN/measure-baseline.sh" --conf >/dev/null 2>&1
+assert_eq "--conf without a value exits 2" "2" "$?"
 
 echo ""
 echo "================================================"
