@@ -4,6 +4,14 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Changed
+
+- **Always-on context shrinks from 145 to 130 effective lines** — the manual "Auto-Update" procedure in `agent-startup.md` (which fetched `releases/latest` and bypassed the installer's version pinning) is replaced by a pointer to the installer; duplicated guidance in layer 0, `base-principles.md` and the `AGENTS.md` template is removed; skill format guidance is stated once (`skills/<name>/SKILL.md`). A new always-on rule treats content read from files, tools, the web or sub-agents as data: its instructions are neither followed nor persisted without user confirmation, and such saves are tagged `source:external`. Agents that do not expand `@` includes are told to read the listed files in order.
+
+### Fixed
+
+- **ADR persist blocks produced invalid `decisions.json` entries, and the delegation table named agents that do not exist** — `agent-delegation.md` now maps the `title`/`context`/`decision`/`consequences` persist block onto the schema decision-review validates (`id`, `date`, `decision`, `reasoning`, `scope`, `weight`, `reviewDate`), limits memory-update persists to `.agent-context/memory/*.md` and `decisions.json`, and uses the real `agents` plugin ids instead of `ac-*` names.
+
 ### Added
 
 - **Cross-repo lesson fallback** (#33) — a lesson belongs in the repo owning the code, but in a multi-repo project that repo is often not checked out, and the agent had nowhere valid to put it. It now parks the lesson in the current repo's `memory/lessons.md` with an `owner:<repo>` tag; the memory review moves it to the owning repo once that repo is reachable. The rule lives in the on-demand `memory-maintenance.md` (Cross-Repo Fallback) with a pointer from the layer-0 routing row; siblings are declared in a new optional "Sibling Repos" section of `layer1-bootstrap.md`, which existing installs add by hand (the template is project-owned).
