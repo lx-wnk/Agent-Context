@@ -49,7 +49,7 @@ Entry point is `AGENTS.md` → all layers load at startup via `@`-includes:
 
 ### Setup & Update Flow
 
-- **Entry point**: `install.sh` resolves the latest release, exits early if it is already installed, and otherwise runs a headless agent on that release's `.prompts/setup-prompt.md`, pinned via `TARGET VERSION`.
+- **Entry point**: `install.sh` resolves the latest release (never downgrading a newer install), exits early if it is already installed, downloads the release archive, installs the shared files, slash commands and hook entries itself, and runs a headless agent restricted to knowledge work (`acceptEdits`, no network, no MCP servers, no writes to `.claude/`) on that release's `.prompts/setup-prompt.md`. It writes the version file only after verifying every shared file.
 - **Setup & Update**: `.prompts/setup-prompt.md` — single prompt that auto-detects mode. SETUP: full installation with discovery. UPDATE: shared file sync, then knowledge re-sync only for changed sources (Step 5.0 change gate; `--force` re-scans everything).
 
 ## Definition of Done

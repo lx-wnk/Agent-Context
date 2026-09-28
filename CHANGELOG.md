@@ -4,18 +4,6 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
-### Fixed
-
-- **Hooks follow the documented Claude Code hook contract** — the subagent scope check reads the subagent's own transcript (`agent_transcript_path`), matches project-relative paths, treats any write outside the project as a violation and honours `stop_hook_active`; warn-mode messages reach the user as `systemMessage` instead of the debug log; the test gate runs once per stop and passes at most 40 lines / 4 KB of sanitized, labelled test output.
-
-### Security
-
-- **Hook hardening** — the secret-write guard resolves symlinks, allows `*.example`/`*.dist`/`*.sample`, and says it guards writes only; the no-jq JSON output strips control characters so a block can no longer fail open; the formatter never touches files outside the project; hook commands quote `${CLAUDE_PROJECT_DIR}` so a project path with spaces works.
-
-### Docs
-
-- **`docs/` and `example.md` match the installed layout** — structure listings include the slash commands, shared tooling and config files; stale `plugins.json` references and dead discovery-map links are gone; updates are described as on-demand with the Step 5.0 change gate and the importer-relative `@../AGENTS.md`. The ETH Zurich result (arXiv 2602.11988) is quoted from its abstract instead of paraphrased — it covers developer-written context files too and names no "~3%" figure — and the German agent best-practices guide is reframed as general guidance now that the `ac-*` agents ship as a separate plugin.
-
 ### Added
 
 - **Cross-repo lesson fallback** (#33) — a lesson belongs in the repo owning the code, but in a multi-repo project that repo is often not checked out, and the agent had nowhere valid to put it. It now parks the lesson in the current repo's `memory/lessons.md` with an `owner:<repo>` tag; the memory review moves it to the owning repo once that repo is reachable. The rule lives in the on-demand `memory-maintenance.md` (Cross-Repo Fallback) with a pointer from the layer-0 routing row; siblings are declared in a new optional "Sibling Repos" section of `layer1-bootstrap.md`, which existing installs add by hand (the template is project-owned).
@@ -27,6 +15,7 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ### Fixed
 
+- **Hooks follow the documented Claude Code hook contract** — the subagent scope check reads the subagent's own transcript (`agent_transcript_path`), matches project-relative paths, treats any write outside the project as a violation and honours `stop_hook_active`; warn-mode messages reach the user as `systemMessage` instead of the debug log; the test gate runs once per stop and passes at most 40 lines / 4 KB of sanitized, labelled test output.
 - **Setup deleted other tools' AI configuration without reading it** — `GEMINI.md`, `.claude/rules/`, `.cursorrules`, `.cursor/rules/` and `.github/copilot-instructions.md` were removed by the migration cleanup although their content was never inventoried. They are now read, routed into the layers and recorded in `setup-decisions.json` like any knowledge source, and never deleted or emptied — they keep working for teammates who use those tools. Only committed, unmodified legacy Agent-Context artefacts (`.ai/`, `--ai-dirs`) are removed, and `MIGRATION_CLEANUP: ran` is logged only after such a removal, so a project with a `.cursorrules` no longer bypasses the Step 5.0 change gate. After a cleanup, `knowledge-map.md` is updated row by row instead of rebuilt, a user's same-named command in `.claude/commands/` is kept instead of overwritten, and an untracked `memory/log.md` moves to `memory/archive/log.md` instead of being deleted.
 - **ADR persist blocks produced invalid `decisions.json` entries, and the delegation table named agents that do not exist** — `agent-delegation.md` now maps the `title`/`context`/`decision`/`consequences` persist block onto the schema decision-review validates (`id`, `date`, `decision`, `reasoning`, `scope`, `weight`, `reviewDate`), limits memory-update persists to `.agent-context/memory/*.md` and `decisions.json`, and uses the real `agents` plugin ids instead of `ac-*` names.
 - **Discovery map stays on demand** — the discovery-map skill used to append one always-on knowledge-map row per node (up to 60 with the default cap); it now keeps a single "unfamiliar area → map.json" row and leaves per-node routing to `map.json`. Node notes and sub-maps move to `memory/map/` (exempt from the 15-line stub cap), every sub-map is cap-gated, and "where does X live" no longer triggers a discovery run — layer 3 reads an existing map first and only offers discovery otherwise.
@@ -36,13 +25,20 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ### Security
 
+- **The setup agent no longer runs with all permission checks disabled** — `install.sh` downloads the release archive itself, installs the shared files, slash commands (a same-named user command is kept) and hook entries itself, and runs the setup agent with `--permission-mode acceptEdits`, `--strict-mcp-config`, web tools denied and no network command in its allowlist: it can no longer reach the network, use your MCP servers, run arbitrary shell commands or write to `.claude/`. The version file is written only after the installer has verified every shared file against the release.
+- **Hook hardening** — the secret-write guard resolves symlinks, allows `*.example`/`*.dist`/`*.sample`, and says it guards writes only; the no-jq JSON output strips control characters so a block can no longer fail open; the formatter never touches files outside the project; hook commands quote `${CLAUDE_PROJECT_DIR}` so a project path with spaces works.
 - **A pulled `hooks.conf` could switch hooks on and choose the commands they run** — `HOOKS_ENABLED`, `TEST_CMD` and `FORMAT_CMD` now take effect only from the gitignored, per-developer `.agent-context/hooks.local.conf` and are ignored in the committed `hooks.conf`; every other hook setting still comes from `hooks.conf`. `install.sh` adds `/.agent-context/hooks.local.conf` to `.gitignore` and, when the committed file still sets one of the three keys, says so.
 
 ### Docs
 
+- **`docs/` and `example.md` match the installed layout** — structure listings include the slash commands, shared tooling and config files; stale `plugins.json` references and dead discovery-map links are gone; updates are described as on-demand with the Step 5.0 change gate and the importer-relative `@../AGENTS.md`. The ETH Zurich result (arXiv 2602.11988) is quoted from its abstract instead of paraphrased — it covers developer-written context files too and names no "~3%" figure — and the German agent best-practices guide is reframed as general guidance now that the `ac-*` agents ship as a separate plugin.
 - **Root docs match the code again** — README and CLAUDE.md describe the update flow as it works since 0.9.x (the installer resolves and pins the release, exits early when it is installed, and re-syncs knowledge only for sources that changed); the install tree and the ownership diagram list what an install actually creates. The baseline figure is measured on the shipped templates (12,077 of 28,558 bytes, 42.3% by estimated token stay out of every session) and comes with the command to reproduce it. CONTRIBUTING covers shellcheck, CHANGELOG and commit conventions and the release process; `package.json` is versioned `0.0.0-dev` with license and repository metadata.
 
 ### Upgrade note
+
+An install now exits with code 2 and lists what is missing, instead of reporting success, when a shared file, core template or hook registration is missing. A release lookup or download failure exits 1 before any agent starts (no fallback to the prompt on `main`). `.claude/settings.json` only gains the Agent-Context hook entries it lacks; an invalid file is left untouched and reported. Without `jq` or `python3` the installer cannot merge JSON: it prints how to add the hook entries by hand and does not fail the install (the hooks are off by default). An install that is newer than the latest release is left alone.
+
+An install now exits with code 2 and lists what is missing, instead of reporting success, when a shared file, core template or hook registration is missing. A release lookup or download failure exits 1 before any agent starts (no fallback to the prompt on `main`). `.claude/settings.json` only gains the Agent-Context hook entries it lacks; an invalid file is left untouched and reported. An install that is newer than the latest release is left alone.
 
 Existing `budget.conf` files are project-owned and keep their `INCLUDE_FILES`. Entries an import already reaches are deduplicated silently; an entry nothing imports prints a note on every run until you remove it. To count the session-start reads, add `SESSION_START_FILES` with `.agent-context/memory/lessons.md` and `.agent-context/memory/preferences.md`.
 

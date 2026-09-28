@@ -450,17 +450,46 @@ ln -s "$t/elsewhere/layer2.md" "$t/.agent-context/layer2-project-core.md"
 assert_eq "symlinked layer file is not written through" "@.agent-context/base-principles.md" "$(cat "$t/elsewhere/layer2.md")"
 
 # ---------------------------------------------------------------------------
-# resolve_prompt_url: prompt is pinned to the same tag as the downloaded files
+# resolve_release_url: only a valid release tag resolves; no fallback to a mutable branch
 # ---------------------------------------------------------------------------
-RAW="https://raw.githubusercontent.com/lx-wnk/Agent-Context"
-assert_eq "resolve_prompt_url pins a release tag" \
-    "$RAW/0.9.0/.prompts/setup-prompt.md" "$(resolve_prompt_url "0.9.0")"
-assert_eq "resolve_prompt_url keeps a v-prefixed tag" \
-    "$RAW/v1.2.3/.prompts/setup-prompt.md" "$(resolve_prompt_url "v1.2.3")"
-assert_eq "resolve_prompt_url falls back to main when lookup failed" \
-    "$RAW/main/.prompts/setup-prompt.md" "$(resolve_prompt_url "")"
-assert_eq "resolve_prompt_url falls back to main on a malformed version" \
-    "$RAW/main/.prompts/setup-prompt.md" "$(resolve_prompt_url "../evil")"
+ARCHIVE="https://github.com/lx-wnk/Agent-Context/archive/refs/tags"
+assert_eq "resolve_release_url pins a release tag" "$ARCHIVE/0.9.0.tar.gz" "$(resolve_release_url "0.9.0")"
+assert_eq "resolve_release_url keeps a v-prefixed tag" "$ARCHIVE/v1.2.3.tar.gz" "$(resolve_release_url "v1.2.3")"
+resolve_release_url "" >/dev/null && fail "resolve_release_url rejects a failed lookup" "resolved" \
+    || pass "resolve_release_url rejects a failed lookup"
+resolve_release_url "../evil" >/dev/null && fail "resolve_release_url rejects a malformed version" "resolved" \
+    || pass "resolve_release_url rejects a malformed version"
+
+# ---------------------------------------------------------------------------
+# changelog_version: first released heading, [Unreleased] skipped
+# ---------------------------------------------------------------------------
+t=$(mk_tmp)
+printf '# Changelog\n\n## [Unreleased]\n\n## [1.4.2] - 2026-01-01\n\n## [1.4.1] - 2025-12-01\n' > "$t/CHANGELOG.md"
+assert_eq "changelog_version skips [Unreleased]" "1.4.2" "$(changelog_version "$t")"
+t=$(mk_tmp)
+printf '## [Unreleased]\n' > "$t/CHANGELOG.md"
+assert_eq "changelog_version is empty without a release" "" "$(changelog_version "$t")"
+
+# ---------------------------------------------------------------------------
+# register_hooks without jq or python3: warn, leave settings.json alone, do not fail the install
+# ---------------------------------------------------------------------------
+t=$(mk_tmp)
+mkdir -p "$t/root/templates/.claude" "$t/proj/.claude" "$t/bin"
+printf '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"x/stop-test-gate.sh"}]}]}}\n' > "$t/root/templates/.claude/settings.json"
+printf '{"permissions":{}}\n' > "$t/proj/.claude/settings.json"
+for c in mkdir cp grep mktemp cat rm; do ln -s "$(command -v "$c")" "$t/bin/$c"; done
+out="$(cd "$t/proj" && PATH="$t/bin" register_hooks "$t/root" 2>&1; echo "rc=$? unverifiable=${HOOKS_UNVERIFIABLE:-0}")"
+case "$out" in *"by hand"*"rc=0 unverifiable=1"*) pass "no jq/python3: hook merge skipped with a hint, install not failed" ;;
+    *) fail "no jq/python3 hook merge" "output: $out" ;; esac
+assert_eq "no jq/python3: settings.json left unchanged" '{"permissions":{}}' "$(cat "$t/proj/.claude/settings.json")"
+
+# ---------------------------------------------------------------------------
+# version_gt: numeric semver comparison, optional leading v
+# ---------------------------------------------------------------------------
+version_gt 0.10.0 0.9.1 && pass "0.10.0 > 0.9.1" || fail "0.10.0 > 0.9.1" "returned false"
+version_gt v1.0.0 0.99.99 && pass "v1.0.0 > 0.99.99" || fail "v1.0.0 > 0.99.99" "returned false"
+version_gt 0.9.1 0.9.1 && fail "0.9.1 > 0.9.1" "returned true" || pass "equal versions are not greater"
+version_gt 0.9.0 0.9.1 && fail "0.9.0 > 0.9.1" "returned true" || pass "older is not greater"
 
 # ---------------------------------------------------------------------------
 # Summary
