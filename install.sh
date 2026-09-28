@@ -199,7 +199,7 @@ main() {
     LOG=".agent-context/setup.log"
 
     # --local-source <path> (or env AGENT_CONTEXT_SOURCE): install every shared file and template from
-    #   a local clone instead of downloading from GitHub. Implies a forced run. For local dev/testing.
+    #   a local clone instead of downloading from GitHub. Combine with --force for a full rediscovery.
     # --ai-dirs=<dirs>: comma-separated extra AI-doc dirs to treat as migratable (e.g. --ai-dirs=".cursor,.ai-custom")
     # --force: full from-scratch rediscovery — re-scan the whole codebase at SETUP depth even on an
     #   existing install, merging into existing knowledge without deleting still-valid facts
@@ -247,7 +247,6 @@ main() {
             exit 1
         fi
         LOCAL_PROMPT="$_abs_source/.prompts/setup-prompt.md"
-        FORCE=1
     fi
 
     if [ -n "$LOCAL_PROMPT" ]; then
@@ -335,37 +334,33 @@ main() {
         < /dev/null > /dev/null &
     CLAUDE_PID=$!
 
+    # The latest log line stays open, so the waiting dots trail the step that is running;
+    # the newline is only written once the next line arrives.
     show_progress() {
-        local last=0
-        local on_dot_line=0
+        local last=0 poll="${AGENT_CONTEXT_POLL_SECS:-5}"
 
+        printf "Waiting for the setup agent"
         while kill -0 "$CLAUDE_PID" 2>/dev/null; do
             # wc -l is correct here: setup.log is always written with printf '%s\n',
             # so it always has a trailing newline. (update_claude_md uses awk because
             # CLAUDE.md may lack a trailing newline — a different case.)
             current=$(wc -l < "$LOG" 2>/dev/null || echo 0)
             if [ "$current" -gt "$last" ]; then
-                [ "$on_dot_line" -eq 1 ] && printf "\n"
-                new_lines=$(tail -n +"$((last + 1))" "$LOG" | head -n "$((current - last))")
-                printf "%s\n" "$new_lines"
+                printf "\n%s" "$(tail -n +"$((last + 1))" "$LOG" | head -n "$((current - last))")"
                 last=$current
-                on_dot_line=0
                 grep -q "^\[agent-context\] Done\." "$LOG" 2>/dev/null && break
             else
                 printf "."
-                on_dot_line=1
-                sleep 5
+                sleep "$poll"
             fi
         done
 
         # Flush remaining lines written after process exits
         current=$(wc -l < "$LOG" 2>/dev/null || echo 0)
         if [ "$current" -gt "$last" ]; then
-            [ "$on_dot_line" -eq 1 ] && printf "\n"
-            tail -n +"$((last + 1))" "$LOG"
-        elif [ "$on_dot_line" -eq 1 ]; then
-            printf "\n"
+            printf "\n%s" "$(tail -n +"$((last + 1))" "$LOG")"
         fi
+        printf "\n"
     }
 
     show_progress

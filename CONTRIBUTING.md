@@ -21,16 +21,17 @@ The smoke test above runs in isolation. To see how Agent-Context actually instal
 codebase** — real files to discover, an existing `.claude/` to merge, layers filled from your stack —
 run the installer inside that project with `--local-source` pointing at your clone. It installs every
 shared file and template **from your local working tree** instead of downloading (no release tag, no
-ref pinning), uses your branch's prompt, and forces a run (bypassing the "already up to date"
-short-circuit). `install.sh` installs into the current directory, so `cd` into the target first:
+ref pinning), uses your branch's prompt, and always runs the agent (there is no release to compare
+against, so the "already up to date" short-circuit never applies). It runs a normal update; add
+`--force` for a full from-scratch rediscovery. `install.sh` installs into the current directory, so `cd` into the target first:
 
 ```bash
 cd ~/code/my-other-project
 bash ~/code/Agent-Context/install.sh --local-source ~/code/Agent-Context
 ```
 
-`--local-source <path>` (or the env var `AGENT_CONTEXT_SOURCE=<path>`) is the one knob — it implies the
-local prompt and a forced run. Replace the example paths with your clone and target project. For an
+`--local-source <path>` (or the env var `AGENT_CONTEXT_SOURCE=<path>`) selects the local prompt and files;
+`--force` is independent of it. Replace the example paths with your clone and target project. For an
 already-released version, drop the flag and use the normal [install one-liner](README.md#installation).
 
 ## Running the checks
