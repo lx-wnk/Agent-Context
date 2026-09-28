@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # PreToolUse(Write|Edit|MultiEdit) — block writes to secret/credential files. Reads are not covered.
 # Exit 2 blocks the tool call; stderr is shown to the agent as the reason.
+# Runs independently of HOOKS_ENABLED; only PROTECT_SECRETS=0 switches it off.
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/lib.sh"
 
-hooks_enabled || exit 0
-[ "${PROTECT_SECRETS:-1}" = "1" ] || exit 0
+if [ "$PROTECT_SECRETS" = "0" ]; then exit 0; fi
 
 file="$(hook_field '.tool_input.file_path' 'file_path')"
 [ -n "$file" ] || exit 0

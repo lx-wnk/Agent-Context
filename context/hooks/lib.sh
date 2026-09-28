@@ -14,10 +14,11 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$HOOK_DIR/../.." && pwd)}"
 CONF_FILE="${AGENT_CONTEXT_HOOKS_CONF:-$HOOK_DIR/../hooks.conf}"
 LOCAL_CONF_FILE="${AGENT_CONTEXT_HOOKS_LOCAL_CONF:-$HOOK_DIR/../hooks.local.conf}"
 
-# Defaults — overridden by hooks.conf / hooks.local.conf. Conservative: everything off until opted in.
+# Defaults — overridden by hooks.conf / hooks.local.conf. The secret guard is on; the other
+# three hooks stay off until HOOKS_ENABLED=1.
 HOOKS_ENABLED=0
 PROTECT_SECRETS=1
-PROTECTED_GLOBS=".env .env.* *.pem *.key id_rsa secrets.* *.secret"
+PROTECTED_GLOBS=".env .env.* *.pem *.key id_rsa id_rsa.* *.secret secrets.*"
 FORMAT_ON_EDIT=1
 FORMAT_CMD=""
 STOP_GATE="warn"
@@ -29,7 +30,7 @@ ALLOWED_SUBAGENT_PATHS=""
 # so the keys that switch hooks on or name a command to run (HOOKS_ENABLED, TEST_CMD, FORMAT_CMD)
 # are read only from the gitignored, user-local hooks.local.conf — their values ARE executed.
 # hooks.local.conf may override every other key as well. A missing reader leaves the defaults
-# above in place (master switch off) rather than failing the hook, which would block the session.
+# above in place: the secret guard stays on, the other hooks stay off.
 CONF_READER="$HOOK_DIR/../bin/conf-read.sh"
 if [ -r "$CONF_READER" ]; then
     # shellcheck source=../bin/conf-read.sh
@@ -39,7 +40,7 @@ if [ -r "$CONF_READER" ]; then
     conf_load "$LOCAL_CONF_FILE" HOOKS_ENABLED PROTECT_SECRETS PROTECTED_GLOBS FORMAT_ON_EDIT FORMAT_CMD \
         STOP_GATE TEST_CMD SUBAGENT_SCOPE ALLOWED_SUBAGENT_PATHS
 elif [ -f "$CONF_FILE" ] || [ -f "$LOCAL_CONF_FILE" ]; then
-    echo "agent-context hooks: $CONF_READER is missing — hooks stay disabled. Re-run the update." >&2
+    echo "agent-context hooks: $CONF_READER is missing — hooks run on built-in defaults. Re-run the update." >&2
 fi
 
 # Read all of stdin once into RAW for field extraction.
