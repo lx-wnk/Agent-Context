@@ -4,7 +4,7 @@ set -euo pipefail
 # Baseline measurement — what layering keeps OUT of every session.
 #
 # Three sets:
-#   layered    the always-on closure: INCLUDE_FILES from budget.conf, read at every start
+#   layered    the always-on set as the gate resolves it: walked @-import closure, SESSION_START_FILES, INCLUDE_FILES
 #   on-demand  project knowledge pulled only when a task's keywords match it
 #   flat       layered + on-demand — one file holding everything, the pre-layering shape
 #
@@ -65,7 +65,7 @@ while IFS= read -r line; do
 done < <(bash "$ENGINE" --list --conf "$CONF")
 
 if [ "${#layered[@]}" -eq 0 ]; then
-    echo "Error: INCLUDE_FILES in $CONF resolved to no files." >&2
+    echo "Error: the @-import walk and the file lists in $CONF resolved to no files." >&2
     exit 2
 fi
 

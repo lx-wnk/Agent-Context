@@ -90,8 +90,9 @@ else
 fi
 
 # 6. @-import closure: Claude Code resolves each `@path` relative to the importing file. Walk it from
-#    the entry point and require (a) every import to exist and (b) the loaded set to equal INCLUDE_FILES,
-#    so the budget gate measures exactly what an agent loads.
+#    the entry point and require (a) every import to exist, (b) every SESSION_START_FILES / INCLUDE_FILES
+#    entry to exist, (c) the gate's counted set to equal the walked closure plus both lists, and (d) no
+#    note on a correctly configured install.
 TARGET_P="$(cd "$TARGET" && pwd -P)"
 queue=".claude/CLAUDE.md"
 loaded=""
@@ -117,12 +118,26 @@ while [ -n "$queue" ]; do
 done
 [ -z "$dangling" ] && pass "every @-import resolves relative to its importing file" \
     || fail "@-import closure" "dangling: $dangling"
-include_files="$(awk '/^INCLUDE_FILES="/{f=1;next} f&&/^"/{exit} f&&NF{print $1}' "$TARGET/.agent-context/budget.conf" | sort)"
-if [ "$(printf '%s\n' "$loaded" | sort)" = "$include_files" ]; then
-    pass "loaded @-closure equals budget.conf INCLUDE_FILES"
+conf_list() { awk -v k="$1" '$0 ~ "^" k "=\"" {f=1;next} f&&/^"/{exit} f&&NF{print $1}' "$TARGET/.agent-context/budget.conf"; }
+listed_files="$(printf '%s\n%s\n' "$(conf_list SESSION_START_FILES)" "$(conf_list INCLUDE_FILES)" | grep .)"
+[ -n "$listed_files" ] && pass "budget.conf lists session-start reads" || fail "session-start reads" "SESSION_START_FILES and INCLUDE_FILES both empty"
+missing_inc=""
+while IFS= read -r inc; do
+    [ -n "$inc" ] && [ ! -f "$TARGET/$inc" ] && missing_inc="$missing_inc $inc"
+done <<EOF
+$listed_files
+EOF
+[ -z "$missing_inc" ] && pass "every SESSION_START_FILES / INCLUDE_FILES entry exists" \
+    || fail "listed entries exist" "missing:$missing_inc"
+expected="$(printf '%s\n%s\n' "$loaded" "$listed_files" | grep . | sort -u)"
+counted="$(cd "$TARGET" && bash .agent-context/bin/check-token-budget.sh --list 2>/dev/null | sort)"
+if [ "$counted" = "$expected" ]; then
+    pass "gate counts the walked @-closure plus SESSION_START_FILES and INCLUDE_FILES"
 else
-    fail "@-closure vs INCLUDE_FILES" "loaded: $(printf '%s\n' "$loaded" | sort | tr '\n' ' ')"
+    fail "gate set vs closure + listed files" "counted: $(printf '%s\n' "$counted" | tr '\n' ' ') expected: $(printf '%s\n' "$expected" | tr '\n' ' ')"
 fi
+notes="$(cd "$TARGET" && bash .agent-context/bin/check-token-budget.sh --quiet 2>&1 >/dev/null | grep -c 'note:')"
+[ "$notes" = "0" ] && pass "installed gate prints no note" || fail "installed gate prints no note" "$notes note line(s)"
 
 # Map gate with no map yet must exit 2 (no map.json) — proves the validator installed and runs.
 mc=0
