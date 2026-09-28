@@ -67,7 +67,16 @@ ${_conf_line#V$'\t'}"
         esac
     done < <(awk -v keys="$*" '
         BEGIN { nk = split(keys, K, " ") }
+        # A backslash right before the closing double quote means the author wrote \" and
+        # expected shell escaping, which this reader does not do. Truncating there would hand
+        # back a different value, so the key is dropped and named instead.
+        function escaped_close(str, pos) { return q[k] == "\"" && pos > 1 && substr(str, pos - 1, 1) == "\\" }
+        function reject(key) {
+            found[key] = 0
+            printf "conf-read: %s: escaped quote in %s is not supported — key ignored\n", FILENAME, key > "/dev/stderr"
+        }
         {
+            sub(/\r$/, "")
             s = $0
             sub(/^[ \t]+/, "", s)
             sub(/^export[ \t]+/, "", s)
@@ -75,7 +84,8 @@ ${_conf_line#V$'\t'}"
                 k = K[i]
                 if (inrange[k]) {
                     p = index($0, q[k])
-                    if (p > 0) { result[k] = val[k] substr($0, 1, p - 1); found[k] = 1; inrange[k] = 0 }
+                    if (p > 0 && escaped_close($0, p)) { reject(k); inrange[k] = 0 }
+                    else if (p > 0) { result[k] = val[k] substr($0, 1, p - 1); found[k] = 1; inrange[k] = 0 }
                     else { val[k] = val[k] $0 "\n" }
                     continue
                 }
@@ -86,7 +96,8 @@ ${_conf_line#V$'\t'}"
                     q[k] = first
                     body = substr(rest, 2)
                     p = index(body, q[k])
-                    if (p > 0) { result[k] = substr(body, 1, p - 1); found[k] = 1 }
+                    if (p > 0 && escaped_close(body, p)) reject(k)
+                    else if (p > 0) { result[k] = substr(body, 1, p - 1); found[k] = 1 }
                     else { inrange[k] = 1; val[k] = body "\n" }
                     continue
                 }
