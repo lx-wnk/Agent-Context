@@ -6,7 +6,7 @@
 
 A project-based setup and memory-handling system for AI coding agents, with first-class Claude Code support. Its entry point is the agent-agnostic `AGENTS.md`. Optimized for structuring project knowledge so that your agent always has the right context at the right time — without bloating the context window.
 
-Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides a layered architecture: all layers (0-3) are loaded at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~150-200 lines. Detailed reference (skills, memory files) is pulled in on-demand based on the task at hand. Auto-updates keep shared infrastructure current across all your projects.
+Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides a layered architecture: all layers (0-3) are loaded at startup via `@`-includes in `AGENTS.md`, keeping the baseline at ~150-200 lines. Detailed reference (skills, memory files) is pulled in on-demand based on the task at hand. Re-running the installer updates the shared infrastructure to the latest release without touching project-owned files.
 
 ## Contents
 
@@ -23,7 +23,7 @@ Instead of dumping everything into a single `CLAUDE.md`, Agent Context provides 
 
 Claude Code loads project instructions into its context window every conversation. Most projects dump everything into a single `CLAUDE.md`, resulting in:
 
-- **Context bloat:** 500-1000+ lines loaded for every task, even a one-line CSS fix
+- **Context bloat:** every line of the file is loaded for every task, even a one-line CSS fix
 - **Duplication:** Same information in `CLAUDE.md`, `README.md`, `.claude/rules/`, and memory files
 - **Noise:** Entity schemas, route tables, and file trees that Claude can discover by reading the code
 - **No structure:** Flat files with no way to load context progressively based on the task
@@ -33,22 +33,32 @@ Claude Code loads project instructions into its context window every conversatio
 A layered architecture where all layers load at startup via `@`-includes in `AGENTS.md`:
 
 ```
-CLAUDE.md                          (3 lines — bootstrap pointer)
 AGENTS.md                          (~35 lines — identity, quick rules)
+.claude/
+  CLAUDE.md                        (3 lines — bootstrap pointer to ../AGENTS.md)
+  commands/                        (/discover, /memory-review, /decision-review)
 .agent-context/
-  layer0-agent-workflow.md         (~35 lines — universal agent patterns)
-  layer1-bootstrap.md              (~25 lines — tech stack, project identity)
-  layer2-project-core.md           (~25 lines — dev principles, conventions)
+  agent-startup.md                 (~15 lines — update instructions)
+  layer0-agent-workflow.md         (~70 lines — universal agent patterns)
+  base-principles.md               (~30 lines — non-obvious dev principles)
+  layer1-bootstrap.md              (~35 lines — tech stack, project identity)
+  layer2-project-core.md           (~20 lines — dev principles, conventions)
   layer3-guidebook.md              (~45 lines — task → file routing table)
-  memory/                          (stubs, ~10 lines each)
+  knowledge-map.md                 (index of external doc sources)
+  hooks.conf, budget.conf          (project-owned config: hook toggles, budget caps)
+  bin/                             (budget gates, baseline measurement, memory prune)
+  hooks/                           (optional deterministic hooks, off by default)
+  memory/                          (stubs, 3-25 lines each)
   skills/                          (full reference, loaded on-demand)
 ```
 
+Line counts are for the shipped files and templates before discovery fills them in.
+
 **Baseline:** AGENTS.md + all layers. Full reference (skills, memory): loaded only when trigger keywords match.
 
-**Measured, not asserted.** `bin/measure-baseline.sh` counts the always-on closure against the flat equivalent — the same knowledge in a single file — and reports both. On a real 28-file installation the lazy half is 25,113 of 44,797 bytes: **~56% of the project's context stays out of a session until a task asks for it.** That is an upper bound, not a per-session average: a task that pulls two skills pays for those two skills, and no modelled "reads avoided" enter the number. See [Baseline Measurement](docs/enforcement.md#baseline-measurement).
+**Measured, not asserted.** `.agent-context/bin/measure-baseline.sh` counts the always-on closure against the flat equivalent — the same knowledge in a single file — and reports both. On a fresh install of the shipped templates, before discovery adds any project knowledge, 12,077 of 28,558 bytes stay out of a session until a task asks for them (42.3% by estimated token); a project's own memory and skills grow the on-demand side. Reproduce it with `bash tests/check-install-smoke.sh <dir>`, then `bash .agent-context/bin/measure-baseline.sh` inside `<dir>`. That is an upper bound, not a per-session average: a task that pulls two skills pays for those two skills, and no modelled "reads avoided" enter the number. See [Baseline Measurement](docs/enforcement.md#baseline-measurement).
 
-Auto-updates are built in: the agent fetches the setup prompt from remote, which auto-detects UPDATE mode, checks for new releases via the GitHub Releases API, and updates shared files. Project-owned files are never overwritten.
+Updates run on demand: re-run the install one-liner. `install.sh` resolves the latest release via the GitHub Releases API, exits early if that version is already installed, and otherwise pins the setup agent to that release tag. The setup prompt detects UPDATE mode, replaces the shared files, and re-syncs project knowledge only for documentation sources that changed since the last run (`--force` re-scans everything). Project-owned files are never overwritten.
 
 See a fully installed project in [example.md](example.md).
 
@@ -129,13 +139,15 @@ The file-ownership view — what the framework ships vs. what your project owns:
 ```
 agent-context Repo (source)              Project / User (target)
 ─────────────────────────────            ──────────────────────────
-context/agent-startup.md          →──    .agent-context/agent-startup.md (overwritable)
-context/layer0-agent-workflow.md  →──    .agent-context/layer0-agent-workflow.md (overwritable)
-context/base-principles.md        →──    .agent-context/base-principles.md (overwritable)
-templates/*                       →──    AGENTS.md, layer1-3, memory/ (project-owned)
+context/*.md                      →──    .agent-context/*.md (overwritable)
+context/bin/, context/hooks/      →──    .agent-context/bin/, .agent-context/hooks/ (overwritable)
+context/skills/                   →──    .agent-context/skills/ (overwritable)
+context/commands/                 →──    .claude/commands/ (overwritable)
+.prompts/*-review-prompt.md       →──    .agent-context/*-review-prompt.md (overwritable)
+templates/*                       →──    AGENTS.md, .claude/, layer1-3, memory/, *.conf (project-owned)
 ```
 
-**Overwritable** files are updated on every release. **Project-owned** files are created once and never overwritten. The installed version is tracked in `.agent-context/.agent-context-version` — written by the agent from the release tag.
+**Overwritable** files are replaced on every update. **Project-owned** files are created once and never overwritten. The installed version is tracked in `.agent-context/.agent-context-version` — written by the agent from the release tag.
 
 See [Architecture](docs/architecture.md) for the full mental model, layer loading, and runtime read flow.
 
