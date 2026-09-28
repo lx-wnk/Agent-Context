@@ -9,15 +9,79 @@ set -euo pipefail
 
 FORCE=0
 
-# Returns 0 if the file contains only the @AGENTS.md bootstrap pointer (no real content).
+# Returns 0 if the file contains only the @AGENTS.md (or @../AGENTS.md) bootstrap pointer.
 # Uses awk for line count to correctly handle files without a trailing newline.
 is_bootstrap_only() {
     local file="$1"
     [ -f "$file" ] || return 1
-    grep -q "@AGENTS.md" "$file" && \
+    grep -qE '@(\.\./)?AGENTS\.md' "$file" && \
         [ "$(awk 'END{print NR}' "$file")" -le 5 ] && \
         [ "$(grep -cve '^[[:space:]]*$' "$file")" -eq \
-          "$(grep -cxe '[[:space:]]*@AGENTS\.md[[:space:]]*' "$file")" ]
+          "$(grep -cxE '[[:space:]]*@(\.\./)?AGENTS\.md[[:space:]]*' "$file")" ]
+}
+
+# Claude Code resolves @imports relative to the importing file, so .claude/CLAUDE.md must step up.
+bootstrap_pointer() {
+    case "$1" in
+        .claude/*) echo "@../AGENTS.md" ;;
+        *) echo "@AGENTS.md" ;;
+    esac
+}
+
+# Replaces a whole line equal to $2 (a trailing CR is kept) with $3; symlinks are never written through.
+rewrite_exact_line() {
+    local file="$1" old="$2" new="$3" tmp
+    [ -f "$file" ] && [ ! -L "$file" ] || return 0
+    grep -qxE "$(printf '%s' "$old" | sed 's/[.[\*^$/]/\\&/g')"$'\r'"?" "$file" || return 0
+    tmp=$(mktemp "$file.XXXXXX") || return 1
+    awk -v o="$old" -v n="$new" '{ if ($0 == o) print n; else if ($0 == o "\r") print n "\r"; else print }' \
+        "$file" > "$tmp" && cat "$tmp" > "$file"
+    rm -f "$tmp"
+    echo "Migrated $file: $old → $new"
+}
+
+# Inside .agent-context/, `@.agent-context/<path>` always resolves to .agent-context/.agent-context/<path>,
+# so every such import becomes `@<path>` wherever it sits in a line. An `@` only counts as an import at
+# line start or after whitespace, `(` or `>`; code spans and fenced blocks are left alone.
+strip_nested_imports() {
+    local file="$1" tmp
+    [ -f "$file" ] && [ ! -L "$file" ] || return 0
+    grep -q '@\.agent-context/' "$file" || return 0
+    tmp=$(mktemp "$file.XXXXXX") || return 1
+    awk '
+        function fix(s,    out, i, prev) {
+            out = ""
+            while ((i = index(s, "@.agent-context/")) > 0) {
+                prev = i > 1 ? substr(s, i - 1, 1) : (out == "" ? "" : substr(out, length(out), 1))
+                if (prev == "" || prev ~ /[ \t(>]/) out = out substr(s, 1, i)
+                else out = out substr(s, 1, i + 15)
+                s = substr(s, i + 16)
+            }
+            return out s
+        }
+        /^[ \t]*```/ { fence = !fence; print; next }
+        fence { print; next }
+        {
+            n = split($0, part, "`")
+            line = ""
+            for (j = 1; j <= n; j++) line = line (j > 1 ? "`" : "") (j % 2 ? fix(part[j]) : part[j])
+            print line
+        }
+    ' "$file" > "$tmp"
+    if cmp -s "$tmp" "$file"; then
+        rm -f "$tmp"
+        return 0
+    fi
+    cat "$tmp" > "$file"
+    rm -f "$tmp"
+    echo "Migrated $file: nested @.agent-context/ imports → importer-relative"
+}
+
+# Rewrites the root-relative imports that installs before 0.9.1 shipped; code spans stay untouched.
+migrate_import_paths() {
+    rewrite_exact_line ".claude/CLAUDE.md" "@AGENTS.md" "@../AGENTS.md"
+    strip_nested_imports ".agent-context/layer2-project-core.md"
+    strip_nested_imports ".agent-context/layer3-guidebook.md"
 }
 
 # Returns 0 if all critical project-owned template files are present.
@@ -34,20 +98,22 @@ check_critical_templates() {
 }
 
 update_claude_md() {
-    local updated=0
+    local updated=0 pointer
     for loc in ".claude/CLAUDE.md" "CLAUDE.md"; do
         [ -f "$loc" ] || continue
         if is_bootstrap_only "$loc"; then
             continue
         fi
-        printf '@AGENTS.md\n' > "$loc"
-        echo "Updated $loc → @AGENTS.md"
+        pointer=$(bootstrap_pointer "$loc")
+        printf '%s\n' "$pointer" > "$loc"
+        echo "Updated $loc → $pointer"
         updated=1
     done
     if [ "$updated" -eq 0 ] && [ ! -f ".claude/CLAUDE.md" ] && [ ! -f "CLAUDE.md" ]; then
         mkdir -p .claude
-        printf '@AGENTS.md\n' > .claude/CLAUDE.md
-        echo "Created .claude/CLAUDE.md → @AGENTS.md"
+        pointer=$(bootstrap_pointer .claude/CLAUDE.md)
+        printf '%s\n' "$pointer" > .claude/CLAUDE.md
+        echo "Created .claude/CLAUDE.md → $pointer"
     fi
 }
 
@@ -204,6 +270,8 @@ main() {
     fi
 
 
+    migrate_import_paths
+
     # Fast-path: skip Claude spawn if already up-to-date.
     # Guards: version match alone is not proof of a complete installation — a CLAUDE.md with
     # real content still needs migration, and missing templates need restoration.
@@ -303,6 +371,7 @@ main() {
     # Only run when agent succeeded — a failed mid-migration must not overwrite CLAUDE.md content
     # that hasn't yet been routed to layer files.
     [ "$EXIT_CODE" -eq 0 ] && update_claude_md
+    migrate_import_paths
 
     if ! grep -q "^\[agent-context\]" "$LOG" 2>/dev/null; then
         echo "Warning: no progress was logged — Claude may have exited early or encountered an error."

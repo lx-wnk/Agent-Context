@@ -89,6 +89,41 @@ else
     fail "token-budget gate" "check-token-budget.sh exited non-zero in the installed tree"
 fi
 
+# 6. @-import closure: Claude Code resolves each `@path` relative to the importing file. Walk it from
+#    the entry point and require (a) every import to exist and (b) the loaded set to equal INCLUDE_FILES,
+#    so the budget gate measures exactly what an agent loads.
+TARGET_P="$(cd "$TARGET" && pwd -P)"
+queue=".claude/CLAUDE.md"
+loaded=""
+dangling=""
+while [ -n "$queue" ]; do
+    rel="${queue%%$'\n'*}"
+    [ "$queue" = "$rel" ] && queue="" || queue="${queue#*$'\n'}"
+    case $'\n'"$loaded"$'\n' in *$'\n'"$rel"$'\n'*) continue ;; esac
+    loaded="${loaded:+$loaded$'\n'}$rel"
+    dir="$(dirname "$TARGET_P/$rel")"
+    while IFS= read -r imp; do
+        imp="${imp%$'\r'}"
+        imp="${imp#@}"
+        imp="${imp%"${imp##*[![:space:]]}"}"
+        abs_dir="$(cd "$dir/$(dirname "$imp")" 2>/dev/null && pwd -P)" || abs_dir=""
+        if [ -z "$abs_dir" ] || [ ! -f "$abs_dir/$(basename "$imp")" ]; then
+            dangling="${dangling:+$dangling, }$rel -> @$imp"
+            continue
+        fi
+        next_file="$abs_dir/$(basename "$imp")"
+        queue="${queue:+$queue$'\n'}${next_file#"$TARGET_P"/}"
+    done < <(grep -E '^@[^[:space:]]+[[:space:]]*$' "$TARGET_P/$rel")
+done
+[ -z "$dangling" ] && pass "every @-import resolves relative to its importing file" \
+    || fail "@-import closure" "dangling: $dangling"
+include_files="$(awk '/^INCLUDE_FILES="/{f=1;next} f&&/^"/{exit} f&&NF{print $1}' "$TARGET/.agent-context/budget.conf" | sort)"
+if [ "$(printf '%s\n' "$loaded" | sort)" = "$include_files" ]; then
+    pass "loaded @-closure equals budget.conf INCLUDE_FILES"
+else
+    fail "@-closure vs INCLUDE_FILES" "loaded: $(printf '%s\n' "$loaded" | sort | tr '\n' ' ')"
+fi
+
 # Map gate with no map yet must exit 2 (no map.json) — proves the validator installed and runs.
 mc=0
 ( cd "$TARGET" && bash .agent-context/bin/check-map-budget.sh --quiet >/dev/null 2>&1 ) || mc=$?

@@ -77,7 +77,7 @@ if [ -f "$t/.claude/CLAUDE.md" ]; then
 else
     fail "creates .claude/CLAUDE.md when neither CLAUDE.md exists" "file not created"
 fi
-assert_file_contains "created file has @AGENTS.md pointer" "$t/.claude/CLAUDE.md" "@AGENTS.md"
+assert_eq "created .claude/CLAUDE.md points one level up" "@../AGENTS.md" "$(cat "$t/.claude/CLAUDE.md")"
 
 # ---------------------------------------------------------------------------
 # 2. update_claude_md: .claude/CLAUDE.md already bootstrap-only → not touched
@@ -227,7 +227,7 @@ mkdir -p "$t/.claude"
 printf 'real content A\n' > "$t/.claude/CLAUDE.md"
 printf 'real content B\n' > "$t/CLAUDE.md"
 (cd "$t" && update_claude_md)
-assert_file_contains ".claude/CLAUDE.md overwritten" "$t/.claude/CLAUDE.md" "@AGENTS.md"
+assert_eq ".claude/CLAUDE.md overwritten with the importer-relative pointer" "@../AGENTS.md" "$(cat "$t/.claude/CLAUDE.md")"
 assert_file_not_contains ".claude/CLAUDE.md old content gone" "$t/.claude/CLAUDE.md" "real content A"
 assert_file_contains "CLAUDE.md overwritten" "$t/CLAUDE.md" "@AGENTS.md"
 assert_file_not_contains "CLAUDE.md old content gone" "$t/CLAUDE.md" "real content B"
@@ -356,6 +356,59 @@ if ! validate_version_string "v1.2.3-rc1"; then
 else
     fail "v1.2.3-rc1 (pre-release) is rejected by cache regex" "returned true"
 fi
+
+# ---------------------------------------------------------------------------
+# Claude Code resolves @imports relative to the importing file
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- importer-relative pointers + migration ---"
+
+t=$(mk_tmp)
+printf '@../AGENTS.md\n' > "$t/test.md"
+if is_bootstrap_only "$t/test.md"; then
+    pass "@../AGENTS.md-only file is bootstrap-only"
+else
+    fail "@../AGENTS.md-only file is bootstrap-only" "returned false"
+fi
+
+t=$(mk_tmp)
+mkdir -p "$t/.claude" "$t/.agent-context"
+printf '# Project Instructions\n\n@AGENTS.md\n' > "$t/.claude/CLAUDE.md"
+printf '@AGENTS.md\n' > "$t/CLAUDE.md"
+printf '## Principles\n\n@.agent-context/base-principles.md\n\n@docs/custom.md\n' > "$t/.agent-context/layer2-project-core.md"
+printf '@.agent-context/knowledge-map.md\r\n\n@.agent-context/skills/index.md\n' > "$t/.agent-context/layer3-guidebook.md"
+(cd "$t" && migrate_import_paths >/dev/null)
+assert_eq ".claude/CLAUDE.md pointer migrated, heading kept" "$(printf '# Project Instructions\n\n@../AGENTS.md')" "$(cat "$t/.claude/CLAUDE.md")"
+assert_eq "root CLAUDE.md pointer left alone" "@AGENTS.md" "$(cat "$t/CLAUDE.md")"
+assert_eq "layer2 default import migrated, custom import kept" \
+    "$(printf '## Principles\n\n@base-principles.md\n\n@docs/custom.md')" "$(cat "$t/.agent-context/layer2-project-core.md")"
+assert_eq "layer3 imports migrated, CRLF preserved" \
+    "$(printf '@knowledge-map.md\r\n\n@skills/index.md')" "$(cat "$t/.agent-context/layer3-guidebook.md")"
+before="$(cat "$t/.claude/CLAUDE.md" "$t/.agent-context/"*.md)"
+out="$(cd "$t" && migrate_import_paths)"
+assert_eq "migration is idempotent" "$before" "$(cat "$t/.claude/CLAUDE.md" "$t/.agent-context/"*.md)"
+assert_eq "second run reports nothing" "" "$out"
+
+t=$(mk_tmp)
+mkdir -p "$t/.agent-context"
+# shellcheck disable=SC2016  # the backticks are literal test input, not a command substitution
+printf '%s\n' '> Shared base: @.agent-context/base-principles.md' \
+    'See `@.agent-context/x.md` in code.' '```' '@.agent-context/fenced.md' '```' \
+    'mail@.agent-context/not-an-import' '- (@.agent-context/skills/a.md) and @.agent-context/b.md' \
+    > "$t/.agent-context/layer2-project-core.md"
+(cd "$t" && migrate_import_paths >/dev/null)
+# shellcheck disable=SC2016  # literal backticks, see above
+assert_eq "inline and non-default nested imports migrated; code, fences and non-imports kept" \
+    "$(printf '%s\n' '> Shared base: @base-principles.md' 'See `@.agent-context/x.md` in code.' '```' \
+        '@.agent-context/fenced.md' '```' 'mail@.agent-context/not-an-import' '- (@skills/a.md) and @b.md')" \
+    "$(cat "$t/.agent-context/layer2-project-core.md")"
+
+t=$(mk_tmp)
+mkdir -p "$t/.agent-context" "$t/elsewhere"
+printf '@.agent-context/base-principles.md\n' > "$t/elsewhere/layer2.md"
+ln -s "$t/elsewhere/layer2.md" "$t/.agent-context/layer2-project-core.md"
+(cd "$t" && migrate_import_paths >/dev/null)
+assert_eq "symlinked layer file is not written through" "@.agent-context/base-principles.md" "$(cat "$t/elsewhere/layer2.md")"
 
 # ---------------------------------------------------------------------------
 # resolve_prompt_url: prompt is pinned to the same tag as the downloaded files
