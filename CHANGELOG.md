@@ -4,6 +4,11 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Changed
+
+- **`--local-source` no longer implies `--force`** — installing from a local clone ran a full from-scratch rediscovery every time (about ten minutes on a mid-size project). It now runs a normal update; pass `--force` explicitly for a full rediscovery.
+- **Progress dots trail the running step** — the installer used to start a new line of dots after every log line; the dots now continue the line of the step that is running, and each new log line starts on its own line.
+
 ### Fixed
 
 - **A `CLAUDE.md -> AGENTS.md` symlink destroyed AGENTS.md** — `install.sh` wrote the bootstrap pointer through the link, replacing AGENTS.md with a self-reference that the next run then counted as "already up to date". A symlinked `CLAUDE.md` is now skipped and reported.
