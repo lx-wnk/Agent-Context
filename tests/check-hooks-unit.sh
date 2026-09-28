@@ -56,7 +56,36 @@ run_hook "$HOOKS/pre-protect-secrets.sh" "$t/on.conf" '{"tool_name":"Write","too
 [ "$RC" -eq 0 ] && pass "writing normal file exits 0 (allowed)" || fail "writing normal file exits 0" "rc=$RC"
 
 run_hook "$HOOKS/pre-protect-secrets.sh" "$t/off.conf" '{"tool_name":"Write","tool_input":{"file_path":".env"}}'
-[ "$RC" -eq 0 ] && pass "master off → .env write not blocked" || fail "master off → not blocked" "rc=$RC"
+[ "$RC" -eq 2 ] && pass "HOOKS_ENABLED=0 → .env write still blocked" || fail "HOOKS_ENABLED=0 → .env write still blocked" "rc=$RC"
+
+run_hook "$HOOKS/pre-protect-secrets.sh" "$NO_CONF" '{"tool_name":"Write","tool_input":{"file_path":".env"}}'
+[ "$RC" -eq 2 ] && pass "no hooks.conf / hooks.local.conf → .env write blocked" \
+    || fail "no hooks.conf / hooks.local.conf → .env write blocked" "rc=$RC"
+
+run_hook "$HOOKS/pre-protect-secrets.sh" "$NO_CONF" '{"tool_name":"Write","tool_input":{"file_path":"id_rsa.bak"}}'
+[ "$RC" -eq 2 ] && pass "built-in globs cover id_rsa.*" || fail "built-in globs cover id_rsa.*" "rc=$RC"
+
+printf 'PROTECT_SECRETS=0\n' > "$t/nosecrets.conf"
+run_hook "$HOOKS/pre-protect-secrets.sh" "$t/nosecrets.conf" '{"tool_name":"Write","tool_input":{"file_path":".env"}}'
+[ "$RC" -eq 0 ] && pass "local PROTECT_SECRETS=0 → guard off" || fail "local PROTECT_SECRETS=0 → guard off" "rc=$RC"
+
+run_hook "$HOOKS/pre-protect-secrets.sh" "$NO_CONF" '{"tool_name":"Write","tool_input":{"file_path":".env"}}' "$t/nosecrets.conf"
+[ "$RC" -eq 0 ] && pass "committed PROTECT_SECRETS=0 → guard off" || fail "committed PROTECT_SECRETS=0 → guard off" "rc=$RC"
+
+printf 'PROTECT_SECRETS="0\nPROTECTED_GLOBS="*.none\n' > "$t/broken.conf"
+run_hook "$HOOKS/pre-protect-secrets.sh" "$t/broken.conf" '{"tool_name":"Write","tool_input":{"file_path":".env"}}'
+[ "$RC" -eq 2 ] && pass "unparseable conf → built-in defaults, .env blocked" \
+    || fail "unparseable conf → built-in defaults, .env blocked" "rc=$RC"
+
+noreader="$(mk_tmp)"
+mkdir -p "$noreader/hooks"
+cp "$HOOKS"/*.sh "$noreader/hooks/"
+printf 'PROTECT_SECRETS=0\n' > "$noreader/hooks.conf"
+printf '{"tool_name":"Write","tool_input":{"file_path":".env"}}' \
+    | AGENT_CONTEXT_HOOKS_CONF="$noreader/hooks.conf" AGENT_CONTEXT_HOOKS_LOCAL_CONF="$NO_CONF" \
+        "$BASH" "$noreader/hooks/pre-protect-secrets.sh" >/dev/null 2>&1
+RC=$?
+[ "$RC" -eq 2 ] && pass "conf-read.sh missing → guard fails closed" || fail "conf-read.sh missing → guard fails closed" "rc=$RC"
 
 for f in "$t/.env" "$t/x.pem"; do
     run_hook "$HOOKS/pre-protect-secrets.sh" "$t/on2.conf" "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$f\"}}"
@@ -285,6 +314,25 @@ run_hook "$HOOKS/pre-protect-secrets.sh" "$t/local-on.conf" '{"tool_input":{"fil
 printf 'HOOKS_ENABLED=1\nPROTECT_SECRETS=0\n' > "$t/local-nosecrets.conf"
 run_hook "$HOOKS/pre-protect-secrets.sh" "$t/local-nosecrets.conf" '{"tool_input":{"file_path":"a.custom"}}' "$t/globs.conf"
 [ "$RC" -eq 0 ] && pass "hooks.local.conf overrides a hooks.conf key" || fail "hooks.local.conf overrides a hooks.conf key" "rc=$RC"
+
+t=$(mk_tmp)
+export CLAUDE_PROJECT_DIR="$t"
+printf 'content\n' > "$t/file.txt"
+printf '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/elsewhere/x"}}]}}\n' > "$t/agent.jsonl"
+printf 'FORMAT_CMD="touch %s/fmt.marker"\nSTOP_GATE="block"\nTEST_CMD="touch %s/test.marker"\nSUBAGENT_SCOPE="block"\nALLOWED_SUBAGENT_PATHS="src/*"\n' \
+    "$t" "$t" > "$t/no-master.conf"
+for c in "$NO_CONF" "$t/no-master.conf"; do
+    run_hook "$HOOKS/post-format.sh" "$c" "{\"tool_input\":{\"file_path\":\"$t/file.txt\"}}"
+    o1="$OUT"
+    run_hook "$HOOKS/stop-test-gate.sh" "$c" '{"hook_event_name":"Stop"}'
+    o2="$OUT"
+    run_hook "$HOOKS/subagent-scope.sh" "$c" "{\"agent_transcript_path\":\"$t/agent.jsonl\"}"
+    o3="$OUT"
+    { [ ! -f "$t/fmt.marker" ] && [ ! -f "$t/test.marker" ] && [ -z "$o1$o2$o3" ]; } \
+        && pass "without HOOKS_ENABLED=1 format/test gate/scope stay off ($(basename "$c"))" \
+        || fail "without HOOKS_ENABLED=1 format/test gate/scope stay off ($(basename "$c"))" "out=$o1$o2$o3"
+done
+unset CLAUDE_PROJECT_DIR
 
 if [ -z "${HOOKS_TEST_NOJQ:-}" ] && ! PATH="$sandbox" command -v jq >/dev/null 2>&1; then
     for b in touch cp mkdir ln readlink chmod wc sort; do
