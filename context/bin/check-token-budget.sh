@@ -23,9 +23,10 @@ set -euo pipefail
 # ignored; an import that resolves to no file is warned about, never counted, never fatal.
 #
 # Resolution order for the file set and limit:
-#   1. Explicit FILE arguments are the whole set — no walk, no INCLUDE_FILES.
-#   2. Otherwise the walked closure plus the conf's optional INCLUDE_FILES (files read at
-#      session start without an @-import), deduplicated.
+#   1. Explicit FILE arguments are the whole set — no walk, no conf lists.
+#   2. Otherwise the walked closure plus the conf's optional SESSION_START_FILES (files read at
+#      session start without an @-import) plus the legacy INCLUDE_FILES, deduplicated. An
+#      INCLUDE_FILES entry the walk does not reach is counted and printed as a note.
 #   3. --max sets both caps to N. Otherwise both come from the conf
 #      (default: .agent-context/budget.conf); a missing hard cap defaults to 250.
 #
@@ -55,10 +56,11 @@ done
 
 MAX_EFFECTIVE_LINES=200
 MAX_EFFECTIVE_LINES_HARD=""
+SESSION_START_FILES=""
 INCLUDE_FILES=""
 
 # The conf is project-owned DATA that can arrive via `git pull` from a repository the developer
-# does not control, so it is parsed rather than sourced — the three keys below are copied out
+# does not control, so it is parsed rather than sourced — the keys below are copied out
 # literally and nothing in the file is ever executed.
 BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 if [ ! -r "$BIN_DIR/conf-read.sh" ]; then
@@ -68,7 +70,7 @@ fi
 # shellcheck source=conf-read.sh
 . "$BIN_DIR/conf-read.sh"
 
-conf_load "$CONF" MAX_EFFECTIVE_LINES MAX_EFFECTIVE_LINES_HARD INCLUDE_FILES
+conf_load "$CONF" MAX_EFFECTIVE_LINES MAX_EFFECTIVE_LINES_HARD SESSION_START_FILES INCLUDE_FILES
 
 if [ -n "$MAX_OVERRIDE" ]; then
     MAX_EFFECTIVE_LINES="$MAX_OVERRIDE"
@@ -154,7 +156,12 @@ if [ "${#FILES[@]}" -eq 0 ]; then
     for _root in .claude/CLAUDE.md CLAUDE.md; do
         [ -f "$_root" ] && walk_imports "$_root"
     done
-    # INCLUDE_FILES is a newline/space separated list from the conf.
+    # Both lists are newline/space separated.
+    # shellcheck disable=SC2206
+    _session=($SESSION_START_FILES)
+    for _f in ${_session[@]+"${_session[@]}"}; do
+        add_file "$(normalize_path "$_f")" || true
+    done
     # shellcheck disable=SC2206
     _extra=($INCLUDE_FILES)
     for _f in ${_extra[@]+"${_extra[@]}"}; do
@@ -171,7 +178,7 @@ if [ -n "$DANGLING" ]; then
 fi
 
 if [ "${#FILES[@]}" -eq 0 ]; then
-    echo "Error: no files to check. No .claude/CLAUDE.md or CLAUDE.md to walk, and no INCLUDE_FILES in $CONF." >&2
+    echo "Error: no files to check. No .claude/CLAUDE.md or CLAUDE.md to walk, and no SESSION_START_FILES or INCLUDE_FILES in $CONF." >&2
     exit 2
 fi
 
