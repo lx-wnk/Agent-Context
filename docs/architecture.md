@@ -33,8 +33,8 @@ Paste [`.prompts/setup-prompt.md`](../.prompts/setup-prompt.md) into Claude Code
 1. Downloads the latest release from the GitHub Releases API
 2. Copies **shared files** from `context/` → `.agent-context/` (overwritable)
 3. Creates **project-owned files** from `templates/` → `AGENTS.md`, layers 1-3, memory stubs (never overwritten)
-4. Writes the release version to `.agent-context/.agent-context-version`
-5. Discovers your tech stack and fills in the TODO placeholders — and **distills** the non-obvious gold from your docs (hard invariants, architecture decisions, complex subsystems) into `memory/`, `decisions.json`, and skills, so it loads by task routing rather than sitting unread. A deterministic discovery digest (`bin/discovery-digest.sh`) orients the scan so no doc is missed. Memory stubs that stay empty after setup are expected — runtime-accumulated knowledge (lessons, preferences) fills as you work.
+4. Discovers your tech stack and fills in the TODO placeholders — and **distills** the non-obvious gold from your docs (hard invariants, architecture decisions, complex subsystems) into `memory/`, `decisions.json`, and skills, so it loads by task routing rather than sitting unread. A deterministic discovery digest (`bin/discovery-digest.sh`) orients the scan so no doc is missed. Memory stubs that stay empty after setup are expected — runtime-accumulated knowledge (lessons, preferences) fills as you work.
+5. Writes the release version to `.agent-context/.agent-context-version` as its last action — a failed run leaves the old version, so the next run retries
 
 ### Updates (on demand)
 

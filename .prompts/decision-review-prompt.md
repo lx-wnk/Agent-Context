@@ -74,8 +74,10 @@ Filter for entries where `reviewDate <= today`. For each expired entry, determin
 **Graduate:** Append a formatted entry to `.agent-context/memory/lessons.md`:
 
 ```
-- **[{scope}]** {decision} — {reasoning} (decided {date})
+- **[{scope}]** {decision} — {reasoning} ({date}) ttl:infinite source:decision conf:high
 ```
+
+Keep `({date})` in exactly this form and the `ttl:infinite` tag: `memory-prune.sh` reads the entry date from `(YYYY-MM-DD)` and would otherwise archive the graduated decision under the `lessons.md` default TTL.
 
 Then remove the entry from the JSON array.
 

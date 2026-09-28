@@ -48,21 +48,16 @@ Any file **not** in a built-in AI-doc path or a directory supplied via `--ai-dir
 
 ## Step 0: Interactive Mode Detection (run first)
 
-Run this before reading or acting on any other step — later steps branch on `INTERACTIVE_MODE`.
+Run this before reading or acting on any other step — later steps branch on `INTERACTIVE_MODE`. There is exactly one rule, and every later mention of interactive, headless, or asking the user follows it:
 
-Run this bash command and store the result:
+- Your launching instruction contains `HEADLESS: no user is present; never wait for input, decide per the prompt's headless rules.` (appended by `install.sh`) → `INTERACTIVE_MODE=false`. Never ask a question and never wait for input; decide as described in **Plan-File Mode** and record every decision there.
+- The directive is absent (a user pasted or referenced this prompt in a session) → `INTERACTIVE_MODE=true`. Ask the user wherever this prompt says to ask.
 
-```bash
-bash -c '[ -t 0 ] && echo interactive || echo headless'
-```
+Do not infer the mode from anything else — not from a TTY check, `CI`, `-p`, or the existence of `.claude/settings.json`.
 
-Then check the environment:
+**Installer-managed files:** if your launching instruction contains `INSTALLER MANAGES: …` (appended by `install.sh`), the installer has already copied the shared files (Step 2) and will itself write `.claude/commands/`, the hook entries in `.claude/settings.json`, `.claude/CLAUDE.md` and the version file after you finish. Do not write any of them and do not try to obtain permission for them: skip Step 2 (log `Step 2/5: Installing shared files — done by the installer`), skip every `.claude/` file in Step 3, skip Step 4.7 (log `Step 4.7: Hook registration — done by the installer`) and skip **Record the Installed Version**. Everything else — templates under `.agent-context/`, migration, discovery, knowledge re-sync — stays yours.
 
-```bash
-echo "${CI:-unset}"
-```
-
-Set `INTERACTIVE_MODE=true` if the bash output was `interactive` AND `CI` is not `true`. Otherwise set `INTERACTIVE_MODE=false`.
+**Shell:** the Bash tool may run zsh. Every multi-line block in this prompt is written for bash 3.2 — run it as `bash <<'AC_SH'` … `AC_SH` (the blocks with bash-only syntax are already wrapped). Single-line commands are portable as written.
 
 In non-interactive mode (`INTERACTIVE_MODE=false`), write progress to `.agent-context/setup.log` at the start of each step via a Bash tool call:
 
@@ -73,10 +68,12 @@ echo "[agent-context] Step N/5: <description>" >> .agent-context/setup.log
 Create the log file at the very start (before Step 1) so `tail -f` can attach immediately:
 
 ```bash
-mkdir -p .agent-context && > .agent-context/setup.log
+mkdir -p .agent-context && : > .agent-context/setup.log
 ```
 
 Every sub-step gets exactly one line of its own, in the form `[agent-context] Step <id>: <name> — <result>`, written when the sub-step ends; `install.sh` prints each log line on its own line, so never combine sub-steps into one line and log nothing else in between. The `MIGRATION_CLEANUP: ran` and `UNRESOLVED:` lines of Step 4.5 are the only additional lines.
+
+Every number in a log line (versions, counts of files, sources, facts, lines) comes from a command run in this session — `cat`, `ls | wc -l`, `grep -c`, `wc -l`, or a count of the command output you are reporting on. Never estimate a number; if no command produced it, leave it out.
 
 Example log entries:
 
@@ -120,17 +117,17 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
 
 > **Pinned target:** If your launching instruction contains `TARGET VERSION: <tag>` (set by `install.sh`, which fetched this prompt from that same tag), skip sub-steps 2–3 and 5–7 — do not query the releases API; the target is exactly `<tag>`. If `<tag>` is older than the installed version, never downgrade: log it and skip to Step 4.
 
-1. Read `.agent-context/.agent-context-version` (default `0.0.0` if missing)
+1. Determine the installed version. If your launching instruction contains `INSTALLED VERSION: <version or none>` (set by `install.sh`), use that value verbatim — `none` means nothing is installed. Otherwise read it with `cat .agent-context/.agent-context-version` (missing file → none). Never infer it from the CHANGELOG, the layer files, or memory.
 2. Fetch the release list from `https://api.github.com/repos/lx-wnk/Agent-Context/releases`
 3. If the fetch fails or returns no releases:
    - **SETUP:** abort with an informative message — version selection is required
    - **UPDATE:** inform the user that releases could not be checked, skip to Step 4
-     > **Note:** When invoked via `install.sh`, a shell-level fast-path runs before this agent starts and exits early when everything is up-to-date. If this agent is running, the shell-level check already confirmed a full update is needed (or `--force` was passed). Direct invocation without `install.sh` always runs the full update flow.
-4. If `INTERACTIVE_MODE=false`: skip the version prompt entirely — do not present a table or ask any question. Use the pinned target (see above) if there is one; otherwise use the latest stable release. Then log the mode and target version:
+     > **Note:** When invoked via `install.sh`, a shell-level fast-path runs before this agent starts and exits early when the installed version equals the latest release. That check is skipped when the release lookup fails or returns nothing, in local-source mode, when no version is installed, and under `--force` — so a running agent does not prove an update is needed. Direct invocation without `install.sh` always runs the full update flow.
+4. If `INTERACTIVE_MODE=false`: skip the version prompt entirely — do not present a table or ask any question. Use the pinned target (see above) if there is one; otherwise use the latest stable release. Then log the mode, with the installed version exactly as determined in sub-step 1 and the target tag:
    ```bash
-   echo "[agent-context] Mode: UPDATE (0.3.0 → 0.5.0)" >> .agent-context/setup.log
+   echo "[agent-context] Mode: UPDATE (<installed> → <target>)" >> .agent-context/setup.log
    # or for SETUP:
-   echo "[agent-context] Mode: SETUP (installing 0.5.0)" >> .agent-context/setup.log
+   echo "[agent-context] Mode: SETUP (installing <target>)" >> .agent-context/setup.log
    ```
 5. Present the available versions to the user (mark which is current, which is latest stable, and label pre-releases as `(pre-release)`)
 6. Ask the user which version to install — default is `latest stable`
@@ -138,6 +135,8 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
 8. Store the selected version tag (e.g. `v0.5.0`) — it is used to build raw file URLs in Steps 2 and 3.
 
 ## Step 2: Install Shared Files
+
+> Skipped entirely when the launching instruction contains `INSTALLER MANAGES` (see Step 0).
 
 Fetch each shared file directly from GitHub raw content — no tarball or temp directory needed.
 
@@ -171,6 +170,7 @@ Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
 Fetch all files **in parallel** — spawn each curl in the background and wait for all. Create `.agent-context/bin/`, `.agent-context/hooks/`, `.agent-context/skills/`, and `.claude/commands/` first (`mkdir -p .agent-context/bin .agent-context/hooks .agent-context/skills .claude/commands`) and `chmod +x` the scripts under `bin/` and `hooks/` after download:
 
 ```bash
+bash <<'AC_SH'
 mkdir -p .agent-context/bin .agent-context/hooks .agent-context/skills .claude/commands
 pids=()
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/agent-startup.md" \
@@ -225,24 +225,22 @@ if [ "$fail" -ne 0 ]; then
     exit 1
 fi
 chmod +x .agent-context/bin/*.sh .agent-context/hooks/*.sh 2>/dev/null || true
+AC_SH
 ```
 
 A `.claude/commands/` file without an `.agent-context/` reference is a user-owned command of the same name: the block leaves it untouched and prints `Skipping …`. List every skipped command in the final summary so the user can rename theirs to receive ours.
 
-> **Important:** If the parallel download block above exits non-zero (any file failed to download), **stop here — do NOT write the version file.** Recording a new version tag in `.agent-context/.agent-context-version` when one or more shared files are missing would leave the installation in an inconsistent state where the version number claims a complete update but the files do not match.
-
-Write the new version to `.agent-context/.agent-context-version`:
-
-```bash
-echo "<tag>" > .agent-context/.agent-context-version
-```
+> **Important:** If the parallel download block above exits non-zero (any file failed to download), **stop here.** The version file is written only by **Record the Installed Version** at the very end of a successful run, so a failed run leaves the old version (or none) in place and the next `install.sh` run retries.
 
 ## Step 3: Template Files
 
+> With `INSTALLER MANAGES` (Step 0): install every template except those under `.claude/` — the installer writes those.
+
 List all template files recursively via the GitHub Git Trees API (returns all nested paths in one call).
-The `<tag>` placeholder is used directly as the tree ref — GitHub's API accepts branch/tag names here, not only SHAs (documented: "SHA1 value or ref (branch or tag) name of the tree"). GitHub releases create lightweight tags (pointing directly to commits), so the tree lookup works without extra dereference. Annotated tags (pointing to a tag object) would require a prior `/git/refs/tags/<tag>` call — not used here.
+The `<tag>` placeholder is used directly as the tree ref — GitHub's API accepts branch/tag names here, not only SHAs (documented: "SHA1 value or ref (branch or tag) name of the tree"). Release tags are annotated; the Trees API peels a tag name to its commit's tree, so no prior `/git/refs/tags/<tag>` call is needed. If the lookup ever yields no templates, the block below aborts instead of installing nothing.
 
 ```bash
+bash <<'AC_SH'
 # Parse blob paths under templates/ with an awk state machine.
 # Relies on GitHub's stable pretty-printed JSON format (one field per line, consistent since 2011).
 _tree=$(curl -fsSL "https://api.github.com/repos/lx-wnk/Agent-Context/git/trees/<tag>?recursive=1")
@@ -285,6 +283,7 @@ for _i in "${!_pids[@]}"; do
   wait "${_pids[$_i]}" || { echo "Error: failed to download ${_dests[$_i]}" >&2; _fail=1; }
 done
 [ "$_fail" -eq 0 ] || { for _d in "${_dests[@]}"; do rm -f "$_d.tmp"; done; exit 1; }
+AC_SH
 ```
 
 If a destination file already exists → skip it (project-owned, never overwrite).
@@ -347,16 +346,14 @@ Rules: each fact in exactly ONE place; the stub/lesson **summarizes** and links 
 
 ### Requires Ack/Nack
 
-Ask the user when:
+In `INTERACTIVE_MODE=true`, ask the user when (in `INTERACTIVE_MODE=false`, decide these cases per **Plan-File Mode** instead):
 
 - Confidence <0.8 OR content spans multiple layer categories
 - Two sources contain contradicting information about the same topic
 - A structured knowledge folder is discovered for the first time
 - Size is 30–100 lines AND category is ambiguous
 
-### Claude Code Interactive Mode
-
-Detected when `.claude/settings.json` exists **and** neither of the following signals is present: `CI=true` environment variable set, or the prompt was invoked with the `-p` flag (non-interactive / headless mode). If either signal is present, fall back to Plan-File Mode.
+### Interactive Mode (`INTERACTIVE_MODE=true`)
 
 Batch all pending Ack/Nack decisions into a single message:
 
@@ -369,9 +366,9 @@ I found the following — please confirm:
 
 High-confidence auto-decisions are listed in the summary only — not asked.
 
-### Plan-File Mode (other agents / CI / headless)
+### Plan-File Mode (`INTERACTIVE_MODE=false`)
 
-When not in Claude Code interactive mode, write `.agent-context/setup-plan.md` for transparency:
+In headless mode, write `.agent-context/setup-plan.md` for transparency:
 
 ```markdown
 # Setup Plan — YYYY-MM-DD
@@ -383,14 +380,14 @@ When not in Claude Code interactive mode, write `.agent-context/setup-plan.md` f
 | 3   | src/: conflict rule A vs B | keep rule A | 0.55       | ✅ best-effort |
 ```
 
-**Headless does NOT defer — it decides.** `install.sh` runs the agent once with `-p` and never re-runs it, so a `⏳ review` row would be silently dropped and its knowledge lost (this is the "memory looks empty" failure). Therefore, in headless/CI mode you MUST resolve every row in this same run:
+**Headless does NOT defer — it decides.** `install.sh` runs the agent once with `-p` and never re-runs it, so a `⏳ review` row would be silently dropped and its knowledge lost (this is the "memory looks empty" failure). Therefore, in headless mode you MUST resolve every row in this same run:
 
 - Apply each source's `recommended_action` as a **best-effort** decision and execute it (route + distill). Mark it `✅ best-effort` in the plan.
 - For a **conflict** between two sources, pick the higher-confidence / more-specific / more-recent one, apply it, and record the loser in the row note — do not skip the topic.
 - Choose **non-destructive** resolutions when unsure: `reference` (+ distill) over `consolidate`, append over rewrite. Never delete a Real Doc.
 - The plan file is an audit trail of what was auto-applied, **not** a queue waiting for a human. Leave no row in `⏳ review` when the run ends.
 
-(Interactive mode still asks; only headless auto-resolves.)
+(`INTERACTIVE_MODE=true` still asks; only `INTERACTIVE_MODE=false` auto-resolves.)
 
 ### Decision Manifest
 
@@ -420,6 +417,7 @@ Run this step in both SETUP and UPDATE mode — it self-skips in 4.5a if no lega
 Check whether any built-in AI-doc directories (other than `.agent-context/` itself) exist:
 
 ```bash
+bash <<'AC_SH'
 for dir in .ai .cursor/rules; do [ -d "$dir" ] && echo "FOUND: $dir"; done
 for f in CLAUDE.md GEMINI.md .cursorrules .github/copilot-instructions.md; do
   if [ -f "$f" ]; then
@@ -444,6 +442,7 @@ for extra in $AI_DIRS; do
   IFS=','
 done
 IFS="$OLD_IFS"
+AC_SH
 ```
 
 If none found → log `[agent-context] Step 4.5: Migration cleanup — skipped (no legacy AI dirs found)` and skip to Step 4.6 (4.6 and 4.7 still run).
@@ -559,13 +558,29 @@ All three substeps are guarded by existence/tracking/marker checks — running t
 
 ## Step 4.7: Hook Registration (SETUP and UPDATE)
 
+> Skipped when the launching instruction contains `INSTALLER MANAGES` (Step 0) — the installer merges the hook entries itself.
+
 Agent-Context ships four optional, deterministic hooks (`.agent-context/hooks/`): secret-write block (PreToolUse), auto-format (PostToolUse), test gate (Stop), and subagent scope check (SubagentStop). They are governed by the project-owned `.agent-context/hooks.conf` and are **off by default** (`HOOKS_ENABLED=0`) — registering them changes nothing until the user opts in.
 
 **Registration is additive and idempotent — never overwrite or remove existing `settings.json` content.**
 
 1. **SETUP (no prior `.claude/settings.json`):** the template `settings.json` already contains the four hook registrations — nothing to do. In `INTERACTIVE_MODE=true`, you MAY ask the user whether to enable hooks now; if yes, set `HOOKS_ENABLED=1` in `.agent-context/hooks.conf` and fill `FORMAT_CMD` / `TEST_CMD` from the discovered toolchain (Phase S2). Otherwise leave `HOOKS_ENABLED=0`.
 
-2. **UPDATE (existing `.claude/settings.json`):** read it. If it already references `.agent-context/hooks/` in any hook command → **skip** (already registered). Otherwise merge the four entries below into the existing `hooks` object **additively** — preserve every existing key and every existing hook entry, only appending these. Do not touch `HOOKS_ENABLED` (stays `0` — existing projects are never silently activated).
+2. **UPDATE (existing `.claude/settings.json`):** read it and check each of the four hooks **separately** — a hook counts as registered only when its own script name (`pre-protect-secrets.sh`, `post-format.sh`, `stop-test-gate.sh`, `subagent-scope.sh`) appears in a hook command. If all four are registered → **skip**. Otherwise merge only the missing entries from below into the existing `hooks` object **additively** — preserve every existing key and every existing hook entry, only appending these. Do not touch `HOOKS_ENABLED` (stays `0` — existing projects are never silently activated).
+
+   After writing, validate the merged file and report the result in the Step 4.7 log line (`registered N of 4, JSON valid` / `JSON unvalidated`). If validation fails, restore the file from the copy you read and log the step as failed:
+
+   ```bash
+   bash <<'AC_SH'
+   f=.claude/settings.json
+   for h in pre-protect-secrets.sh post-format.sh stop-test-gate.sh subagent-scope.sh; do
+     grep -q "\.agent-context/hooks/$h" "$f" && echo "registered: $h" || echo "missing: $h"
+   done
+   if command -v jq >/dev/null 2>&1; then jq empty "$f" && echo "JSON valid (jq)"
+   elif command -v python3 >/dev/null 2>&1; then python3 -m json.tool "$f" >/dev/null && echo "JSON valid (python3)"
+   else echo "JSON unvalidated (no jq or python3)"; fi
+   AC_SH
+   ```
 
 Canonical entries to merge (matchers and event names exactly as shown):
 
@@ -578,7 +593,7 @@ Canonical entries to merge (matchers and event names exactly as shown):
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/pre-protect-secrets.sh",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.agent-context/hooks/pre-protect-secrets.sh",
             "timeout": 10
           }
         ]
@@ -588,7 +603,11 @@ Canonical entries to merge (matchers and event names exactly as shown):
       {
         "matcher": "Write|Edit|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/post-format.sh", "timeout": 60 }
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.agent-context/hooks/post-format.sh",
+            "timeout": 60
+          }
         ]
       }
     ],
@@ -597,7 +616,7 @@ Canonical entries to merge (matchers and event names exactly as shown):
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/stop-test-gate.sh",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.agent-context/hooks/stop-test-gate.sh",
             "timeout": 600
           }
         ]
@@ -608,7 +627,7 @@ Canonical entries to merge (matchers and event names exactly as shown):
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/subagent-scope.sh",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.agent-context/hooks/subagent-scope.sh",
             "timeout": 30
           }
         ]
@@ -657,7 +676,7 @@ Launch parallel subagents (same set as SETUP Phase S2 — **including Subagent 7
 
 Check `.agent-context/setup-decisions.json` for existing decisions — skip sources with matching SHA256.
 
-For new or changed sources: apply Knowledge Decision Logic, including the **Distillation** step (extract invariants → `memory/lessons.md`, decisions → `decisions.json`, complex subsystems → `memory/<domain>.md`). In headless/CI mode, follow the headless-decides policy — never leave a source in `⏳ review`. **An existing install with rich `docs/` but near-empty `memory/` is the signal that distillation never ran — backfill it now.**
+For new or changed sources: apply Knowledge Decision Logic, including the **Distillation** step (extract invariants → `memory/lessons.md`, decisions → `decisions.json`, complex subsystems → `memory/<domain>.md`). In `INTERACTIVE_MODE=false`, follow the headless-decides policy — never leave a source in `⏳ review`. **An existing install with rich `docs/` but near-empty `memory/` is the signal that distillation never ran — backfill it now.**
 
 ### 5b: Routing & Restructuring (additive-only)
 
@@ -682,7 +701,7 @@ For each fact/finding collected in 5a:
 
 1. Search for its 2–3 key terms across all `.agent-context/` files and `knowledge-map.md`
 2. If no match found → list as missing
-3. If any facts are missing: report them to the user, do NOT commit — ask how to resolve
+3. If any facts are missing: in `INTERACTIVE_MODE=true`, report them to the user, do NOT commit — ask how to resolve; in `INTERACTIVE_MODE=false`, route each one now per **Plan-File Mode** (best-effort, non-destructive) and list any fact that still has no home in the summary
 4. If all facts are accounted for → proceed
 
 ### 5d: knowledge-map.md Update
@@ -720,9 +739,19 @@ Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-conte
 - Include the audit table in the summary output (✅ / ⚠️ per file)
 - Run the always-on budget gate: `bash .agent-context/bin/check-token-budget.sh` (reads `.agent-context/budget.conf`). If it reports FAIL, flag the always-on baseline as over budget and recommend moving optional content behind routing.
 
+## Record the Installed Version (last action)
+
+> Skipped when the launching instruction contains `INSTALLER MANAGES` (Step 0) — the installer writes the version only after verifying the install.
+
+Run this as the last action of a successful run — after Step 5e in UPDATE, after Phase S5 in SETUP — and immediately before writing `[agent-context] Done.`. Run it only if Steps 2 and 3 both completed for `<tag>` in this run; if the update was skipped, declined, refused as a downgrade, or any step failed, do not touch the file, so the next `install.sh` run retries:
+
+```bash
+echo "<tag>" > .agent-context/.agent-context-version
+```
+
 ## UPDATE Mode: Done
 
-If in UPDATE mode, skip all remaining phases. Return `ok: true` with a brief summary (e.g. "Updated 0.1.1 → 0.1.2" or "Already up to date" or "User declined update"). Always return `ok: true` — even on failure.
+If in UPDATE mode, skip all remaining phases (after **Record the Installed Version**). Return `ok: true` with a brief summary (e.g. "Updated 0.1.1 → 0.1.2" or "Already up to date" or "User declined update"). Always return `ok: true` — even on failure.
 
 Always output the following at the very end of the UPDATE run. Omit the `UNRESOLVED` block if the list is empty:
 
@@ -763,7 +792,7 @@ AGENTS.md                                PROJECT — customize freely
   base-principles.md                     🔒 SHARED — do NOT modify (auto-updated)
   agent-delegation.md                    🔒 SHARED — on-demand delegation protocol (auto-updated)
   memory-maintenance.md                  🔒 SHARED — on-demand memory restructuring (auto-updated)
-  .agent-context-version                 🔒 SHARED — written by setup/update
+  .agent-context-version                 🔒 SHARED — written last by a successful setup/update
   memory-review-prompt.md               🔒 SHARED — do NOT modify (auto-updated)
   decision-review-prompt.md              🔒 SHARED — do NOT modify (auto-updated)
   bin/
@@ -791,13 +820,13 @@ AGENTS.md                                PROJECT — customize freely
     index.md                             PROJECT — skill registry
     discovery-map.md                     🔒 SHARED — on-demand discovery skill (auto-updated)
   memory/                                PROJECT — customize freely
-    decisions.md                         Legacy stub (migrated to decisions.json)
     index.md                             Memory file catalog
     lessons.md
     people.md
     preferences.md
     todo.md                              (local-only, gitignored)
     user.md
+    map/                                 Discovery map.json + <node>.md notes (built by /discover, not here)
 ```
 
 #### Ownership rules
@@ -862,7 +891,13 @@ Output: project name, languages, frameworks, key dependencies.
 Scan for container and infrastructure configuration:
 
 - `docker-compose.yml` / `compose.yaml` — container names, ports, exec patterns
-- `.env`, `.env.example` — `APP_URL`, `BASE_URL`, `SHOP_URL`, other domains
+- `.env.example` / `.env.dist` — `APP_URL`, `BASE_URL`, `SHOP_URL`, other domains
+
+Never read `.env` (or `.env.local` and similar) — it holds secrets. If a domain appears only there, grep the named keys with credentials masked, and never copy anything else from it:
+
+```bash
+grep -E '^(APP_URL|BASE_URL|SHOP_URL)=' .env | sed -E 's#://[^/@]*@#://***@#'
+```
 
 Output: container map, port map, domain list.
 
@@ -922,7 +957,7 @@ Collect all subagent outputs. Document each finding with its target layer:
 | Complex subsystem / glossary (Subagent 7) | `memory/<domain>.md` (or skill)   |
 | Existing doc content                      | Input for Phase S3 classification |
 
-Only ask the user for values that no subagent could auto-detect.
+Only ask the user for values that no subagent could auto-detect. In `INTERACTIVE_MODE=false`, leave such a value as a `TODO` placeholder and list it in the summary instead.
 
 ### Phase S3: Content Classification
 
@@ -1117,6 +1152,8 @@ EOF
 fi
 ```
 
+Then run **Record the Installed Version** as the last action before `[agent-context] Done.`
+
 Inform the user to restart their agent session for the new configuration to take effect.
 
 Output the following at the very end. Omit the `UNRESOLVED` block if the list is empty:
@@ -1148,7 +1185,7 @@ If anything didn't go as expected, resume this session with:
 ## Constraints
 
 - **Non-destructive:** Never overwrite project-owned files that already have content
-- **Ask, don't guess:** If information cannot be auto-detected, ask the user
+- **Ask or decide, never guess silently:** If information cannot be auto-detected, ask the user in `INTERACTIVE_MODE=true`; in `INTERACTIVE_MODE=false`, decide per **Plan-File Mode** and record the decision (Step 0)
 - **One fact, one place:** No duplication across files
 - **No over-engineering:** Skip skills if total content < ~200 lines, skip memory stubs if domain < ~30 lines
 - **Preserve knowledge:** Nothing gets deleted — it gets routed, filtered, or promoted to code. The only removals are committed, unmodified legacy Agent-Context artefacts (Step 4.5c) and a tracked `memory/log.md` (Step 4.6a), both recoverable from git; other tools' configuration is never deleted or emptied

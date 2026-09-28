@@ -40,7 +40,9 @@ For each memory entry that has a date (format `YYYY-MM-DD`):
 | -------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `ttl:infinite`             | Never expires — skip staleness check                                                                            |
 | `ttl:Nd` (e.g., `ttl:90d`) | Flag as **stale** when (date + 0.75×N days) < today; flag as **archive candidate** when (date + N days) < today |
-| No TTL present             | Apply defaults: <90 days keep, 90-180 days **stale**, >180 days **archive candidate**                           |
+| No TTL present             | Use the file's default TTL as `N` in the rule above; a file without a default never expires                     |
+
+The default TTL per file is the one `memory-prune.sh` applies — do not assume a value of your own: `MEMORY_TTL_DEFAULTS` in `.agent-context/budget.conf` first, then the shipped `SHARED_TTL_DEFAULTS` table in `.agent-context/bin/memory-prune.sh`. Read both before this step.
 
 3. Entries without dates: flag as **undated** in summary (suggest adding date + TTL).
 
@@ -92,7 +94,7 @@ If any items need attention, list them:
 ```
 ## Items Needing Attention
 
-### Stale (90+ days)
+### Stale
 - `memory/commands.md`: "Docker port 8080 for API" (2025-11-15)
 
 ### Graduation Candidates
