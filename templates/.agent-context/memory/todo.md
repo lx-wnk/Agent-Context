@@ -1,3 +1,3 @@
 # Current Tasks
 
-<!-- Track active task plans here -->
+<!-- Track active task plans here (YYYY-MM-DD) -->

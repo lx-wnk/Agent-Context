@@ -11,7 +11,7 @@
 | `people.md`      | Team and stakeholders                     | On-demand     |
 | `preferences.md` | Agent behavior preferences                | Session start |
 | `user.md`        | User profile                              | On-demand     |
-| `decisions.md`   | Legacy stub → see `../decisions.json`     | Rarely        |
+| `map/` (dir)     | Discovery node notes (see `../map.json`)  | On-demand     |
 
 <!-- TODO: Add project-specific memory files as you create them -->
 
