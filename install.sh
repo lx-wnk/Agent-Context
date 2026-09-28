@@ -306,6 +306,12 @@ register_hooks() {
         return 0
     fi
     settings_has_hooks "$template" "$dst" && return 0
+    if ! command -v jq >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+        HOOKS_UNVERIFIABLE=1
+        echo "Note: neither jq nor python3 is available to merge JSON — add the hook entries from"
+        echo "      $template to $dst by hand (they stay off until HOOKS_ENABLED=1)."
+        return 0
+    fi
     tmp=$(mktemp "$dst.XXXXXX")
     if merge_hooks_json "$template" "$dst" > "$tmp" && settings_has_hooks "$template" "$tmp"; then
         cat "$tmp" > "$dst"
@@ -330,6 +336,7 @@ verify_install() {
 $(shared_file_rows "$root")
 EOF
     missing_critical_templates
+    [ "${HOOKS_UNVERIFIABLE:-0}" -eq 1 ] && return 0
     settings_has_hooks "$root/templates/.claude/settings.json" .claude/settings.json \
         || echo ".claude/settings.json (Agent-Context hooks not registered)"
 }

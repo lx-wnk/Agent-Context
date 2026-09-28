@@ -25,8 +25,8 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ### Security
 
-- **Hook hardening** — the secret-write guard resolves symlinks, allows `*.example`/`*.dist`/`*.sample`, and says it guards writes only; the no-jq JSON output strips control characters so a block can no longer fail open; the formatter never touches files outside the project; hook commands quote `${CLAUDE_PROJECT_DIR}` so a project path with spaces works.
 - **The setup agent no longer runs with all permission checks disabled** — `install.sh` downloads the release archive itself, installs the shared files, slash commands (a same-named user command is kept) and hook entries itself, and runs the setup agent with `--permission-mode acceptEdits`, `--strict-mcp-config`, web tools denied and no network command in its allowlist: it can no longer reach the network, use your MCP servers, run arbitrary shell commands or write to `.claude/`. The version file is written only after the installer has verified every shared file against the release.
+- **Hook hardening** — the secret-write guard resolves symlinks, allows `*.example`/`*.dist`/`*.sample`, and says it guards writes only; the no-jq JSON output strips control characters so a block can no longer fail open; the formatter never touches files outside the project; hook commands quote `${CLAUDE_PROJECT_DIR}` so a project path with spaces works.
 - **A pulled `hooks.conf` could switch hooks on and choose the commands they run** — `HOOKS_ENABLED`, `TEST_CMD` and `FORMAT_CMD` now take effect only from the gitignored, per-developer `.agent-context/hooks.local.conf` and are ignored in the committed `hooks.conf`; every other hook setting still comes from `hooks.conf`. `install.sh` adds `/.agent-context/hooks.local.conf` to `.gitignore` and, when the committed file still sets one of the three keys, says so.
 
 ### Docs
@@ -35,6 +35,8 @@ All notable changes to this project will be documented here. Format loosely foll
 - **Root docs match the code again** — README and CLAUDE.md describe the update flow as it works since 0.9.x (the installer resolves and pins the release, exits early when it is installed, and re-syncs knowledge only for sources that changed); the install tree and the ownership diagram list what an install actually creates. The baseline figure is measured on the shipped templates (12,077 of 28,558 bytes, 42.3% by estimated token stay out of every session) and comes with the command to reproduce it. CONTRIBUTING covers shellcheck, CHANGELOG and commit conventions and the release process; `package.json` is versioned `0.0.0-dev` with license and repository metadata.
 
 ### Upgrade note
+
+An install now exits with code 2 and lists what is missing, instead of reporting success, when a shared file, core template or hook registration is missing. A release lookup or download failure exits 1 before any agent starts (no fallback to the prompt on `main`). `.claude/settings.json` only gains the Agent-Context hook entries it lacks; an invalid file is left untouched and reported. Without `jq` or `python3` the installer cannot merge JSON: it prints how to add the hook entries by hand and does not fail the install (the hooks are off by default). An install that is newer than the latest release is left alone.
 
 An install now exits with code 2 and lists what is missing, instead of reporting success, when a shared file, core template or hook registration is missing. A release lookup or download failure exits 1 before any agent starts (no fallback to the prompt on `main`). `.claude/settings.json` only gains the Agent-Context hook entries it lacks; an invalid file is left untouched and reported. An install that is newer than the latest release is left alone.
 

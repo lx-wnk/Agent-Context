@@ -374,6 +374,7 @@ printf '%s' "$OUT" | grep -q "Skipping .claude/commands/discover.md" \
 cmp -s "$SRC/context/commands/memory-review.md" "$TGT/.claude/commands/memory-review.md" \
     && pass "other commands are still installed" || fail "memory-review.md installed" "differs or missing"
 
+if command -v jq >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then
 # 22. An existing settings.json keeps its content and gains only the hooks it lacks.
 TGT=$(mk_tmp)
 mkdir -p "$TGT/.claude"
@@ -408,6 +409,9 @@ cmp -s "$TGT/settings.orig" "$TGT/.claude/settings.json" \
     && pass "invalid settings.json is left unchanged" || fail "settings.json restored" "$(cat "$TGT/.claude/settings.json")"
 { [ "$RC" -eq 2 ] && printf '%s' "$OUT" | grep -q "settings.json" && [ ! -f "$TGT/.agent-context/.agent-context-version" ]; } \
     && pass "invalid settings.json fails the run with exit 2" || fail "invalid settings.json rc" "rc=$RC: $OUT"
+else
+    echo "  SKIP  settings.json merge tests (neither jq nor python3 installed)"
+fi
 
 # 24. A shared file missing after the agent: exit 2, listed, no version written — not even the agent's.
 TGT=$(mk_tmp)
