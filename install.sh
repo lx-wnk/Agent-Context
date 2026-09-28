@@ -80,8 +80,9 @@ CACHE_DIR=$(resolve_cache_dir)
 CACHE_FILE="$CACHE_DIR/latest-version"
 CACHE_TTL=3600
 
-# Declared before get_latest_version; set inside it when falling back to stale cache.
+# Set by get_latest_version in the caller's shell — never call it inside $(...), the flags would be lost.
 CACHE_STALE=0
+LATEST_VERSION=""
 
 get_latest_version() {
     if [ "$FORCE" -ne 1 ] && [ -f "$CACHE_FILE" ]; then
@@ -92,7 +93,7 @@ get_latest_version() {
         cache_age=$(( now - mtime ))
         # Negative cache_age means the system clock jumped backward — treat as stale.
         if [ "$cache_age" -ge 0 ] && [ "$cache_age" -lt "$CACHE_TTL" ]; then
-            cat "$CACHE_FILE"
+            LATEST_VERSION=$(tr -d '[:space:]' < "$CACHE_FILE")
             return
         fi
     fi
@@ -110,9 +111,9 @@ get_latest_version() {
     elif [ -f "$CACHE_FILE" ]; then
         echo "Warning: GitHub API request failed; using stale cached version." >&2
         CACHE_STALE=1
-        version=$(cat "$CACHE_FILE")
+        version=$(tr -d '[:space:]' < "$CACHE_FILE")
     fi
-    echo "$version"
+    LATEST_VERSION="$version"
 }
 
 main() {
@@ -132,25 +133,39 @@ main() {
     # --discover: after install, check for a discovery map and, if absent, hand off to the interactive
     #   /discover command (a rich map needs fan-out discovery, which is not run by this headless installer)
     LOCAL_PROMPT=""
-    LATEST_VERSION=""
     AI_DIRS=""
     DISCOVER=0
-    for arg in "$@"; do
-        case "$arg" in
-            --ai-dirs=*) AI_DIRS="${arg#--ai-dirs=}" ;;
+    LOCAL_SOURCE_FLAG=0
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --ai-dirs=*) AI_DIRS="${1#--ai-dirs=}" ;;
             --force) FORCE=1 ;;
             --discover) DISCOVER=1 ;;
+            --local-source=*)
+                LOCAL_SOURCE_FLAG=1
+                AGENT_CONTEXT_SOURCE="${1#--local-source=}"
+                ;;
+            --local-source)
+                LOCAL_SOURCE_FLAG=1
+                AGENT_CONTEXT_SOURCE=""
+                # A following flag is not a path; leave it for the next iteration.
+                case "${2:-}" in
+                    "" | -*) ;;
+                    *) AGENT_CONTEXT_SOURCE="$2"; shift ;;
+                esac
+                ;;
         esac
+        shift
     done
-
-    if [ "${1:-}" = "--local-source" ]; then
-        AGENT_CONTEXT_SOURCE="${2:-}"
+    if [ "$LOCAL_SOURCE_FLAG" -eq 1 ] && [ -z "$AGENT_CONTEXT_SOURCE" ]; then
+        echo "Error: --local-source requires a path" >&2
+        exit 1
     fi
 
     # Local-source mode: validate the clone, force a run, and read its prompt locally.
     if [ -n "${AGENT_CONTEXT_SOURCE:-}" ]; then
         if [ ! -d "$AGENT_CONTEXT_SOURCE" ]; then
-            echo "Error: AGENT_CONTEXT_SOURCE directory not found: $AGENT_CONTEXT_SOURCE" >&2
+            echo "Error: local source directory not found (--local-source / AGENT_CONTEXT_SOURCE): $AGENT_CONTEXT_SOURCE" >&2
             exit 1
         fi
         _abs_source=$(realpath "$AGENT_CONTEXT_SOURCE" 2>/dev/null || (cd "$AGENT_CONTEXT_SOURCE" && pwd))
@@ -165,7 +180,7 @@ main() {
     if [ -n "$LOCAL_PROMPT" ]; then
         PROMPT_INSTRUCTION="Read $LOCAL_PROMPT and follow its instructions exactly."
     else
-        LATEST_VERSION=$(get_latest_version | tr -d '[:space:]')
+        get_latest_version
         PROMPT_INSTRUCTION="Fetch $(resolve_prompt_url "$LATEST_VERSION") and follow its instructions exactly."
         if validate_version_string "$LATEST_VERSION"; then
             PROMPT_INSTRUCTION="$PROMPT_INSTRUCTION TARGET VERSION: $LATEST_VERSION — install exactly this release tag in Steps 2 and 3; do not pick another."
