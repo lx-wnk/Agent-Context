@@ -2,7 +2,7 @@
 
 ## 1. "Can the agent discover this by reading the code?"
 
-Based on the [ETH Zurich study (2026)](https://arxiv.org/abs/2602.11988): auto-generated context files tend to **reduce** task success rates while increasing token cost by over 20%. Only include information that is **not discoverable** from source code.
+Based on the [ETH Zurich study (2026)](https://arxiv.org/abs/2602.11988): providing context files — LLM-generated or developer-committed — "does not generally improve task success rates, while increasing inference cost by over 20% on average"; repository overviews are not helpful, while context files are useful for specifying non-standard coding practices. Only include information that is **not discoverable** from source code.
 
 **Keep:** Gotchas, non-linter conventions, architecture decisions, external system references, CI workflows. **Remove:** Directory trees, entity fields, route tables, service registrations, dependency lists.
 
@@ -29,4 +29,4 @@ Updates are not file patches, but they are not full rescans either. SETUP and `-
 
 ## 5. Self-maintaining knowledge map
 
-`knowledge-map.md` is the single routing index for all project knowledge — both internal (agent-context) and external (docs, architecture files, API specs). Agents update it immediately when sources change, following the same non-negotiable rule as `lessons.md` updates. The map always reflects current project reality.
+`knowledge-map.md` is the single routing index for all project knowledge — both internal (agent-context) and external (docs, architecture files, API specs). Agents update it when sources change, the same way they update `lessons.md`. The map always reflects current project reality.
