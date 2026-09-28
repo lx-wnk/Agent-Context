@@ -409,9 +409,11 @@ After all decisions are made, write/update `.agent-context/setup-decisions.json`
 
 Compute SHA256 with `sha256sum <file>` (Linux/Mac) or equivalent. Use today's date for `decided_at`.
 
+Other tools' live configuration (`GEMINI.md`, `.claude/rules/`, `.cursorrules`, `.cursor/rules/`, `.github/copilot-instructions.md`) is a knowledge source like any other: record every file of it here, with its SHA256, the first time it is routed. The Step 5.0 change gate then re-syncs it only when it changes.
+
 ## Step 4.5: Migration Cleanup (SETUP and UPDATE)
 
-Run this step in both SETUP and UPDATE mode — it self-skips in 4.5a if no old AI directories are found.
+Run this step in both SETUP and UPDATE mode — it self-skips in 4.5a if no legacy Agent-Context artefact is found.
 
 ### 4.5a: Detect old AI directories
 
@@ -444,7 +446,9 @@ done
 IFS="$OLD_IFS"
 ```
 
-If none found → skip to Step 4.6 (4.6 and 4.7 still run).
+If none found → log `[agent-context] Step 4.5: Migration cleanup — skipped (no legacy AI dirs found)` and skip to Step 4.6 (4.6 and 4.7 still run).
+
+If only other tools' live configuration or the root `CLAUDE.md` was found — no `.ai/` and no `--ai-dirs` path — log `[agent-context] Step 4.5: Migration cleanup — skipped (only other tools' config found; kept)` and skip to Step 4.6. That content reaches the layers through the normal knowledge-source path (Phase S2 / Step 5, recorded in `setup-decisions.json`), not through this step, and it never sets `MIGRATION_CLEANUP: ran`.
 
 ### 4.5b: Classify all files in old AI directories
 
@@ -463,15 +467,19 @@ Remove a candidate only when git can restore it — every file under it is track
 
 ```bash
 # Adapt the list to what was found in 4.5a.
+_removed=0
 for _p in .ai; do
   [ -e "$_p" ] || continue
   if [ -n "$(git ls-files -- "$_p")" ] && [ -z "$(git status --porcelain --ignored -- "$_p")" ]; then
-    git rm -r -q -- "$_p" && echo "Removed $_p (recoverable from git history)"
+    git rm -r -q -- "$_p" && _removed=1 && echo "Removed $_p (recoverable from git history)"
   else
     echo "[agent-context] UNRESOLVED: $_p" >> .agent-context/setup.log
   fi
 done
+if [ "$_removed" -eq 1 ]; then echo "[agent-context] MIGRATION_CLEANUP: ran" >> .agent-context/setup.log; fi
 ```
+
+`MIGRATION_CLEANUP: ran` means exactly one thing: this run removed at least one legacy Agent-Context artefact. Steps 5.0 and 5d depend on that meaning. Finish Step 4.5 with its result line, e.g. `[agent-context] Step 4.5: Migration cleanup — removed .ai` or `[agent-context] Step 4.5: Migration cleanup — nothing removed (1 unresolved)`.
 
 Do NOT delete Real Docs. Do NOT delete or empty other tools' live configuration. Do NOT carry path references to removed artefacts into the new structure.
 A directory is only safe to remove if **all** of its contents are confirmed AI-docs. If any file inside cannot be confidently classified, skip the whole directory and add the unclassifiable paths to the `UNRESOLVED` list instead.
@@ -486,13 +494,7 @@ If any files could not be classified, store them for the post-migration report:
 echo "[agent-context] UNRESOLVED: <path/to/file>" >> .agent-context/setup.log
 ```
 
-If nothing is unresolved, skip this step.
-
-Regardless of whether any UNRESOLVED files exist, write the migration state to the log:
-
-```bash
-echo "[agent-context] MIGRATION_CLEANUP: ran" >> .agent-context/setup.log
-```
+If nothing is unresolved, skip this step. Never write `MIGRATION_CLEANUP: ran` here — only the 4.5c block writes it, and only after a removal.
 
 ---
 
@@ -631,7 +633,7 @@ Skip this gate and run 5a–5e in full when the launching instruction contains `
 Otherwise compare the knowledge sources with `.agent-context/setup-decisions.json`:
 
 1. For every path recorded there, compute `sha256sum <path>` (`shasum -a 256` on macOS) and compare it with the recorded `sha256`. A missing file counts as changed.
-2. From `git ls-files --cached --others --exclude-standard`, list Markdown and structured-data documentation files outside `.agent-context/` that are not recorded yet and would qualify as a Knowledge Map Source (Global Constraint above).
+2. From `git ls-files --cached --others --exclude-standard`, list Markdown and structured-data documentation files outside `.agent-context/` that are not recorded yet and would qualify as a Knowledge Map Source (Global Constraint above), plus every file of other tools' live configuration (File Classification) that is not recorded yet.
 
 If nothing changed and nothing is new → log `[agent-context] Step 5.0: Change gate — no source changed, 5a–5d skipped`, run only 5e, and finish. Otherwise log how many sources changed and run 5a–5d **for the changed and new sources only**; unchanged sources keep their routing. Source-code knowledge is not re-scanned by this gate — a full code re-scan is what `--force` (or the interactive `/discover`) is for.
 
@@ -685,7 +687,7 @@ For each fact/finding collected in 5a:
 
 ### 5d: knowledge-map.md Update
 
-**If Migration Cleanup (Step 4.5) ran** (check: `grep -q "MIGRATION_CLEANUP: ran" .agent-context/setup.log`):
+**If Migration Cleanup (Step 4.5c) removed a legacy artefact in this run** (check: `grep -q "MIGRATION_CLEANUP: ran" .agent-context/setup.log`):
 
 Re-verify every Real-Doc row of `knowledge-map.md` (row-level edits only — never empty the file or recreate it from the template); reconcile `setup-decisions.json` by removing stale entries:
 
@@ -698,7 +700,7 @@ Re-verify every Real-Doc row of `knowledge-map.md` (row-level edits only — nev
 
 No old paths. No stale hashes. No entries for files that no longer exist.
 
-**If Migration Cleanup did not run** (`MIGRATION_CLEANUP: ran` not found in log)**:**
+**Otherwise** (`MIGRATION_CLEANUP: ran` not found in log — incl. runs that only kept other tools' config)**:**
 
 For each source with `action = "reference"`:
 
