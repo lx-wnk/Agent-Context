@@ -90,8 +90,8 @@ else
 fi
 
 # 6. @-import closure: Claude Code resolves each `@path` relative to the importing file. Walk it from
-#    the entry point and require (a) every import to exist and (b) the loaded set to equal INCLUDE_FILES,
-#    so the budget gate measures exactly what an agent loads.
+#    the entry point and require (a) every import to exist, (b) every INCLUDE_FILES entry to exist, and
+#    (c) the gate's counted set to equal the walked closure plus INCLUDE_FILES.
 TARGET_P="$(cd "$TARGET" && pwd -P)"
 queue=".claude/CLAUDE.md"
 loaded=""
@@ -117,11 +117,20 @@ while [ -n "$queue" ]; do
 done
 [ -z "$dangling" ] && pass "every @-import resolves relative to its importing file" \
     || fail "@-import closure" "dangling: $dangling"
-include_files="$(awk '/^INCLUDE_FILES="/{f=1;next} f&&/^"/{exit} f&&NF{print $1}' "$TARGET/.agent-context/budget.conf" | sort)"
-if [ "$(printf '%s\n' "$loaded" | sort)" = "$include_files" ]; then
-    pass "loaded @-closure equals budget.conf INCLUDE_FILES"
+include_files="$(awk '/^INCLUDE_FILES="/{f=1;next} f&&/^"/{exit} f&&NF{print $1}' "$TARGET/.agent-context/budget.conf")"
+missing_inc=""
+while IFS= read -r inc; do
+    [ -n "$inc" ] && [ ! -f "$TARGET/$inc" ] && missing_inc="$missing_inc $inc"
+done <<EOF
+$include_files
+EOF
+[ -z "$missing_inc" ] && pass "every INCLUDE_FILES entry exists" || fail "INCLUDE_FILES entries exist" "missing:$missing_inc"
+expected="$(printf '%s\n%s\n' "$loaded" "$include_files" | grep . | sort -u)"
+counted="$(cd "$TARGET" && bash .agent-context/bin/check-token-budget.sh --list 2>/dev/null | sort)"
+if [ "$counted" = "$expected" ]; then
+    pass "gate counts the walked @-closure plus INCLUDE_FILES"
 else
-    fail "@-closure vs INCLUDE_FILES" "loaded: $(printf '%s\n' "$loaded" | sort | tr '\n' ' ')"
+    fail "gate set vs closure + INCLUDE_FILES" "counted: $(printf '%s\n' "$counted" | tr '\n' ' ') expected: $(printf '%s\n' "$expected" | tr '\n' ' ')"
 fi
 
 # Map gate with no map yet must exit 2 (no map.json) — proves the validator installed and runs.

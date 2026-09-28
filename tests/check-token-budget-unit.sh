@@ -249,6 +249,10 @@ printf 'MAX_EFFECTIVE_LINES=100\nINCLUDE_FILES="\nextra.md\nAGENTS.md\n"\n' > "$
 assert_eq "INCLUDE_FILES adds an unimported file" "1" "$(run_in "$P" --list --conf budget.conf 2>/dev/null | grep -cx 'extra.md')"
 assert_eq "INCLUDE_FILES and walk are deduplicated" "1" "$(run_in "$P" --list --conf budget.conf 2>/dev/null | grep -cx 'AGENTS.md')"
 assert_eq "INCLUDE_FILES lines added to the walked total" "15" "$(run_in "$P" --json --conf budget.conf 2>/dev/null | json_total)"
+err=$(run_in "$P" --conf budget.conf --quiet 2>&1 >/dev/null)
+assert_eq "unimported INCLUDE_FILES entry is noted" "1" \
+    "$(printf '%s\n' "$err" | grep -cx 'note: extra.md is counted from INCLUDE_FILES but not @-imported')"
+assert_eq "INCLUDE_FILES entry the walk reaches is deduplicated silently" "0" "$(printf '%s\n' "$err" | grep -c 'AGENTS.md')"
 
 # 21. A dangling import warns but does not fail the gate.
 P=$(mk_proj)
