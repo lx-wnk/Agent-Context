@@ -196,6 +196,37 @@ printf '%s' "$out14" | grep -q "exited with code 3" && pass "failing agent run i
     || fail "failing agent run is reported" "output: $out14"
 [ -f "$TGT/.agent-context/setup.log" ] && pass "setup.log is kept after a failed run" || fail "setup.log kept" "removed"
 
+# 15. --local-source picks the file source only; a full rediscovery still needs an explicit --force.
+TGT=$(mk_tmp)
+run_install "$TGT" --local-source "$SRC"
+printf '%s' "$CAP" | grep -q "FULL REDISCOVERY" \
+    && fail "--local-source alone runs a normal update" "prompt carries FULL REDISCOVERY" \
+    || pass "--local-source alone runs a normal update"
+TGT=$(mk_tmp)
+run_install "$TGT" --local-source "$SRC" --force
+printf '%s' "$CAP" | grep -q "FULL REDISCOVERY" \
+    && pass "--local-source --force still runs a full rediscovery" || fail "--local-source --force" "no FULL REDISCOVERY"
+
+# 16. Progress dots trail the step they belong to instead of opening a line of their own.
+SLOW="$(mk_tmp)/bin"
+mkdir -p "$SLOW"
+cat > "$SLOW/claude" <<'EOF'
+#!/usr/bin/env bash
+log=.agent-context/setup.log
+echo "[agent-context] Step 1/5: Checking version..." >> "$log"; sleep 1
+echo "[agent-context] Step 2/5: Installing shared files..." >> "$log"; sleep 1
+echo "[agent-context] Done." >> "$log"
+EOF
+chmod +x "$SLOW/claude"
+TGT=$(mk_tmp)
+out16="$( cd "$TGT" && AGENT_CONTEXT_POLL_SECS=0.2 PATH="$SLOW:$STUB:$PATH" bash "$INSTALL" --local-source "$SRC" 2>&1 )"
+printf '%s\n' "$out16" | grep -qE '^\[agent-context\] Step 1/5: Checking version\.\.\.\.+$' \
+    && pass "dots trail the running step on its line" || fail "dots trail the step" "output: $out16"
+printf '%s\n' "$out16" | sed -n '/Step 1\/5/,$p' | grep -qE '^\.+$' \
+    && fail "no dot-only lines after the first step" "output: $out16" || pass "no dot-only lines after the first step"
+printf '%s\n' "$out16" | grep -qx '\[agent-context\] Done\.' \
+    && pass "Done. ends on its own line" || fail "Done. on its own line" "output: $out16"
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))
