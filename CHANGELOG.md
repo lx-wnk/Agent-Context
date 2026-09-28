@@ -4,6 +4,10 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Fixed
+
+- **discovery-digest missed files and invented Makefile targets; the map cap counted lines and characters** — `discovery-digest.sh` no longer drops files with non-ASCII names, no longer hides a top-level `bin/` (Symfony `bin/console`, Rails `bin/`) and no longer lists Makefile variable assignments (`FOO:=`) as targets. `check-map-budget.sh` counts `"id":` occurrences instead of lines, as `budget.conf` documents, and measures the per-line cap in bytes under any locale.
+
 ### Added
 
 - **Cross-repo lesson fallback** (#33) — a lesson belongs in the repo owning the code, but in a multi-repo project that repo is often not checked out, and the agent had nowhere valid to put it. It now parks the lesson in the current repo's `memory/lessons.md` with an `owner:<repo>` tag; the memory review moves it to the owning repo once that repo is reachable. The rule lives in the on-demand `memory-maintenance.md` (Cross-Repo Fallback) with a pointer from the layer-0 routing row; siblings are declared in a new optional "Sibling Repos" section of `layer1-bootstrap.md`, which existing installs add by hand (the template is project-owned).

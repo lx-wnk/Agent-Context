@@ -118,6 +118,19 @@ cat > "$t/map-label.json" <<'EOF'
 EOF
 if bash "$ENGINE" --conf "$t/budget.conf" --map "$t/map-label.json" --quiet >/dev/null 2>&1; then fail "long label still trips the line cap" "long label passed the cap"; else pass "long label still trips the line cap"; fi
 
+# 9. Node count counts "id": occurrences, not lines: two nodes on one line exceed a cap of 1.
+t=$(mk_tmp); write_conf "$t" 100000 1 100000
+printf '{"nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[]}\n' > "$t/map.json"
+code=0; bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1 || code=$?
+[ "$code" -eq 1 ] && pass "two nodes on one line exceed node cap 1" || fail "node count per occurrence" "got exit $code"
+
+# 10. The line cap measures bytes even under a UTF-8 locale: 40 two-byte chars = 80 bytes > 60.
+t=$(mk_tmp); write_conf "$t" 100000 100 60
+label="$(printf '\303\244%.0s' $(seq 1 40))"
+printf '{"id":"a","label":"%s"}\n' "$label" > "$t/map.json"
+code=0; LC_ALL=en_US.UTF-8 bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1 || code=$?
+[ "$code" -eq 1 ] && pass "multibyte label measured in bytes under UTF-8 locale" || fail "line cap in bytes" "got exit $code"
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))

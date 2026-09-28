@@ -62,11 +62,11 @@ if [ ! -f "$MAP_FILE" ]; then
 fi
 
 total_bytes=$(wc -c < "$MAP_FILE" | tr -d ' ')
-node_count=$(grep -c '"id"[[:space:]]*:' "$MAP_FILE" || true)
+node_count=$({ grep -o '"id"[[:space:]]*:' "$MAP_FILE" || true; } | wc -l | tr -d ' ')
 # Longest line measures per-node PROSE (label etc.), not globs: globs are legitimate
 # variable-length data and must never be truncated to satisfy this cap. Strip the globs array
 # before measuring; the total-byte cap is what bounds overall size (globs included).
-max_line=$(awk '{ line=$0; gsub(/"globs":\[[^]]*\]/, "", line); if (length(line) > m) m = length(line) } END { print m+0 }' "$MAP_FILE")
+max_line=$(LC_ALL=C awk '{ line=$0; gsub(/"globs":\[[^]]*\]/, "", line); if (length(line) > m) m = length(line) } END { print m+0 }' "$MAP_FILE")
 
 over=0
 report=""
