@@ -20,6 +20,15 @@ Report errors as they occur; output the final summary at the end.
 4. If any file cannot be read, include it in the summary under an "Errors" section rather than silently skipping it.
 5. Determine today's date
 
+## Step 1b: Cross-Repo Relocation
+
+Entries tagged `owner:<repo>` were parked here because the repo that owns them was not checked out (see `memory-maintenance.md` → Cross-Repo Fallback).
+
+1. Collect every entry with an `owner:` tag across the memory files.
+2. Look up `<repo>` under "Sibling Repos" in `.agent-context/layer1-bootstrap.md` and resolve its path relative to this repo.
+3. **Path exists** → append the entry to `<path>/.agent-context/memory/lessons.md` without the `owner:` tag (keep date, `ttl:`, `source:`, `conf:`), then remove it here. If that file does not exist, leave the entry parked and report it — never create another repo's memory layout.
+4. **Name not listed or path missing** → leave the entry parked and list it under "Parked cross-repo entries".
+
 ## Step 2: Staleness Check
 
 For each memory entry that has a date (format `YYYY-MM-DD`):
@@ -75,6 +84,7 @@ Memory Review: {total_files} files, {total_entries} entries
 - {undated} entries without dates
 - {duplicates} potential duplicates
 - {graduation} graduation candidates
+- {parked} parked cross-repo entries ({moved} moved to their owning repo)
 ```
 
 If any items need attention, list them:
@@ -90,4 +100,7 @@ If any items need attention, list them:
 
 ### Duplicates
 - "PHP 8.2 minimum" appears in both `memory/architecture.md` and `layer1-bootstrap.md`
+
+### Parked cross-repo entries
+- `memory/lessons.md`: "[api] Order list pages from 0" — owner `backend`, not listed under Sibling Repos
 ```
