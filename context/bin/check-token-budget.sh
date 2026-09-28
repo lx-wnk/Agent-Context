@@ -17,10 +17,17 @@ set -euo pipefail
 #         before counting — it answers "which files is the closure" without answering
 #         "how big is it". Both are what measure-baseline.sh consumes.
 #
+# The file set is what Claude Code actually loads: the @-import closure walked from
+# .claude/CLAUDE.md (and ./CLAUDE.md if present), relative to the current directory. Each import
+# resolves relative to the importing file. Imports inside code spans or fenced blocks are
+# ignored; an import that resolves to no file is warned about, never counted, never fatal.
+#
 # Resolution order for the file set and limit:
-#   1. Explicit FILE arguments override the conf's INCLUDE_FILES.
-#   2. --max overrides the conf's MAX_EFFECTIVE_LINES.
-#   3. Otherwise both come from the conf (default: .agent-context/budget.conf).
+#   1. Explicit FILE arguments are the whole set — no walk, no INCLUDE_FILES.
+#   2. Otherwise the walked closure plus the conf's optional INCLUDE_FILES (files read at
+#      session start without an @-import), deduplicated.
+#   3. --max sets both caps to N. Otherwise both come from the conf
+#      (default: .agent-context/budget.conf); a missing hard cap defaults to 250.
 #
 # Exit codes: 0 = within budget, 1 = over budget, 2 = usage/config error.
 
@@ -63,27 +70,11 @@ fi
 
 conf_load "$CONF" MAX_EFFECTIVE_LINES MAX_EFFECTIVE_LINES_HARD INCLUDE_FILES
 
-[ -n "$MAX_OVERRIDE" ] && MAX_EFFECTIVE_LINES="$MAX_OVERRIDE"
-# Hard cap defaults to the soft cap → backward compatible (fail exactly at the soft limit).
-# When the conf sets a higher hard cap, the soft limit becomes a warn-only target and the
-# gate fails only past the hard cap — real projects fill layers legitimately.
-[ -n "$MAX_EFFECTIVE_LINES_HARD" ] || MAX_EFFECTIVE_LINES_HARD="$MAX_EFFECTIVE_LINES"
-
-if [ "${#FILES[@]}" -eq 0 ]; then
-    # INCLUDE_FILES is a newline/space separated list from the conf.
-    # shellcheck disable=SC2206
-    FILES=($INCLUDE_FILES)
+if [ -n "$MAX_OVERRIDE" ]; then
+    MAX_EFFECTIVE_LINES="$MAX_OVERRIDE"
+    MAX_EFFECTIVE_LINES_HARD="$MAX_OVERRIDE"
 fi
-
-if [ "${#FILES[@]}" -eq 0 ]; then
-    echo "Error: no files to check. Provide FILE args or set INCLUDE_FILES in $CONF." >&2
-    exit 2
-fi
-
-if [ "$LIST" -eq 1 ]; then
-    printf '%s\n' "${FILES[@]}"
-    exit 0
-fi
+[ -n "$MAX_EFFECTIVE_LINES_HARD" ] || MAX_EFFECTIVE_LINES_HARD=250
 
 for _cap in MAX_EFFECTIVE_LINES MAX_EFFECTIVE_LINES_HARD; do
     eval "_v=\${$_cap}"
@@ -92,32 +83,147 @@ for _cap in MAX_EFFECTIVE_LINES MAX_EFFECTIVE_LINES_HARD; do
         exit 2
     fi
 done
+[ "$MAX_EFFECTIVE_LINES_HARD" -ge "$MAX_EFFECTIVE_LINES" ] || MAX_EFFECTIVE_LINES_HARD="$MAX_EFFECTIVE_LINES"
 
-# Counts effective instruction lines in one file via an awk state machine.
-# Skips: blank lines, HTML comment lines (single- and multi-line <!-- ... -->),
-# markdown table separators (| --- | :-: |), and horizontal-rule dividers (---, ===, ***).
-count_effective() {
+normalize_path() {
+    printf '%s\n' "$1" | awk -F/ '{
+        abs = ($0 ~ /^\//); n = 0
+        for (i = 1; i <= NF; i++) {
+            s = $i
+            if (s == "" || s == ".") continue
+            if (s == "..") { if (n > 0 && st[n] != "..") n--; else if (!abs) st[++n] = ".."; continue }
+            st[++n] = s
+        }
+        out = ""
+        for (i = 1; i <= n; i++) out = out (i > 1 ? "/" : "") st[i]
+        if (abs) out = "/" out
+        print (out == "" ? "." : out)
+    }'
+}
+
+# One raw @-import path per line, in file order.
+extract_imports() {
     awk '
-        BEGIN { in_comment = 0; n = 0 }
+        /^ ? ? ?(```|~~~)/ { fence = !fence; next }
+        fence { next }
         {
             line = $0
-            # Strip a comment that opens and closes on the same line.
-            gsub(/<!--.*-->/, "", line)
-            if (in_comment) {
-                if (line ~ /-->/) { sub(/.*-->/, "", line); in_comment = 0 }
-                else next
+            gsub(/`[^`]*`/, "", line)
+            while (match(line, /(^|[[:space:](>|])@[^[:space:])|]+/)) {
+                tok = substr(line, RSTART, RLENGTH)
+                sub(/^[^@]*@/, "", tok)
+                print tok
+                line = substr(line, RSTART + RLENGTH)
             }
-            if (line ~ /<!--/) { sub(/<!--.*/, "", line); in_comment = 1 }
-            # Trim whitespace.
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
-            if (line == "") next
-            # Markdown table separator row, e.g. | --- | :--: |
-            if (line ~ /^\|?[[:space:]]*:?-+:?[[:space:]]*(\|[[:space:]]*:?-+:?[[:space:]]*)+\|?$/) next
-            # Horizontal rule dividers.
-            if (line ~ /^(-{3,}|={3,}|\*{3,})$/) next
-            n++
         }
-        END { print n }
+    ' "$1"
+}
+
+SEEN=$'\n'
+DANGLING=""
+add_file() {
+    case "$SEEN" in *$'\n'"$1"$'\n'*) return 1 ;; esac
+    SEEN="$SEEN$1"$'\n'
+    FILES+=("$1")
+}
+
+walk_imports() {
+    local queue="$1" cur imp target
+    while [ -n "$queue" ]; do
+        cur="${queue%%$'\n'*}"
+        [ "$queue" = "$cur" ] && queue="" || queue="${queue#*$'\n'}"
+        add_file "$cur" || continue
+        while IFS= read -r imp; do
+            imp="${imp%$'\r'}"
+            case "$imp" in
+                /*) target="$imp" ;;
+                \~/*) target="$HOME/${imp#\~/}" ;;
+                *) target="$(dirname "$cur")/$imp" ;;
+            esac
+            target="$(normalize_path "$target")"
+            if [ -f "$target" ]; then
+                queue="${queue:+$queue$'\n'}$target"
+            else
+                DANGLING="${DANGLING}  $cur -> @$imp\n"
+            fi
+        done < <(extract_imports "$cur")
+    done
+}
+
+if [ "${#FILES[@]}" -eq 0 ]; then
+    for _root in .claude/CLAUDE.md CLAUDE.md; do
+        [ -f "$_root" ] && walk_imports "$_root"
+    done
+    # INCLUDE_FILES is a newline/space separated list from the conf.
+    # shellcheck disable=SC2206
+    _extra=($INCLUDE_FILES)
+    for _f in ${_extra[@]+"${_extra[@]}"}; do
+        add_file "$(normalize_path "$_f")" || true
+    done
+fi
+
+if [ -n "$DANGLING" ]; then
+    echo "Warning: @-imports that resolve to no file (not counted):" >&2
+    printf '%b' "$DANGLING" >&2
+fi
+
+if [ "${#FILES[@]}" -eq 0 ]; then
+    echo "Error: no files to check. No .claude/CLAUDE.md or CLAUDE.md to walk, and no INCLUDE_FILES in $CONF." >&2
+    exit 2
+fi
+
+if [ "$LIST" -eq 1 ]; then
+    printf '%s\n' "${FILES[@]}"
+    exit 0
+fi
+
+# Counts effective instruction lines in one file via an awk state machine.
+# Skips: blank lines, HTML comments (shortest match, several per line, multi-line),
+# markdown table separators (| --- | :-: |), and horizontal-rule dividers (---, ===, ***).
+# `<!--` inside a code span is text. A comment never closed hides nothing — the agent still
+# loads those lines, so they count.
+count_effective() {
+    awk '
+        function effective(s) {
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", s)
+            if (s == "") return 0
+            if (s ~ /^\|?[[:space:]]*:?-+:?[[:space:]]*(\|[[:space:]]*:?-+:?[[:space:]]*)+\|?$/) return 0
+            if (s ~ /^(-{3,}|={3,}|\*{3,})$/) return 0
+            return 1
+        }
+        function comment_start(s,    masked, span) {
+            masked = s
+            while (match(masked, /`[^`]*`/)) {
+                span = sprintf("%" RLENGTH "s", "")
+                masked = substr(masked, 1, RSTART - 1) span substr(masked, RSTART + RLENGTH)
+            }
+            return index(masked, "<!--")
+        }
+        BEGIN { in_comment = 0; n = 0; pending = 0 }
+        {
+            rest = $0; out = ""; closed = 0; touched = in_comment
+            while (rest != "") {
+                if (in_comment) {
+                    p = index(rest, "-->")
+                    if (p == 0) break
+                    rest = substr(rest, p + 3); in_comment = 0; closed = 1
+                } else {
+                    p = comment_start(rest)
+                    if (p == 0) { out = out rest; break }
+                    out = out substr(rest, 1, p - 1)
+                    rest = substr(rest, p + 4); in_comment = 1; touched = 1
+                }
+            }
+            visible = effective(out)
+            n += visible
+            if (in_comment) {
+                if (closed) pending = 0
+                if (!visible && effective($0)) pending++
+            } else if (touched) {
+                pending = 0
+            }
+        }
+        END { if (in_comment) n += pending; print n }
     ' "$1"
 }
 

@@ -206,6 +206,7 @@ printf 'a\n<!--\nb\nc\nd\n' > "$t/f.md"
 assert_eq "unclosed comment: every loaded line counted" "5" "$(count_total "$t/f.md")"
 printf 'a\n<!-- note\nb\n-->\nc\n' > "$t/f.md"
 assert_eq "closed multi-line comment still skipped" "2" "$(count_total "$t/f.md")"
+# shellcheck disable=SC2016
 printf 'use `<!--` for notes\nrule two\nrule three\n' > "$t/f.md"
 assert_eq "<!-- inside a code span is not a comment start" "3" "$(count_total "$t/f.md")"
 
@@ -216,6 +217,7 @@ mk_proj() {
     d=$(mk_tmp)
     mkdir -p "$d/.claude" "$d/.agent-context"
     printf '# P\n\n@../AGENTS.md\n' > "$d/.claude/CLAUDE.md"
+    # shellcheck disable=SC2016
     printf 'a\n@.agent-context/layer2.md\n| x | @.agent-context/tbl.md |\nsee `@code-span.md` here\n```\n@fenced.md\n```\n' > "$d/AGENTS.md"
     printf 'l2\n@base-principles.md\n' > "$d/.agent-context/layer2.md"
     printf 'bp\n' > "$d/.agent-context/base-principles.md"
