@@ -158,7 +158,10 @@ if [ "${#FILES[@]}" -eq 0 ]; then
     # shellcheck disable=SC2206
     _extra=($INCLUDE_FILES)
     for _f in ${_extra[@]+"${_extra[@]}"}; do
-        add_file "$(normalize_path "$_f")" || true
+        _f="$(normalize_path "$_f")"
+        if add_file "$_f" && [ "$LIST" -ne 1 ]; then
+            echo "note: $_f is counted from INCLUDE_FILES but not @-imported" >&2
+        fi
     done
 fi
 

@@ -17,7 +17,7 @@ Four Claude Code hooks ship as shared scripts in `.agent-context/hooks/`, govern
 
 ## Token Budget
 
-`.agent-context/bin/check-token-budget.sh` counts the **effective instruction lines** of the always-on closure (the files `@`-included from `AGENTS.md`). Two caps in `budget.conf`: over the **soft cap** `MAX_EFFECTIVE_LINES` (default 200) only warns — so a real project filling its layers isn't blocked at line 201 — while over the **hard cap** `MAX_EFFECTIVE_LINES_HARD` (default 250) fails. Removing the hard-cap line makes the soft cap a hard failure again. The repo's own CI (`.github/workflows/ci.yml`) enforces a tighter single limit on the shared baseline so a release can't silently bloat what every install loads. Run it yourself any time:
+`.agent-context/bin/check-token-budget.sh` counts the **effective instruction lines** of what actually loads: the `@`-import closure walked from `.claude/CLAUDE.md` (and a root `CLAUDE.md`, if present), each import resolved relative to the file that contains it, plus any `INCLUDE_FILES` from `budget.conf`. `INCLUDE_FILES` is optional and lists only session-start reads that have no import (the template ships `memory/lessons.md` and `memory/preferences.md`); each such entry is printed as a `note:` so a stale one cannot count silently. An import that points at no file is reported as a warning. Two caps in `budget.conf`: over the **soft cap** `MAX_EFFECTIVE_LINES` (default 200) only warns — so a real project filling its layers isn't blocked at line 201 — while over the **hard cap** `MAX_EFFECTIVE_LINES_HARD` fails. The hard cap defaults to 250 when the line is absent; set it equal to the soft cap to make the soft cap a hard failure. The repo's own CI (`.github/workflows/ci.yml`) enforces a tighter single limit on the shared baseline so a release can't silently bloat what every install loads. Run it yourself any time:
 
 ```bash
 bash .agent-context/bin/check-token-budget.sh
@@ -32,7 +32,7 @@ bash .agent-context/bin/measure-baseline.sh          # table
 bash .agent-context/bin/measure-baseline.sh --json   # same numbers, machine-readable
 ```
 
-- **layered** — the always-on closure, i.e. `INCLUDE_FILES` from `budget.conf`, read at every session start.
+- **layered** — the always-on set exactly as the budget gate resolves it: the walked `@`-import closure plus `INCLUDE_FILES`, read at every session start.
 - **on-demand** — `memory/` (minus `memory/archive/`), `skills/`, `agent-delegation.md`, `memory-maintenance.md`, and any `map.json`: project knowledge pulled only when a task's keywords match it.
 - **flat** — the sum, i.e. the pre-layering shape where one file holds everything.
 
