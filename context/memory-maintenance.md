@@ -14,7 +14,7 @@ When a `memory/<domain>.md` stub reaches 15 lines, expand it into a directory:
 
 ## Lesson Graduation
 
-When a lesson has proven itself (applied 3+ times, never questioned), suggest promoting it:
+When a lesson has been confirmed in 3 separate sessions (dates on the entry) and never questioned, suggest promoting it:
 
 - Project-wide convention → move to `layer2-project-core.md`
 - Domain-specific pattern → keep in `memory/<domain>.md` (or sub-file if domain is expanded)
