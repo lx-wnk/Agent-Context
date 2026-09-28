@@ -435,6 +435,20 @@ rc25=$?
 { [ "$rc25" -eq 2 ] && [ ! -f "$TGT/.agent-context/.agent-context-version" ]; } \
     && pass "no Done line exits 2 without a version file" || fail "no Done line" "rc=$rc25"
 
+# Downgrade guard: an install newer than the latest release is left alone (release mode only).
+TGT=$(mk_tmp)
+mkdir -p "$TGT/.agent-context"
+printf '9.9.9\n' > "$TGT/.agent-context/.agent-context-version"
+: > "$TARBALL_LOG"
+run_install "$TGT" --force
+{ [ "$RC" -eq 0 ] && [ -z "$CAP" ] && [ ! -s "$TARBALL_LOG" ]; } \
+    && pass "a newer install is never downgraded to the latest release" \
+    || fail "downgrade guard" "rc=$RC, agent invoked: $([ -n "$CAP" ] && echo yes || echo no), tarball: $(cat "$TARBALL_LOG")"
+printf '%s' "$OUT" | grep -q "newer than the latest release" \
+    && pass "downgrade refusal is reported" || fail "downgrade message" "output: $OUT"
+assert_eq() { [ "$2" = "$3" ] && pass "$1" || fail "$1" "expected '$2', got '$3'"; }
+assert_eq "version file untouched by the refusal" "9.9.9" "$(tr -d '[:space:]' < "$TGT/.agent-context/.agent-context-version")"
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))

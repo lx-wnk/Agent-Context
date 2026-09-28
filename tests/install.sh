@@ -471,6 +471,14 @@ printf '## [Unreleased]\n' > "$t/CHANGELOG.md"
 assert_eq "changelog_version is empty without a release" "" "$(changelog_version "$t")"
 
 # ---------------------------------------------------------------------------
+# version_gt: numeric semver comparison, optional leading v
+# ---------------------------------------------------------------------------
+version_gt 0.10.0 0.9.1 && pass "0.10.0 > 0.9.1" || fail "0.10.0 > 0.9.1" "returned false"
+version_gt v1.0.0 0.99.99 && pass "v1.0.0 > 0.99.99" || fail "v1.0.0 > 0.99.99" "returned false"
+version_gt 0.9.1 0.9.1 && fail "0.9.1 > 0.9.1" "returned true" || pass "equal versions are not greater"
+version_gt 0.9.0 0.9.1 && fail "0.9.0 > 0.9.1" "returned true" || pass "older is not greater"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""
