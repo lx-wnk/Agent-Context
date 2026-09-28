@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/pre-protect-secrets.sh",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.agent-context/hooks/pre-protect-secrets.sh",
             "timeout": 10
           }
         ]
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/post-format.sh",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.agent-context/hooks/post-format.sh",
             "timeout": 60
           }
         ]
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/stop-test-gate.sh",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.agent-context/hooks/stop-test-gate.sh",
             "timeout": 600
           }
         ]
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/subagent-scope.sh",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.agent-context/hooks/subagent-scope.sh",
             "timeout": 30
           }
         ]

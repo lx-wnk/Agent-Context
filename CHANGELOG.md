@@ -4,6 +4,14 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Fixed
+
+- **Hooks follow the documented Claude Code hook contract** — the subagent scope check reads the subagent's own transcript (`agent_transcript_path`), matches project-relative paths, treats any write outside the project as a violation and honours `stop_hook_active`; warn-mode messages reach the user as `systemMessage` instead of the debug log; the test gate runs once per stop and passes at most 40 lines / 4 KB of sanitized, labelled test output.
+
+### Security
+
+- **Hook hardening** — the secret-write guard resolves symlinks, allows `*.example`/`*.dist`/`*.sample`, and says it guards writes only; the no-jq JSON output strips control characters so a block can no longer fail open; the formatter never touches files outside the project; hook commands quote `${CLAUDE_PROJECT_DIR}` so a project path with spaces works.
+
 ### Docs
 
 - **`docs/` and `example.md` match the installed layout** — structure listings include the slash commands, shared tooling and config files; stale `plugins.json` references and dead discovery-map links are gone; updates are described as on-demand with the Step 5.0 change gate and the importer-relative `@../AGENTS.md`. The ETH Zurich result (arXiv 2602.11988) is quoted from its abstract instead of paraphrased — it covers developer-written context files too and names no "~3%" figure — and the German agent best-practices guide is reframed as general guidance now that the `ac-*` agents ship as a separate plugin.

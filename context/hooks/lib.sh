@@ -66,18 +66,49 @@ hook_field() {
 # True if the master switch is on. Hooks call this first and exit 0 (no-op) if off.
 hooks_enabled() { [ "${HOOKS_ENABLED:-0}" = "1" ]; }
 
-# Emit a valid {"decision":"block","reason":...} payload on stdout for Stop/SubagentStop.
-# jq guarantees correct escaping; the fallback flattens control characters (newlines, tabs)
-# to spaces and escapes backslashes/quotes so the result is always valid JSON.
-emit_block_decision() {
-    local reason="$1"
+# Terminal escape sequences and control characters (all but newline and tab) are removed, so
+# test-runner colour codes neither break the no-jq JSON nor reach Claude as raw bytes.
+sanitize_text() {
+    printf '%s' "$1" | LC_ALL=C sed "s/$(printf '\033')\[[0-9;?]*[A-Za-z]//g" | LC_ALL=C tr -d '\000-\010\013-\037\177'
+}
+
+json_string() {
     if command -v jq >/dev/null 2>&1; then
-        jq -nc --arg r "$reason" '{decision:"block",reason:$r}'
+        sanitize_text "$1" | jq -Rs .
     else
-        local flat
-        flat="$(printf '%s' "$reason" | tr '\n\r\t' '   ' | sed 's/\\/\\\\/g; s/"/\\"/g')"
-        printf '{"decision":"block","reason":"%s"}\n' "$flat"
+        sanitize_text "$1" | tr '\t' ' ' | sed 's/\\/\\\\/g; s/"/\\"/g' \
+            | awk 'BEGIN { printf "\"" } { printf "%s%s", (NR > 1 ? "\\n" : ""), $0 } END { printf "\"" }'
     fi
+}
+
+emit_block_decision() { printf '{"decision":"block","reason":%s}\n' "$(json_string "$1")"; }
+
+# Stderr on exit 0 lands in the debug log only; systemMessage is what the user sees.
+emit_system_message() { printf '{"systemMessage":%s}\n' "$(json_string "$1")"; }
+
+resolve_link() {
+    local p="$1" n=0 l
+    while [ -L "$p" ] && [ "$n" -lt 40 ]; do
+        l="$(readlink "$p")"
+        case "$l" in /*) p="$l" ;; *) p="$(dirname "$p")/$l" ;; esac
+        n=$((n + 1))
+    done
+    printf '%s' "$p"
+}
+
+# Prints <path> relative to PROJECT_DIR; returns 1 when it lies outside. A missing parent
+# directory (deleted since the write) falls back to a textual prefix check.
+project_relpath() {
+    local path="$1" dir root rel
+    case "$path" in /*) ;; *) path="$PROJECT_DIR/$path" ;; esac
+    if ! { dir="$(cd "$(dirname "$path")" 2>/dev/null && pwd -P)" && root="$(cd "$PROJECT_DIR" 2>/dev/null && pwd -P)"; }; then
+        case "$path" in */../* | */./*) return 1 ;; esac
+        dir="$(dirname "$path")"
+        root="${PROJECT_DIR%/}"
+    fi
+    case "$dir/" in "$root"/*) ;; *) return 1 ;; esac
+    rel="${dir#"$root"}/$(basename "$path")"
+    printf '%s' "${rel#/}"
 }
 
 # Glob match: returns 0 if <basename-or-path> matches any space-separated pattern in $2.

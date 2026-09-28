@@ -11,6 +11,7 @@ hooks_enabled || exit 0
 file="$(hook_field '.tool_input.file_path' 'file_path')"
 [ -n "$file" ] || exit 0
 [ -f "$file" ] || exit 0
+project_relpath "$(resolve_link "$file")" >/dev/null || exit 0
 
 # FORMAT_CMD receives the file path as an argument. {} is substituted if present,
 # otherwise the path is appended — supports both "prettier --write {}" and "prettier --write".
@@ -24,5 +25,5 @@ for _p in "${_fmt_parts[@]}"; do
     if [ "$_p" = "{}" ]; then _argv+=("$file"); _has_placeholder=1; else _argv+=("$_p"); fi
 done
 [ "$_has_placeholder" -eq 1 ] || _argv+=("$file")
-"${_argv[@]}" >/dev/null 2>&1 || echo "agent-context: format command failed on $file (non-blocking)." >&2
+"${_argv[@]}" >/dev/null 2>&1 || emit_system_message "agent-context: format command failed on $file (non-blocking)."
 exit 0
