@@ -471,6 +471,19 @@ printf '## [Unreleased]\n' > "$t/CHANGELOG.md"
 assert_eq "changelog_version is empty without a release" "" "$(changelog_version "$t")"
 
 # ---------------------------------------------------------------------------
+# register_hooks without jq or python3: warn, leave settings.json alone, do not fail the install
+# ---------------------------------------------------------------------------
+t=$(mk_tmp)
+mkdir -p "$t/root/templates/.claude" "$t/proj/.claude" "$t/bin"
+printf '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"x/stop-test-gate.sh"}]}]}}\n' > "$t/root/templates/.claude/settings.json"
+printf '{"permissions":{}}\n' > "$t/proj/.claude/settings.json"
+for c in mkdir cp grep mktemp cat rm; do ln -s "$(command -v "$c")" "$t/bin/$c"; done
+out="$(cd "$t/proj" && PATH="$t/bin" register_hooks "$t/root" 2>&1; echo "rc=$? unverifiable=${HOOKS_UNVERIFIABLE:-0}")"
+case "$out" in *"by hand"*"rc=0 unverifiable=1"*) pass "no jq/python3: hook merge skipped with a hint, install not failed" ;;
+    *) fail "no jq/python3 hook merge" "output: $out" ;; esac
+assert_eq "no jq/python3: settings.json left unchanged" '{"permissions":{}}' "$(cat "$t/proj/.claude/settings.json")"
+
+# ---------------------------------------------------------------------------
 # version_gt: numeric semver comparison, optional leading v
 # ---------------------------------------------------------------------------
 version_gt 0.10.0 0.9.1 && pass "0.10.0 > 0.9.1" || fail "0.10.0 > 0.9.1" "returned false"
