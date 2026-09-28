@@ -31,8 +31,8 @@ set -euo pipefail
 #
 # Exit codes: 0 = success, 2 = usage/config error or a failed rewrite. No other code.
 #
-# Portability: handles both GNU date (-d) and BSD/macOS date (-j -f), same approach
-# install.sh uses for stat. No non-POSIX tools beyond awk/grep/date.
+# Portability: entry dates are computed in pure bash; an impossible calendar date
+# (2026-02-30) is treated like an undated line. No non-POSIX tools beyond awk/grep/date.
 
 APPLY=0
 MEM_DIR=".agent-context/memory"
@@ -41,6 +41,10 @@ ARCHIVE_DIR=""
 CONF=".agent-context/budget.conf"
 
 while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --dir|--archive|--conf)
+            [ "$#" -ge 2 ] || { echo "Error: $1 requires an argument" >&2; exit 2; } ;;
+    esac
     case "$1" in
         --apply) APPLY=1; shift ;;
         --dir) MEM_DIR="${2:-}"; MEM_DIR_DEFAULTED=0; shift 2 ;;
@@ -140,12 +144,22 @@ if [ -f "$CONF" ]; then
     fi
 fi
 
-## Converts YYYY-MM-DD to a Unix epoch. Empty output on parse failure.
-date_to_epoch() {
-    local d="$1"
-    date -j -f "%Y-%m-%d" "$d" +%s 2>/dev/null \
-        || date -d "$d" +%s 2>/dev/null \
-        || echo ""
+## Days since 1970-01-01 for YYYY-MM-DD (Hinnant's days_from_civil), returned through DAYS.
+## Returns 1 for an impossible calendar date.
+DAYS=0
+civil_days() {
+    local y=$((10#${1:0:4})) m=$((10#${1:5:2})) d=$((10#${1:8:2})) dim=31 era yoe doy
+    case "$m" in
+        2) dim=28
+           if [ $((y % 4)) -eq 0 ] && { [ $((y % 100)) -ne 0 ] || [ $((y % 400)) -eq 0 ]; }; then dim=29; fi ;;
+        4|6|9|11) dim=30 ;;
+    esac
+    if [ "$m" -lt 1 ] || [ "$m" -gt 12 ] || [ "$d" -lt 1 ] || [ "$d" -gt "$dim" ]; then return 1; fi
+    if [ "$m" -le 2 ]; then y=$((y - 1)); fi
+    era=$((y / 400))
+    yoe=$((y - era * 400))
+    doy=$(((153 * (m > 2 ? m - 3 : m + 9) + 2) / 5 + d - 1))
+    DAYS=$((era * 146097 + yoe * 365 + yoe / 4 - yoe / 100 + doy - 719468))
 }
 
 ## Rejects a malformed map before any file is touched — a partial rewrite is worse than
@@ -210,11 +224,12 @@ resolve_ttl() {
 validate_ttl_map "MEMORY_TTL_DEFAULTS" "$MEMORY_TTL_DEFAULTS"
 validate_ttl_map "SHARED_TTL_DEFAULTS" "$SHARED_TTL_DEFAULTS"
 
-NOW_EPOCH=$(date +%s)
 ## ISO week of the run (e.g. 2026-W03) — one archive file per prune run/week.
 ARCHIVE_WEEK=$(date +%G-W%V)
 ARCHIVE_FILE="$ARCHIVE_DIR/${ARCHIVE_WEEK}.md"
 TODAY=$(date +%Y-%m-%d)
+civil_days "$TODAY"
+TODAY_DAYS=$DAYS
 
 expired_count=0
 scanned_files=0
@@ -225,8 +240,9 @@ scanned_files=0
 tmp=""
 keep_tmp=""
 dest_tmp=""
+snap_tmp=""
 cleanup_temp_files() {
-    rm -f "${tmp:-}" "${keep_tmp:-}" "${dest_tmp:-}" 2>/dev/null || true
+    rm -f "${tmp:-}" "${keep_tmp:-}" "${dest_tmp:-}" "${snap_tmp:-}" 2>/dev/null || true
 }
 ## A signal-only cleanup ("trap cleanup_temp_files INT ...", no exit) does NOT stop the script —
 ## bash resumes the interrupted loop right after the trap returns. The loop's `>> "$keep_tmp"`
@@ -290,6 +306,20 @@ ENTRY_DATE_RE='\((20[0-9]{2}-[0-9]{2}-[0-9]{2})\)'
 TTL_DAYS_RE='ttl:([0-9]+)d'
 TTL_TOKEN_RE='ttl:[A-Za-z0-9]+'
 
+abort_after_archive() {
+    echo "Error: $1" >&2
+    echo "       The expired entr(ies) are now BOTH in $ARCHIVE_FILE and still in $dest." >&2
+    echo "       Fix the issue first, then remove the duplicate entr(ies) from $ARCHIVE_FILE before re-running --apply." >&2
+    exit 2
+}
+
+source_changed() {
+    if [ -n "${MEMORY_PRUNE_TEST_CONCURRENT_WRITE:-}" ]; then
+        printf '%s\n' "$MEMORY_PRUNE_TEST_CONCURRENT_WRITE" >> "$dest"
+    fi
+    ! cmp -s "$snap_tmp" "$dest"
+}
+
 ## Collected per file: lines to archive, written only in --apply mode.
 process_file() {
     local file="$1"
@@ -325,10 +355,18 @@ process_file() {
     local had_expired=0
     tmp=$(mktemp "${TMPDIR:-/tmp}/memprune.arch.XXXXXX" 2>/dev/null) || tmp=""
     keep_tmp=$(mktemp "${TMPDIR:-/tmp}/memprune.keep.XXXXXX" 2>/dev/null) || keep_tmp=""
-    if [ -z "$tmp" ] || [ -z "$keep_tmp" ]; then
-        ## The EXIT trap cleans up whichever of the two mktemp calls succeeded.
+    snap_tmp=$(mktemp "${TMPDIR:-/tmp}/memprune.snap.XXXXXX" 2>/dev/null) || snap_tmp=""
+    if [ -z "$tmp" ] || [ -z "$keep_tmp" ] || [ -z "$snap_tmp" ]; then
+        ## The EXIT trap cleans up whichever of the mktemp calls succeeded.
         echo "Error: cannot create a temp file in ${TMPDIR:-/tmp} — $file was left unchanged." >&2
         exit 2
+    fi
+    ## The snapshot is what gets parsed, so a write landing after this point is detectable
+    ## (source_changed) instead of being silently replaced by the rewrite.
+    if ! cp "$file" "$snap_tmp" 2>/dev/null; then
+        echo "Warning: skipping unreadable file: $file" >&2
+        rm -f "$tmp" "$keep_tmp" "$snap_tmp"
+        return 0
     fi
 
     while IFS= read -r line || [ -n "$line" ]; do
@@ -368,9 +406,7 @@ process_file() {
             mark="default $default_ttl"
         fi
 
-        local entry_epoch
-        entry_epoch=$(date_to_epoch "$entry_date")
-        if [ -z "$entry_epoch" ]; then
+        if ! civil_days "$entry_date"; then
             printf '%s\n' "$line" >> "$keep_tmp"
             continue
         fi
@@ -378,23 +414,25 @@ process_file() {
         ## 10# forces base ten: an entry-declared ttl:09d is a leading zero the arithmetic would
         ## otherwise read as octal, and 08/09 are invalid octal — a fatal expansion error that
         ## terminated the read loop and left every later entry in the file unscanned.
-        expiry=$((entry_epoch + 10#$ttl_days * 86400))
-        if [ "$NOW_EPOCH" -gt "$expiry" ]; then
+        expiry=$((DAYS + 10#$ttl_days))
+        if [ "$TODAY_DAYS" -gt "$expiry" ]; then
             printf '%s\t%s\n' "$mark" "$line" >> "$tmp"
             had_expired=1
             expired_count=$((expired_count + 1))
         else
             printf '%s\n' "$line" >> "$keep_tmp"
         fi
-    done < "$file"
+    done < "$snap_tmp"
 
     if [ "$had_expired" -eq 1 ]; then
-        echo "  $base:"
         ## Field 1 is the marker; everything after the FIRST tab is the entry — a memory line may
         ## itself contain tabs, and the preview is the safety net before --apply, so never truncate.
-        awk -F'\t' '{ rest = $0; sub(/^[^\t]*\t/, "", rest);
-                      if ($1 == "") printf "    EXPIRED → %s\n", rest;
-                      else printf "    EXPIRED (%s) → %s\n", $1, rest }' "$tmp"
+        {
+            printf '  %s:\n' "${file#"$MEM_DIR"/}"
+            awk -F'\t' '{ rest = $0; sub(/^[^\t]*\t/, "", rest);
+                          if ($1 == "") printf "    EXPIRED → %s\n", rest;
+                          else printf "    EXPIRED (%s) → %s\n", $1, rest }' "$tmp"
+        } | LC_ALL=C tr -d '\000-\010\013-\037\177'
         if [ "$APPLY" -eq 1 ]; then
             ## Both writes precede the source rewrite, so a failure here costs nothing — but it has
             ## to leave through the declared exit 2, not a set -e death at exit 1. The leading
@@ -408,6 +446,10 @@ process_file() {
                 echo "Error: cannot create the archive directory $ARCHIVE_DIR — $dest was left unchanged." >&2
                 exit 2
             }
+            if source_changed; then
+                echo "Error: $dest changed while it was processed — it was left unchanged; re-run --apply." >&2
+                exit 2
+            fi
             {
                 printf '## From %s (archived %s)\n\n' "$base" "$TODAY"
                 cut -f2- "$tmp"
@@ -420,12 +462,8 @@ process_file() {
             ## leave the project-owned memory file truncated. The archive append above already
             ## happened, so any failure here leaves a DUPLICATE — say so and stop at exit 2
             ## rather than letting set -e kill the run with an undeclared exit 1.
-            dest_tmp=$(mktemp "$(dirname "$dest")/.memprune.XXXXXX" 2>/dev/null) || {
-                echo "Error: cannot create a temp file next to $dest — it was not rewritten." >&2
-                echo "       The expired entr(ies) are now BOTH in $ARCHIVE_FILE and still in $dest." >&2
-                echo "       Fix the issue first, then remove the duplicate entr(ies) from $ARCHIVE_FILE before re-running --apply." >&2
-                exit 2
-            }
+            dest_tmp=$(mktemp "$(dirname "$dest")/.memprune.XXXXXX" 2>/dev/null) \
+                || abort_after_archive "cannot create a temp file next to $dest — it was not rewritten."
             ## dest was resolved before the file was read and before the archive was appended.
             ## Re-assert containment here, at the moment the write lands, so a link repointed
             ## during that window cannot redirect the rewrite out of the tree.
@@ -433,21 +471,22 @@ process_file() {
             dest_now=$(resolve_link "$file")
             is_under "$dest_now" "$MEM_DIR" || dest_now=""
             if [ "$dest_now" != "$dest" ]; then
-                echo "Error: $file changed where it points while it was processed — $dest was not rewritten." >&2
-                echo "       The expired entr(ies) are now BOTH in $ARCHIVE_FILE and still in $dest." >&2
-                echo "       Fix the issue first, then remove the duplicate entr(ies) from $ARCHIVE_FILE before re-running --apply." >&2
-                exit 2
+                abort_after_archive "$file changed where it points while it was processed — $dest was not rewritten."
             fi
-            cp "$keep_tmp" "$dest_tmp" && mv "$dest_tmp" "$dest" || {
-                echo "Error: failed to rewrite $dest." >&2
-                echo "       The expired entr(ies) are now BOTH in $ARCHIVE_FILE and still in $dest." >&2
-                echo "       Fix the issue first, then remove the duplicate entr(ies) from $ARCHIVE_FILE before re-running --apply." >&2
-                exit 2
-            }
+            if source_changed; then
+                abort_after_archive "$dest changed while it was processed — it was not rewritten."
+            fi
+            ## A rename would detach every other hard link, so a multiply-linked file is written in place.
+            ## ponytail: in-place write is not atomic; an interrupt mid-write can truncate a hard-linked file.
+            if [ -n "$(find "$dest" -links +1 2>/dev/null)" ]; then
+                cat "$keep_tmp" 2>/dev/null > "$dest" || abort_after_archive "failed to rewrite $dest."
+            elif ! { cp -p "$dest" "$dest_tmp" && cat "$keep_tmp" > "$dest_tmp" && mv "$dest_tmp" "$dest"; } 2>/dev/null; then
+                abort_after_archive "failed to rewrite $dest."
+            fi
         fi
     fi
 
-    rm -f "$tmp" "$keep_tmp"
+    rm -f "$tmp" "$keep_tmp" "$snap_tmp"
 }
 
 echo "Memory decay scan — $MEM_DIR (today: $TODAY)"
