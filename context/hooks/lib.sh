@@ -2,7 +2,7 @@
 # Shared helpers for Agent-Context hooks. Sourced by every hook script.
 #
 # Responsibilities:
-#   - locate and load the project-owned hooks.conf (toggles + project toolchain)
+#   - load the committed hooks.conf (toggles) and the user-local hooks.local.conf (opt-in + commands)
 #   - read the hook's stdin JSON once and expose field extraction (jq if present, else sed)
 #   - gate on the master + per-hook enable flags
 #
@@ -12,8 +12,9 @@
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$HOOK_DIR/../.." && pwd)}"
 CONF_FILE="${AGENT_CONTEXT_HOOKS_CONF:-$HOOK_DIR/../hooks.conf}"
+LOCAL_CONF_FILE="${AGENT_CONTEXT_HOOKS_LOCAL_CONF:-$HOOK_DIR/../hooks.local.conf}"
 
-# Defaults — overridden by hooks.conf. Conservative: everything off until opted in.
+# Defaults — overridden by hooks.conf / hooks.local.conf. Conservative: everything off until opted in.
 HOOKS_ENABLED=0
 PROTECT_SECRETS=1
 PROTECTED_GLOBS=".env .env.* *.pem *.key id_rsa secrets.* *.secret"
@@ -24,17 +25,20 @@ TEST_CMD=""
 SUBAGENT_SCOPE="off"
 ALLOWED_SUBAGENT_PATHS=""
 
-# hooks.conf is project-owned DATA that can arrive via `git pull` from a repository the developer
-# does not control, so it is parsed rather than sourced — the keys below are copied out literally
-# and nothing in the file is ever executed. A missing reader leaves the conservative defaults
+# Both confs are parsed, never sourced. hooks.conf is committed and can arrive via `git pull`,
+# so the keys that switch hooks on or name a command to run (HOOKS_ENABLED, TEST_CMD, FORMAT_CMD)
+# are read only from the gitignored, user-local hooks.local.conf — their values ARE executed.
+# hooks.local.conf may override every other key as well. A missing reader leaves the defaults
 # above in place (master switch off) rather than failing the hook, which would block the session.
 CONF_READER="$HOOK_DIR/../bin/conf-read.sh"
 if [ -r "$CONF_READER" ]; then
     # shellcheck source=../bin/conf-read.sh
     . "$CONF_READER"
-    conf_load "$CONF_FILE" HOOKS_ENABLED PROTECT_SECRETS PROTECTED_GLOBS FORMAT_ON_EDIT FORMAT_CMD \
+    conf_load "$CONF_FILE" PROTECT_SECRETS PROTECTED_GLOBS FORMAT_ON_EDIT STOP_GATE SUBAGENT_SCOPE \
+        ALLOWED_SUBAGENT_PATHS
+    conf_load "$LOCAL_CONF_FILE" HOOKS_ENABLED PROTECT_SECRETS PROTECTED_GLOBS FORMAT_ON_EDIT FORMAT_CMD \
         STOP_GATE TEST_CMD SUBAGENT_SCOPE ALLOWED_SUBAGENT_PATHS
-elif [ -f "$CONF_FILE" ]; then
+elif [ -f "$CONF_FILE" ] || [ -f "$LOCAL_CONF_FILE" ]; then
     echo "agent-context hooks: $CONF_READER is missing — hooks stay disabled. Re-run the update." >&2
 fi
 
