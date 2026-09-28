@@ -36,14 +36,15 @@ set -euo pipefail
 
 APPLY=0
 MEM_DIR=".agent-context/memory"
+MEM_DIR_DEFAULTED=1
 ARCHIVE_DIR=""
 CONF=".agent-context/budget.conf"
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --apply) APPLY=1; shift ;;
-        --dir) MEM_DIR="${2:-}"; shift 2 ;;
-        --dir=*) MEM_DIR="${1#--dir=}"; shift ;;
+        --dir) MEM_DIR="${2:-}"; MEM_DIR_DEFAULTED=0; shift 2 ;;
+        --dir=*) MEM_DIR="${1#--dir=}"; MEM_DIR_DEFAULTED=0; shift ;;
         --archive) ARCHIVE_DIR="${2:-}"; shift 2 ;;
         --archive=*) ARCHIVE_DIR="${1#--archive=}"; shift ;;
         --conf) CONF="${2:-}"; shift 2 ;;
@@ -91,7 +92,8 @@ if [ ! -d "$MEM_DIR" ]; then
 fi
 
 MEM_DIR=$(normalize_dir "$MEM_DIR") || exit 2
-[ -z "$ARCHIVE_DIR" ] && ARCHIVE_DIR="$MEM_DIR/archive"
+ARCHIVE_DIR_DEFAULTED=0
+[ -z "$ARCHIVE_DIR" ] && { ARCHIVE_DIR="$MEM_DIR/archive"; ARCHIVE_DIR_DEFAULTED=1; }
 ARCHIVE_DIR=$(normalize_dir "$ARCHIVE_DIR") || exit 2
 
 ## Per-file TTL defaults, applied ONLY to dated entries that carry no ttl: of their own.
@@ -268,6 +270,19 @@ is_under() {
     return 1
 }
 
+## The repository controls both memory/ and memory/archive, so on --apply neither may redirect a
+## write out of the tree through a symlink. An explicit --dir/--archive is the caller's own choice.
+if [ "$APPLY" -eq 1 ]; then
+    if [ "$MEM_DIR_DEFAULTED" -eq 1 ] && ! is_under "$MEM_DIR" "$(pwd -P)"; then
+        echo "Error: $MEM_DIR resolves outside the project $(pwd -P) — pass --dir explicitly to prune a shared memory directory." >&2
+        exit 2
+    fi
+    if [ "$ARCHIVE_DIR_DEFAULTED" -eq 1 ] && ! is_under "$ARCHIVE_DIR" "$MEM_DIR"; then
+        echo "Error: the archive directory resolves to $ARCHIVE_DIR, outside the memory directory $MEM_DIR." >&2
+        exit 2
+    fi
+fi
+
 ## Per-line metadata patterns. Held in variables because bash 3.2 treats a quoted regex on the
 ## right of =~ as a literal string; an unquoted variable is the form that works across versions.
 ## All three match leftmost, which is the `grep -oE … | head -1` semantics they replaced.
@@ -385,6 +400,10 @@ process_file() {
             ## to leave through the declared exit 2, not a set -e death at exit 1. The leading
             ## 2>/dev/null is applied before the append, so a failing >> reports through the message
             ## below instead of a raw "Permission denied".
+            if [ -L "$ARCHIVE_FILE" ]; then
+                echo "Error: the archive $ARCHIVE_FILE is a symlink — refusing to write through it; $dest was left unchanged." >&2
+                exit 2
+            fi
             mkdir -p "$ARCHIVE_DIR" 2>/dev/null || {
                 echo "Error: cannot create the archive directory $ARCHIVE_DIR — $dest was left unchanged." >&2
                 exit 2
