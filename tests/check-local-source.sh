@@ -162,9 +162,11 @@ for f in AGENTS.md .agent-context/layer1-bootstrap.md .agent-context/layer2-proj
     .agent-context/layer3-guidebook.md .agent-context/skills/index.md; do
     printf 'x\n' > "$TGT/$f"
 done
-echo "1.0.0" > "$VERSION_CACHE"
-touch -t 200001010000 "$VERSION_CACHE"
-out9="$( cd "$TGT" && CURL_FAIL=1 PATH="$STUB:$PATH" bash "$INSTALL" 2>&1 )"
+cache9=$(mk_tmp)
+mkdir -p "$cache9/agent-context"
+echo "1.0.0" > "$cache9/agent-context/latest-version"
+touch -t 200001010000 "$cache9/agent-context/latest-version"
+out9="$( cd "$TGT" && XDG_CACHE_HOME="$cache9" CURL_FAIL=1 PATH="$STUB:$PATH" bash "$INSTALL" 2>&1 )"
 printf '%s' "$out9" | grep -q "version check based on stale cached data" \
     && pass "stale-cache fallback warns on the up-to-date fast-path" || fail "stale-cache warning" "warning missing: $out9"
 

@@ -1,0 +1,3 @@
+# `cond && pass "…" || fail "…"` is safe here: pass() and fail() always return 0, so the || branch
+# only runs when cond fails. SC2015 flags the idiom, not a bug.
+disable=SC2015

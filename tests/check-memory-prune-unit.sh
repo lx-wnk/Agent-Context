@@ -428,6 +428,7 @@ assert_file_not_contains "the parsed key still applies while the payload is igno
 # A command substitution inside a value is literal text, so it reaches the validator unevaluated
 # and is rejected there like any other malformed value.
 t=$(mk_tmp); seed_defaults "$t/memory"
+# shellcheck disable=SC2016  # the literal $(...) is the payload under test
 printf 'MEMORY_TTL_DEFAULTS="lessons.md=$(touch %s/SUBST_RAN)d"\n' "$t" > "$t/subst.conf"
 bash "$PRUNE" --dir "$t/memory" --conf "$t/subst.conf" --apply >/dev/null 2>&1
 rc=$?
