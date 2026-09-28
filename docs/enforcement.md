@@ -6,14 +6,14 @@ The layered context is advisory — these add deterministic, OS-level guardrails
 
 Four Claude Code hooks ship as shared scripts in `.agent-context/hooks/`, governed by the committed `.agent-context/hooks.conf` and the user-local `.agent-context/hooks.local.conf`:
 
-| Hook                     | Event        | Default | What it does                                                      |
-| ------------------------ | ------------ | ------- | ----------------------------------------------------------------- |
-| `pre-protect-secrets.sh` | PreToolUse   | on\*    | Blocks writes to `.env`/secret files (exit 2) — `PROTECTED_GLOBS` |
-| `post-format.sh`         | PostToolUse  | on\*    | Runs `FORMAT_CMD` on the edited file                              |
-| `stop-test-gate.sh`      | Stop         | warn    | Runs `TEST_CMD`; `warn` reports failures, `block` forces a fix    |
-| `subagent-scope.sh`      | SubagentStop | off     | Flags a subagent that wrote outside `ALLOWED_SUBAGENT_PATHS`      |
+| Hook                     | Event        | Default | What it does                                                                                                                             |
+| ------------------------ | ------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `pre-protect-secrets.sh` | PreToolUse   | on\*    | Blocks writes (not reads) to `.env`/secret files and symlinks to them (exit 2) — `PROTECTED_GLOBS`; `*.example`/`*.dist`/`*.sample` pass |
+| `post-format.sh`         | PostToolUse  | on\*    | Runs `FORMAT_CMD` on the edited file, only inside the project root                                                                       |
+| `stop-test-gate.sh`      | Stop         | warn    | Runs `TEST_CMD`; `warn` reports failures, `block` sends the agent back once (a stop-hook continuation is not re-tested)                  |
+| `subagent-scope.sh`      | SubagentStop | off     | Flags a subagent that wrote outside `ALLOWED_SUBAGENT_PATHS` (project-relative) or outside the project                                   |
 
-\* Per-hook flags only take effect once the master switch is on. **`HOOKS_ENABLED=0` by default** — nothing fires until you opt in. To enable: set `HOOKS_ENABLED=1` and your toolchain's `FORMAT_CMD` / `TEST_CMD` in the gitignored, per-developer `.agent-context/hooks.local.conf`. Those three keys are read **only** from that file and ignored in the committed `hooks.conf`: `TEST_CMD` and `FORMAT_CMD` are executed, so a `git pull` must not be able to switch hooks on or change what they run. Every other key comes from `hooks.conf`, and `hooks.local.conf` may override it. Both files are parsed, never sourced. The scripts read the confs for all behavior, so you customize without editing shared code; for deeper changes, point `.claude/settings.json` at your own script. Hooks need no extra dependencies (`jq` is used when present, with a pure-shell fallback).
+\* Per-hook flags only take effect once the master switch is on. **`HOOKS_ENABLED=0` by default** — nothing fires until you opt in. To enable: set `HOOKS_ENABLED=1` and your toolchain's `FORMAT_CMD` / `TEST_CMD` in the gitignored, per-developer `.agent-context/hooks.local.conf`. Those three keys are read **only** from that file and ignored in the committed `hooks.conf`: `TEST_CMD` and `FORMAT_CMD` are executed, so a `git pull` must not be able to switch hooks on or change what they run. Every other key comes from `hooks.conf`, and `hooks.local.conf` may override it. Both files are parsed, never sourced. The scripts read the confs for all behavior, so you customize without editing shared code; for deeper changes, point `.claude/settings.json` at your own script. Hooks need no extra dependencies (`jq` is used when present, with a pure-shell fallback). Warnings reach you as a `systemMessage`, because stderr on exit 0 only lands in Claude Code's debug log; a block reason carries at most the last 40 lines / 4 KB of test output, stripped of control characters.
 
 ## Token Budget
 

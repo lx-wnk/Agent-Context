@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # SubagentStop — scope check. Verifies a subagent only wrote files within allowed paths.
 #
-# Parses the subagent transcript for every file_path it wrote (Write/Edit/MultiEdit) and
-# compares each against ALLOWED_SUBAGENT_PATHS globs (hooks.conf). If the allow-list is empty
-# the check is a no-op (nothing to enforce).
+# Parses the subagent's own transcript (agent_transcript_path; transcript_path is the main
+# session) for every file_path it wrote (Write/Edit/MultiEdit) and matches each, relative to
+# the project root, against ALLOWED_SUBAGENT_PATHS globs (hooks.conf). A write outside the
+# project is always a violation. If the allow-list is empty the check is a no-op.
 #
-# SUBAGENT_SCOPE modes: off | warn (stderr, default) | block ({"decision":"block"} payload).
+# SUBAGENT_SCOPE modes: off | warn (systemMessage) | block ({"decision":"block"} payload).
 set -uo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/lib.sh"
 
@@ -14,8 +15,10 @@ case "${SUBAGENT_SCOPE:-off}" in
     off) exit 0 ;;
 esac
 [ -n "${ALLOWED_SUBAGENT_PATHS:-}" ] || exit 0
+[ "$(hook_field '.stop_hook_active' 'stop_hook_active')" = "true" ] && exit 0
 
-transcript="$(hook_field '.transcript_path' 'transcript_path')"
+transcript="$(hook_field '.agent_transcript_path' 'agent_transcript_path')"
+transcript="${transcript/#\~/$HOME}"
 [ -n "$transcript" ] && [ -f "$transcript" ] || exit 0
 
 # Collect only the paths the subagent WROTE — Write/Edit/MultiEdit tool calls. A plain
@@ -36,7 +39,7 @@ fi
 violations=""
 while IFS= read -r f; do
     [ -n "$f" ] || continue
-    if ! matches_any_glob "$f" "$ALLOWED_SUBAGENT_PATHS"; then
+    if ! rel="$(project_relpath "$f")" || ! matches_any_glob "$rel" "$ALLOWED_SUBAGENT_PATHS"; then
         violations="${violations}  - $f"$'\n'
     fi
 done <<EOF
@@ -50,6 +53,5 @@ if [ "${SUBAGENT_SCOPE:-off}" = "block" ]; then
     exit 0
 fi
 
-echo "agent-context scope check: subagent wrote outside allowed paths (SUBAGENT_SCOPE=warn):" >&2
-printf '%s' "$violations" >&2
+emit_system_message "agent-context scope check: subagent wrote outside allowed paths (SUBAGENT_SCOPE=warn):"$'\n'"$violations"
 exit 0
