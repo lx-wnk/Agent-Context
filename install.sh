@@ -101,6 +101,10 @@ update_claude_md() {
     local updated=0 pointer
     for loc in ".claude/CLAUDE.md" "CLAUDE.md"; do
         [ -f "$loc" ] || continue
+        if [ -L "$loc" ]; then
+            echo "Skipped $loc — it is a symlink; its target is left as is."
+            continue
+        fi
         if is_bootstrap_only "$loc"; then
             continue
         fi
@@ -365,8 +369,8 @@ main() {
     }
 
     show_progress
-    wait "$CLAUDE_PID"
-    EXIT_CODE=$?
+    EXIT_CODE=0
+    wait "$CLAUDE_PID" || EXIT_CODE=$?
 
     # Only run when agent succeeded — a failed mid-migration must not overwrite CLAUDE.md content
     # that hasn't yet been routed to layer files.
@@ -391,8 +395,12 @@ main() {
         fi
     fi
 
-    rm -f "$LOG"
-    exit $EXIT_CODE
+    if [ "$EXIT_CODE" -ne 0 ]; then
+        echo "Error: the setup agent exited with code $EXIT_CODE — CLAUDE.md was left unchanged; see $LOG." >&2
+    else
+        rm -f "$LOG"
+    fi
+    exit "$EXIT_CODE"
 }
 
 if [[ "${BASH_SOURCE[0]:-$0}" == "$0" ]]; then main "$@"; fi

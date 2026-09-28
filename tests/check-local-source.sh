@@ -34,7 +34,7 @@ mkdir -p "$STUB"
 cat > "$STUB/claude" <<'EOF'
 #!/usr/bin/env bash
 [ -n "${CAPTURE:-}" ] && printf '%s\0' "$@" > "$CAPTURE"
-exit 0
+exit "${CLAUDE_EXIT:-0}"
 EOF
 chmod +x "$STUB/claude"
 
@@ -183,6 +183,18 @@ for sh13 in zsh sh; do
     { [ ! -f "$cap13" ] && [ ! -e "$TGT/.agent-context" ]; } \
         && pass "sourcing from $sh13 does not run the installer" || fail "$sh13 source guard" "installer ran when sourced from $sh13"
 done
+
+# 14. A failing agent run: exit code propagates, CLAUDE.md content survives, the user is told, the log stays.
+TGT=$(mk_tmp)
+printf 'real project rules\n' > "$TGT/CLAUDE.md"
+out14="$( cd "$TGT" && CLAUDE_EXIT=3 PATH="$STUB:$PATH" bash "$INSTALL" 2>&1 )"
+rc14=$?
+[ "$rc14" -eq 3 ] && pass "failing agent run exits with its code" || fail "failing agent exit code" "rc=$rc14"
+[ "$(cat "$TGT/CLAUDE.md")" = "real project rules" ] && pass "failing agent run leaves CLAUDE.md untouched" \
+    || fail "CLAUDE.md after failed run" "$(cat "$TGT/CLAUDE.md")"
+printf '%s' "$out14" | grep -q "exited with code 3" && pass "failing agent run is reported" \
+    || fail "failing agent run is reported" "output: $out14"
+[ -f "$TGT/.agent-context/setup.log" ] && pass "setup.log is kept after a failed run" || fail "setup.log kept" "removed"
 
 echo ""
 echo "================================================"

@@ -358,6 +358,17 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# update_claude_md never writes through a symlink (CLAUDE.md -> AGENTS.md is a common setup)
+# ---------------------------------------------------------------------------
+t=$(mk_tmp)
+printf '# Agents\nreal rules\n' > "$t/AGENTS.md"
+ln -s AGENTS.md "$t/CLAUDE.md"
+out="$(cd "$t" && update_claude_md)"
+assert_eq "symlinked CLAUDE.md does not overwrite its target" "$(printf '# Agents\nreal rules')" "$(cat "$t/AGENTS.md")"
+assert_eq "symlinked CLAUDE.md stays a symlink" "AGENTS.md" "$(readlink "$t/CLAUDE.md")"
+case "$out" in *"symlink"*) pass "skipped symlink is reported" ;; *) fail "skipped symlink is reported" "output: $out" ;; esac
+
+# ---------------------------------------------------------------------------
 # Claude Code resolves @imports relative to the importing file
 # ---------------------------------------------------------------------------
 echo ""
