@@ -135,27 +135,37 @@ main() {
     LOCAL_PROMPT=""
     AI_DIRS=""
     DISCOVER=0
+    LOCAL_SOURCE_FLAG=0
     while [ "$#" -gt 0 ]; do
         case "$1" in
             --ai-dirs=*) AI_DIRS="${1#--ai-dirs=}" ;;
             --force) FORCE=1 ;;
             --discover) DISCOVER=1 ;;
+            --local-source=*)
+                LOCAL_SOURCE_FLAG=1
+                AGENT_CONTEXT_SOURCE="${1#--local-source=}"
+                ;;
             --local-source)
-                if [ -z "${2:-}" ]; then
-                    echo "Error: --local-source requires a path" >&2
-                    exit 1
-                fi
-                AGENT_CONTEXT_SOURCE="$2"
-                shift
+                LOCAL_SOURCE_FLAG=1
+                AGENT_CONTEXT_SOURCE=""
+                # A following flag is not a path; leave it for the next iteration.
+                case "${2:-}" in
+                    "" | -*) ;;
+                    *) AGENT_CONTEXT_SOURCE="$2"; shift ;;
+                esac
                 ;;
         esac
         shift
     done
+    if [ "$LOCAL_SOURCE_FLAG" -eq 1 ] && [ -z "$AGENT_CONTEXT_SOURCE" ]; then
+        echo "Error: --local-source requires a path" >&2
+        exit 1
+    fi
 
     # Local-source mode: validate the clone, force a run, and read its prompt locally.
     if [ -n "${AGENT_CONTEXT_SOURCE:-}" ]; then
         if [ ! -d "$AGENT_CONTEXT_SOURCE" ]; then
-            echo "Error: AGENT_CONTEXT_SOURCE directory not found: $AGENT_CONTEXT_SOURCE" >&2
+            echo "Error: local source directory not found (--local-source / AGENT_CONTEXT_SOURCE): $AGENT_CONTEXT_SOURCE" >&2
             exit 1
         fi
         _abs_source=$(realpath "$AGENT_CONTEXT_SOURCE" 2>/dev/null || (cd "$AGENT_CONTEXT_SOURCE" && pwd))
