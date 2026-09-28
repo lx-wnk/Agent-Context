@@ -707,7 +707,7 @@ Create the directory structure and Claude Code integration.
 File                                     Ownership
 ─────────────────────────────────────    ──────────────────────────────────────
 AGENTS.md                                PROJECT — customize freely
-.claude/CLAUDE.md                        Bootstrap pointer → @AGENTS.md
+.claude/CLAUDE.md                        Bootstrap pointer → @../AGENTS.md
 .claude/settings.json                    Settings file (created if missing, never overwritten)
 .agent-context/
   agent-startup.md                       🔒 SHARED — do NOT modify (auto-updated)
@@ -1025,7 +1025,7 @@ Do not modify any source file — the map is a pointer index only.
    - Memory files ≥ 500 lines: flag as skill graduation candidate
    - Include the audit table in the summary output (✅ / ⚠️ per file)
 6. No duplicated content across files
-7. `.claude/CLAUDE.md` points to `@AGENTS.md`
+7. `.claude/CLAUDE.md` points to `@../AGENTS.md` (imports resolve relative to the importing file)
 8. **Migration audit checklist from Phase S3.5 is 100% checked off**
 9. `.agent-context/memory/index.md` exists
 10. `.agent-context/memory-review-prompt.md` exists

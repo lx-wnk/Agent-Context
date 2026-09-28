@@ -74,7 +74,7 @@ open only the 1–2 node notes the task needs. See [Discovery Map](discovery-map
 ```
 your-project/
 ├── AGENTS.md                              ← Entry point
-├── .claude/CLAUDE.md                      ← Bootstrap pointer → @AGENTS.md
+├── .claude/CLAUDE.md                      ← Bootstrap pointer → @../AGENTS.md
 ├── .claude/settings.json                  ← Settings file (created if missing, never overwritten)
 └── .agent-context/
     ├── agent-startup.md                   ← Startup info (shared)

@@ -4,7 +4,7 @@
 
 ## Development Principles
 
-@.agent-context/base-principles.md
+@base-principles.md
 
 <!-- TODO: Project-specific additions to shared principles -->
 

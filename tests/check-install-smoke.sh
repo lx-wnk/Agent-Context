@@ -111,7 +111,8 @@ while [ -n "$queue" ]; do
             dangling="${dangling:+$dangling, }$rel -> @$imp"
             continue
         fi
-        queue="${queue:+$queue$'\n'}${abs_dir#"$TARGET_P"/}/$(basename "$imp")"
+        next_file="$abs_dir/$(basename "$imp")"
+        queue="${queue:+$queue$'\n'}${next_file#"$TARGET_P"/}"
     done < <(grep -E '^@[^[:space:]]+[[:space:]]*$' "$TARGET_P/$rel")
 done
 [ -z "$dangling" ] && pass "every @-import resolves relative to its importing file" \

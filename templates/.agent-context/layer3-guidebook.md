@@ -30,11 +30,11 @@ See `.agent-context/memory-maintenance.md` → Domain Expansion for rules.
 
 External knowledge sources and task-based routing to project docs, architecture files, and other structured knowledge. Updated when knowledge sources change — see `.agent-context/memory-maintenance.md` → Knowledge Map Triggers.
 
-@.agent-context/knowledge-map.md
+@knowledge-map.md
 
 ## Skills Index
 
-@.agent-context/skills/index.md
+@skills/index.md
 
 <!-- TODO: Add project-specific skills to skills/index.md -->
 

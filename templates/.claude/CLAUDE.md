@@ -1,3 +1,3 @@
 # Project Instructions
 
-@AGENTS.md
+@../AGENTS.md
