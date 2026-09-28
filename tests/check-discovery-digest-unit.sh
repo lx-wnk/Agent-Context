@@ -4,6 +4,8 @@
 # Verifies the digest detects manifests, inventories docs with line counts, flags heavy docs
 # as distillation candidates, excludes agent-managed dirs, and works without git.
 
+# shellcheck disable=SC2016  # the backticks are literal digest output, not a command substitution
+
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
