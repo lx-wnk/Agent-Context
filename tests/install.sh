@@ -391,11 +391,13 @@ assert_eq "second run reports nothing" "" "$out"
 
 t=$(mk_tmp)
 mkdir -p "$t/.agent-context"
+# shellcheck disable=SC2016  # the backticks are literal test input, not a command substitution
 printf '%s\n' '> Shared base: @.agent-context/base-principles.md' \
     'See `@.agent-context/x.md` in code.' '```' '@.agent-context/fenced.md' '```' \
     'mail@.agent-context/not-an-import' '- (@.agent-context/skills/a.md) and @.agent-context/b.md' \
     > "$t/.agent-context/layer2-project-core.md"
 (cd "$t" && migrate_import_paths >/dev/null)
+# shellcheck disable=SC2016  # literal backticks, see above
 assert_eq "inline and non-default nested imports migrated; code, fences and non-imports kept" \
     "$(printf '%s\n' '> Shared base: @base-principles.md' 'See `@.agent-context/x.md` in code.' '```' \
         '@.agent-context/fenced.md' '```' 'mail@.agent-context/not-an-import' '- (@skills/a.md) and @b.md')" \
