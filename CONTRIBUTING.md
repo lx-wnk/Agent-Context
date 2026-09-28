@@ -37,11 +37,27 @@ already-released version, drop the flag and use the normal [install one-liner](R
 ## Running the checks
 
 ```bash
-npm test              # full test suite: install, template coverage, token budget, memory-prune, hooks, discovery digest, map budget, smoke test, local-source
+npm test              # every tests/*.sh suite in sequence — see the "test" script in package.json for the list
 npm run prettier      # check formatting (CI-style)
 npm run prettier:fix  # auto-fix formatting
 ```
 
+CI does not run shellcheck yet. Run it on every shell file you change and fix what it reports:
+
+```bash
+shellcheck -x install.sh tests/*.sh context/bin/*.sh context/hooks/*.sh
+```
+
 ## Pull requests
 
-Commit messages must be written in English. PRs follow the checklist in [`.github/pull_request_template.md`](.github/pull_request_template.md) — summary, changes, and notes on trade-offs or breaking changes.
+- Commit messages are written in English, with a [Conventional Commits](https://www.conventionalcommits.org/) subject (`feat(scope): …`, `fix: …`, `docs: …`, `chore(release): …`).
+- Every user-visible change adds an entry under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md) (Added, Changed, Fixed, Removed, Security, Docs).
+- PRs follow [`.github/pull_request_template.md`](.github/pull_request_template.md) — summary, changes, notes on trade-offs or breaking changes, and the checklist.
+
+## Releasing
+
+1. Open a release PR (`chore(release): X.Y.Z`) that renames `## [Unreleased]` in CHANGELOG.md to `## [X.Y.Z] - YYYY-MM-DD` and starts a new empty `## [Unreleased]` section. Merge it.
+2. On the merged `main`, create an annotated tag without a `v` prefix and push it: `git tag -a X.Y.Z -m "X.Y.Z"` then `git push origin X.Y.Z`.
+3. Publish the release: `gh release create X.Y.Z --notes-file <notes>`, with the CHANGELOG section as notes. `install.sh` installs the release marked latest.
+
+`package.json` stays at `0.0.0-dev`; the release tag is the version.

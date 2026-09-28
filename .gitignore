@@ -5,3 +5,6 @@
 /docs/specs
 /docs/local
 /outputs
+/.agent-context/
+.claude/settings.local.json
+.claude/worktrees/
