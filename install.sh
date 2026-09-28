@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# zsh sets $0 to the sourced file, which defeats the BASH_SOURCE guard at the bottom of this file.
+if [ -z "${BASH_VERSION:-}" ]; then
+    echo "Error: install.sh requires bash — run it with: bash install.sh" >&2
+    # shellcheck disable=SC2317  # exit is reached when executed rather than sourced
+    return 1 2>/dev/null || exit 1
+fi
 set -euo pipefail
 
 FORCE=0

@@ -168,6 +168,20 @@ out9="$( cd "$TGT" && CURL_FAIL=1 PATH="$STUB:$PATH" bash "$INSTALL" 2>&1 )"
 printf '%s' "$out9" | grep -q "version check based on stale cached data" \
     && pass "stale-cache fallback warns on the up-to-date fast-path" || fail "stale-cache warning" "warning missing: $out9"
 
+# 13. Sourcing install.sh from another shell must not run the installer (the BASH_SOURCE guard is
+#     bash-only; zsh sets $0 to the sourced file). sh is dash on Linux, so CI covers the path too.
+for sh13 in zsh sh; do
+    if ! command -v "$sh13" >/dev/null 2>&1; then
+        echo "  SKIP  $sh13 source guard ($sh13 not installed)"
+        continue
+    fi
+    TGT=$(mk_tmp)
+    cap13="$(mk_tmp)/cap"
+    ( cd "$TGT" && CAPTURE="$cap13" PATH="$STUB:$PATH" "$sh13" -c ". '$INSTALL'" >/dev/null 2>&1 )
+    { [ ! -f "$cap13" ] && [ ! -e "$TGT/.agent-context" ]; } \
+        && pass "sourcing from $sh13 does not run the installer" || fail "$sh13 source guard" "installer ran when sourced from $sh13"
+done
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))
