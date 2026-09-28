@@ -678,6 +678,80 @@ assert_file_contains "memory outside the project untouched" "$t/home/lessons.md"
 ( cd "$t/proj" && bash "$PRUNE" --dir "$t/proj/.agent-context/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1 )
 assert_file_not_contains "explicit --dir still follows a shared memory dir" "$t/home/lessons.md" "Expired gotcha"
 
+# 35. A rewrite must keep the file's mode and its hard links: mktemp + mv left 0600 and a detached copy.
+t=$(mk_tmp); seed "$t/memory"
+chmod 644 "$t/memory/lessons.md"
+ln "$t/memory/lessons.md" "$t/hardlink.md"
+bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
+mode=$(ls -l "$t/memory/lessons.md" | cut -c1-10)
+[ "$mode" = "-rw-r--r--" ] && pass "rewrite preserves the file mode" || fail "rewrite preserves the file mode" "got $mode"
+assert_file_not_contains "rewrite keeps hard links attached" "$t/hardlink.md" "Expired gotcha"
+
+# 36. Dates are computed in-process: no `date` fork per dated entry.
+t=$(mk_tmp); mkdir -p "$t/memory" "$t/bin"
+for i in $(seq 1 50); do
+    printf -- '- **[e%d]** entry (2020-01-01) ttl:90d\n' "$i"
+done > "$t/memory/lessons.md"
+real_date=$(command -v date)
+printf '#!/bin/sh\necho x >> "%s"\nexec "%s" "$@"\n' "$t/date-calls" "$real_date" > "$t/bin/date"
+chmod +x "$t/bin/date"
+PATH="$t/bin:$PATH" bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" >/dev/null 2>&1
+calls=$(wc -l < "$t/date-calls" | tr -d ' ')
+[ "$calls" -le 5 ] && pass "no date fork per dated entry" || fail "no date fork per dated entry" "date ran $calls times for 50 entries"
+
+# 37. Invalid calendar dates are never expired (BSD date accepted 2020-02-30); expiry is by
+#     calendar day, identical on BSD and GNU: today > entry-date + ttl.
+t=$(mk_tmp); mkdir -p "$t/memory"
+d10=$(date -v-10d +%Y-%m-%d 2>/dev/null || date -d '10 days ago' +%Y-%m-%d)
+d11=$(date -v-11d +%Y-%m-%d 2>/dev/null || date -d '11 days ago' +%Y-%m-%d)
+cat > "$t/memory/lessons.md" <<EOF
+- **[feb30]** impossible day (2020-02-30) ttl:1d
+- **[month13]** impossible month (2020-13-01) ttl:1d
+- **[feb29odd]** no leap day in 2021 (2021-02-29) ttl:1d
+- **[leap]** real leap day (2020-02-29) ttl:1d
+- **[edge]** exactly ttl days old ($d10) ttl:10d
+- **[past]** one day past ttl ($d11) ttl:10d
+EOF
+bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
+assert_file_contains "invalid day 2020-02-30 is never expired" "$t/memory/lessons.md" "[feb30]"
+assert_file_contains "invalid month 2020-13-01 is never expired" "$t/memory/lessons.md" "[month13]"
+assert_file_contains "invalid leap day 2021-02-29 is never expired" "$t/memory/lessons.md" "[feb29odd]"
+assert_file_not_contains "valid leap day 2020-02-29 expires" "$t/memory/lessons.md" "[leap]"
+assert_file_contains "entry exactly ttl days old is kept" "$t/memory/lessons.md" "[edge]"
+assert_file_not_contains "entry one day past ttl expires" "$t/memory/lessons.md" "[past]"
+
+# 38. A value option without its value exits 2 with a message, not 1 from set -e.
+for opt in --dir --conf --archive; do
+    out=$(bash "$PRUNE" "$opt" 2>&1)
+    rc=$?
+    [ "$rc" -eq 2 ] && printf '%s' "$out" | grep -qF "Error: $opt requires an argument" \
+        && pass "$opt without a value exits 2" || fail "$opt without a value exits 2" "rc=$rc out=$out"
+done
+
+# 39. A write that lands between the read and the rewrite must not be lost.
+t=$(mk_tmp); seed "$t/memory"
+out=$(MEMORY_PRUNE_TEST_CONCURRENT_WRITE='- concurrent agent note' \
+    bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply 2>&1)
+rc=$?
+[ "$rc" -eq 2 ] && pass "concurrent write aborts with exit 2" || fail "concurrent write aborts with exit 2" "rc=$rc out=$out"
+assert_file_contains "concurrent write is kept" "$t/memory/lessons.md" "concurrent agent note"
+assert_file_contains "file changed mid-run is left unrewritten" "$t/memory/lessons.md" "Expired gotcha"
+printf '%s' "$out" | grep -qF "changed while it was processed" \
+    && pass "concurrent write is reported" || fail "concurrent write is reported" "out=$out"
+
+# 40. Dry-run names files relative to the memory dir and strips control characters.
+t=$(mk_tmp); mkdir -p "$t/memory/a" "$t/memory/b"
+printf -- '- **[a]** first domain (2020-01-01) ttl:1d\n' > "$t/memory/a/lessons.md"
+printf -- '- **[b]** second \033[2Jdomain\r (2020-01-01) ttl:1d\n' > "$t/memory/b/lessons.md"
+out=$(bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" 2>&1)
+printf '%s\n' "$out" | grep -qxF "  a/lessons.md:" && printf '%s\n' "$out" | grep -qxF "  b/lessons.md:" \
+    && pass "dry-run prints paths relative to the memory dir" || fail "dry-run prints relative paths" "out=$out"
+printf '%s' "$out" | LC_ALL=C grep -q "$(printf '[\033\r]')" \
+    && fail "dry-run strips control characters" "raw control bytes in output" \
+    || pass "dry-run strips control characters"
+printf '%s' "$out" | grep -qF "second [2Jdomain" \
+    && pass "dry-run keeps the printable entry text" || fail "dry-run keeps the printable entry text" "out=$out"
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))
