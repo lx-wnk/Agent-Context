@@ -55,6 +55,8 @@ Run this before reading or acting on any other step — later steps branch on `I
 
 Do not infer the mode from anything else — not from a TTY check, `CI`, `-p`, or the existence of `.claude/settings.json`.
 
+**Installer-managed files:** if your launching instruction contains `INSTALLER MANAGES: …` (appended by `install.sh`), the installer has already copied the shared files (Step 2) and will itself write `.claude/commands/`, the hook entries in `.claude/settings.json`, `.claude/CLAUDE.md` and the version file after you finish. Do not write any of them and do not try to obtain permission for them: skip Step 2 (log `Step 2/5: Installing shared files — done by the installer`), skip every `.claude/` file in Step 3, skip Step 4.7 (log `Step 4.7: Hook registration — done by the installer`) and skip **Record the Installed Version**. Everything else — templates under `.agent-context/`, migration, discovery, knowledge re-sync — stays yours.
+
 **Shell:** the Bash tool may run zsh. Every multi-line block in this prompt is written for bash 3.2 — run it as `bash <<'AC_SH'` … `AC_SH` (the blocks with bash-only syntax are already wrapped). Single-line commands are portable as written.
 
 In non-interactive mode (`INTERACTIVE_MODE=false`), write progress to `.agent-context/setup.log` at the start of each step via a Bash tool call:
@@ -133,6 +135,8 @@ If `INTERACTIVE_MODE=true`, announce the detected mode. In non-interactive mode,
 8. Store the selected version tag (e.g. `v0.5.0`) — it is used to build raw file URLs in Steps 2 and 3.
 
 ## Step 2: Install Shared Files
+
+> Skipped entirely when the launching instruction contains `INSTALLER MANAGES` (see Step 0).
 
 Fetch each shared file directly from GitHub raw content — no tarball or temp directory needed.
 
@@ -229,6 +233,8 @@ A `.claude/commands/` file without an `.agent-context/` reference is a user-owne
 > **Important:** If the parallel download block above exits non-zero (any file failed to download), **stop here.** The version file is written only by **Record the Installed Version** at the very end of a successful run, so a failed run leaves the old version (or none) in place and the next `install.sh` run retries.
 
 ## Step 3: Template Files
+
+> With `INSTALLER MANAGES` (Step 0): install every template except those under `.claude/` — the installer writes those.
 
 List all template files recursively via the GitHub Git Trees API (returns all nested paths in one call).
 The `<tag>` placeholder is used directly as the tree ref — GitHub's API accepts branch/tag names here, not only SHAs (documented: "SHA1 value or ref (branch or tag) name of the tree"). Release tags are annotated; the Trees API peels a tag name to its commit's tree, so no prior `/git/refs/tags/<tag>` call is needed. If the lookup ever yields no templates, the block below aborts instead of installing nothing.
@@ -552,6 +558,8 @@ All three substeps are guarded by existence/tracking/marker checks — running t
 
 ## Step 4.7: Hook Registration (SETUP and UPDATE)
 
+> Skipped when the launching instruction contains `INSTALLER MANAGES` (Step 0) — the installer merges the hook entries itself.
+
 Agent-Context ships four optional, deterministic hooks (`.agent-context/hooks/`): secret-write block (PreToolUse), auto-format (PostToolUse), test gate (Stop), and subagent scope check (SubagentStop). They are governed by the project-owned `.agent-context/hooks.conf` and are **off by default** (`HOOKS_ENABLED=0`) — registering them changes nothing until the user opts in.
 
 **Registration is additive and idempotent — never overwrite or remove existing `settings.json` content.**
@@ -732,6 +740,8 @@ Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-conte
 - Run the always-on budget gate: `bash .agent-context/bin/check-token-budget.sh` (reads `.agent-context/budget.conf`). If it reports FAIL, flag the always-on baseline as over budget and recommend moving optional content behind routing.
 
 ## Record the Installed Version (last action)
+
+> Skipped when the launching instruction contains `INSTALLER MANAGES` (Step 0) — the installer writes the version only after verifying the install.
 
 Run this as the last action of a successful run — after Step 5e in UPDATE, after Phase S5 in SETUP — and immediately before writing `[agent-context] Done.`. Run it only if Steps 2 and 3 both completed for `<tag>` in this run; if the update was skipped, declined, refused as a downgrade, or any step failed, do not touch the file, so the next `install.sh` run retries:
 
