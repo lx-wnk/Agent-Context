@@ -86,12 +86,12 @@ The one-liner runs through `bash -c`, whose first argument becomes `$0`. Put `_`
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/lx-wnk/Agent-Context/main/install.sh)" _ --force
 ```
 
-| Flag                                             | Effect                                                                                                                                                                         |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--force`                                        | Full from-scratch rediscovery: re-scans the whole codebase at setup depth even on an existing install and merges into existing knowledge without deleting still-valid facts.   |
-| `--discover`                                     | After the run, checks for a [discovery map](docs/discovery-map.md) and, if none exists, points you to the interactive `/discover` command (the headless run never builds one). |
-| `--local-source <path>`, `--local-source=<path>` | Installs from a local clone instead of GitHub (implies `--force`); for developing Agent Context itself. Env var: `AGENT_CONTEXT_SOURCE`.                                       |
-| `--ai-dirs=<dirs>`                               | Comma-separated extra AI-doc directories to treat as migratable (e.g. `--ai-dirs=".cursor,.ai-custom"`).                                                                       |
+| Flag                                             | Effect                                                                                                                                                                            |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--force`                                        | Full from-scratch rediscovery: re-scans the whole codebase at setup depth even on an existing install and merges into existing knowledge without deleting still-valid facts.      |
+| `--discover`                                     | After the run, checks for a [discovery map](docs/discovery-map.md) and, if none exists, points you to the interactive `/discover` command (the headless run never builds one).    |
+| `--local-source <path>`, `--local-source=<path>` | Installs from a local clone instead of GitHub; for developing Agent Context itself. Runs a normal update — add `--force` for a full rediscovery. Env var: `AGENT_CONTEXT_SOURCE`. |
+| `--ai-dirs=<dirs>`                               | Comma-separated extra AI-doc directories to treat as migratable (e.g. `--ai-dirs=".cursor,.ai-custom"`).                                                                          |
 
 See [what gets created](docs/architecture.md#what-gets-created) and [alternative install](docs/architecture.md#alternative-paste-into-a-session).
 
