@@ -77,14 +77,21 @@ emit_block_decision() {
 }
 
 # Glob match: returns 0 if <basename-or-path> matches any space-separated pattern in $2.
+# `read -a` splits without pathname expansion: an unquoted `for p in $patterns` would expand
+# `*.pem` against the cwd (the project root), so an existing a.pem would stop protecting b.pem.
+# Case-insensitive, because .ENV is the same file as .env on APFS and NTFS.
 matches_any_glob() {
-    local subject="$1" patterns="$2" base p
+    local subject="$1" base p matched=1 reset_case=0
+    local -a pats
     base="$(basename "$subject")"
-    for p in $patterns; do
+    read -r -a pats <<< "$2"
+    shopt -q nocasematch || { shopt -s nocasematch; reset_case=1; }
+    for p in ${pats[@]+"${pats[@]}"}; do
         # shellcheck disable=SC2254
-        case "$base" in $p) return 0 ;; esac
+        case "$base" in $p) matched=0; break ;; esac
         # shellcheck disable=SC2254
-        case "$subject" in $p) return 0 ;; esac
+        case "$subject" in $p) matched=0; break ;; esac
     done
-    return 1
+    [ "$reset_case" -eq 1 ] && shopt -u nocasematch
+    return "$matched"
 }

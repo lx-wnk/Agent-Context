@@ -644,6 +644,40 @@ else
         || pass "SIGINT leaves no partial archive"
 fi
 
+# 32. A symlinked archive FILE is never written through: a repo can ship archive/<week>.md -> ~/.bashrc,
+#     and the expired entries it appends are attacker-controlled.
+t=$(mk_tmp); seed "$t/memory"
+mkdir -p "$t/memory/archive" "$t/outside"
+printf '# victim\n' > "$t/outside/victim"
+ln -s "$t/outside/victim" "$t/memory/archive/$(date +%G-W%V).md"
+bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
+rc=$?
+[ "$rc" -eq 2 ] && pass "symlinked archive file exits 2" || fail "symlinked archive file exits 2" "got exit $rc"
+[ "$(cat "$t/outside/victim")" = "# victim" ] && pass "symlinked archive target untouched" \
+    || fail "symlinked archive target untouched" "victim now: $(cat "$t/outside/victim")"
+assert_file_contains "source keeps its entries when the archive is refused" "$t/memory/lessons.md" "Expired gotcha"
+
+# 33. The default archive DIRECTORY must stay inside the memory dir (memory/archive -> elsewhere).
+t=$(mk_tmp); seed "$t/memory"
+mkdir -p "$t/elsewhere"
+ln -s "$t/elsewhere" "$t/memory/archive"
+bash "$PRUNE" --dir "$t/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1
+rc=$?
+[ "$rc" -eq 2 ] && pass "archive dir resolving outside memory exits 2" || fail "archive dir escape exits 2" "got exit $rc"
+[ -z "$(ls -A "$t/elsewhere")" ] && pass "nothing written outside through the archive dir" \
+    || fail "archive dir escape" "wrote: $(ls -A "$t/elsewhere")"
+
+# 34. The DEFAULT memory dir must stay inside the project on --apply; an explicit --dir is the caller's call.
+t=$(mk_tmp); mkdir -p "$t/proj/.agent-context" "$t/home"
+seed "$t/home"
+ln -s "$t/home" "$t/proj/.agent-context/memory"
+( cd "$t/proj" && bash "$PRUNE" --conf "$t/absent.conf" --apply >/dev/null 2>&1 )
+rc=$?
+[ "$rc" -eq 2 ] && pass "default memory dir outside the project exits 2 on --apply" || fail "default memory dir escape" "got exit $rc"
+assert_file_contains "memory outside the project untouched" "$t/home/lessons.md" "Expired gotcha"
+( cd "$t/proj" && bash "$PRUNE" --dir "$t/proj/.agent-context/memory" --conf "$t/absent.conf" --apply >/dev/null 2>&1 )
+assert_file_not_contains "explicit --dir still follows a shared memory dir" "$t/home/lessons.md" "Expired gotcha"
+
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))
