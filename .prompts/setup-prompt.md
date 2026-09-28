@@ -585,7 +585,7 @@ Canonical entries to merge (matchers and event names exactly as shown):
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/pre-protect-secrets.sh",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.agent-context/hooks/pre-protect-secrets.sh",
             "timeout": 10
           }
         ]
@@ -595,7 +595,11 @@ Canonical entries to merge (matchers and event names exactly as shown):
       {
         "matcher": "Write|Edit|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/post-format.sh", "timeout": 60 }
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.agent-context/hooks/post-format.sh",
+            "timeout": 60
+          }
         ]
       }
     ],
@@ -604,7 +608,7 @@ Canonical entries to merge (matchers and event names exactly as shown):
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/stop-test-gate.sh",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.agent-context/hooks/stop-test-gate.sh",
             "timeout": 600
           }
         ]
@@ -615,7 +619,7 @@ Canonical entries to merge (matchers and event names exactly as shown):
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.agent-context/hooks/subagent-scope.sh",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.agent-context/hooks/subagent-scope.sh",
             "timeout": 30
           }
         ]
