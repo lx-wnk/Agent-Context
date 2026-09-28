@@ -148,6 +148,15 @@ assert_eq "path with .. segment falls back to /tmp/agent-context" "/tmp/agent-co
 result=$(resolve_cache_dir "")
 assert_eq "empty cache path falls back to /tmp/agent-context" "/tmp/agent-context" "$result"
 
+
+# CACHE_DIR default: XDG_CACHE_HOME wins, HOME/.cache is the fallback.
+INSTALL_SH="$(dirname "${BASH_SOURCE[0]}")/../install.sh"
+# shellcheck disable=SC2016  # $1 expands inside the child bash, not here
+assert_eq "CACHE_DIR follows XDG_CACHE_HOME" "/xdg/agent-context" \
+    "$(XDG_CACHE_HOME=/xdg bash -c 'source "$1"; echo "$CACHE_DIR"' _ "$INSTALL_SH")"
+# shellcheck disable=SC2016
+assert_eq "CACHE_DIR falls back to HOME/.cache" "/home/u/.cache/agent-context" \
+    "$(env -u XDG_CACHE_HOME HOME=/home/u bash -c 'source "$1"; echo "$CACHE_DIR"' _ "$INSTALL_SH")"
 # ---------------------------------------------------------------------------
 # 10. Bootstrap-only check: file with only @AGENTS.md → true
 # ---------------------------------------------------------------------------
