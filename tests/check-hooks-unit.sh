@@ -9,7 +9,8 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-HOOKS="$REPO_ROOT/context/hooks"
+HOOKS="${HOOKS_UNDER_TEST:-$REPO_ROOT/context/hooks}"
+JSON_CHECK="${JSON_CHECK-$(command -v jq 2>/dev/null)}"
 
 PASS=0
 FAIL=0
@@ -26,13 +27,16 @@ run_hook() {
     outf=$(mktemp); errf=$(mktemp)
     printf '%s' "$json" \
         | AGENT_CONTEXT_HOOKS_CONF="$conf" AGENT_CONTEXT_HOOKS_LOCAL_CONF="$local_conf" \
-            bash "$script" >"$outf" 2>"$errf"
+            "$BASH" "$script" >"$outf" 2>"$errf"
     RC=$?
     OUT="$(cat "$outf")"; ERR="$(cat "$errf")"
     rm -f "$outf" "$errf"
 }
 
-echo "=== hooks unit tests ==="
+valid_json() { [ -z "$JSON_CHECK" ] || printf '%s' "$1" | "$JSON_CHECK" -e . >/dev/null 2>&1; }
+system_message() { printf '%s' "$1" | grep -q '"systemMessage"' && printf '%s' "$1" | grep -q "$2" && valid_json "$1"; }
+
+echo "=== hooks unit tests${HOOKS_TEST_NOJQ:+ (no jq)} ==="
 echo ""
 
 # --- pre-protect-secrets ---
@@ -40,6 +44,7 @@ echo "--- pre-protect-secrets (PreToolUse) ---"
 t=$(mk_tmp)
 printf 'HOOKS_ENABLED=1\nPROTECT_SECRETS=1\nPROTECTED_GLOBS=".env .env.* *.key"\n' > "$t/on.conf"
 printf 'HOOKS_ENABLED=0\n' > "$t/off.conf"
+printf 'HOOKS_ENABLED=1\nPROTECTED_GLOBS=".env .env.* *.pem *.key"\n' > "$t/on2.conf"
 
 run_hook "$HOOKS/pre-protect-secrets.sh" "$t/on.conf" '{"tool_name":"Write","tool_input":{"file_path":".env"}}'
 [ "$RC" -eq 2 ] && pass "writing .env exits 2 (blocked)" || fail "writing .env exits 2" "rc=$RC"
@@ -53,6 +58,26 @@ run_hook "$HOOKS/pre-protect-secrets.sh" "$t/on.conf" '{"tool_name":"Write","too
 run_hook "$HOOKS/pre-protect-secrets.sh" "$t/off.conf" '{"tool_name":"Write","tool_input":{"file_path":".env"}}'
 [ "$RC" -eq 0 ] && pass "master off → .env write not blocked" || fail "master off → not blocked" "rc=$RC"
 
+for f in "$t/.env" "$t/x.pem"; do
+    run_hook "$HOOKS/pre-protect-secrets.sh" "$t/on2.conf" "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$f\"}}"
+    [ "$RC" -eq 2 ] && pass "absolute $(basename "$f") blocked" || fail "absolute $(basename "$f") blocked" "rc=$RC"
+done
+{ printf '%s' "$ERR" | grep -q "writes" && ! printf '%s' "$ERR" | grep -q "reading"; } \
+    && pass "block message claims writes only" || fail "block message claims writes only" "err=$ERR"
+
+run_hook "$HOOKS/pre-protect-secrets.sh" "$t/on2.conf" "{\"tool_name\":\"MultiEdit\",\"tool_input\":{\"file_path\":\"$t/.env\",\"edits\":[]}}"
+[ "$RC" -eq 2 ] && pass "MultiEdit on .env blocked" || fail "MultiEdit on .env blocked" "rc=$RC"
+
+for f in .env.example .env.dist .env.sample; do
+    run_hook "$HOOKS/pre-protect-secrets.sh" "$t/on2.conf" "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$t/$f\"}}"
+    [ "$RC" -eq 0 ] && pass "$f allowed (template suffix)" || fail "$f allowed (template suffix)" "rc=$RC"
+done
+
+printf 'X=1\n' > "$t/.env"
+ln -s "$t/.env" "$t/innocent.txt"
+run_hook "$HOOKS/pre-protect-secrets.sh" "$t/on2.conf" "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$t/innocent.txt\"}}"
+[ "$RC" -eq 2 ] && pass "symlink to .env blocked" || fail "symlink to .env blocked" "rc=$RC"
+
 # Patterns are matched literally, never glob-expanded against the hook's cwd (the project root),
 # and case-insensitively: a.pem / .env.local on disk must not narrow `*.pem` / `.env.*`, and .ENV
 # is the same file as .env on a case-insensitive filesystem.
@@ -62,7 +87,7 @@ printf 'HOOKS_ENABLED=1\nPROTECT_SECRETS=1\nPROTECTED_GLOBS=".env .env.* *.pem"\
 for f in b.pem .env.production .ENV; do
     rc=0
     ( cd "$t2" && printf '{"tool_name":"Write","tool_input":{"file_path":"%s/%s"}}' "$t2" "$f" \
-        | AGENT_CONTEXT_HOOKS_CONF="$NO_CONF" AGENT_CONTEXT_HOOKS_LOCAL_CONF="$t2/on.conf" bash "$HOOKS/pre-protect-secrets.sh" >/dev/null 2>&1 ) || rc=$?
+        | AGENT_CONTEXT_HOOKS_CONF="$NO_CONF" AGENT_CONTEXT_HOOKS_LOCAL_CONF="$t2/on.conf" "$BASH" "$HOOKS/pre-protect-secrets.sh" >/dev/null 2>&1 ) || rc=$?
     [ "$rc" -eq 2 ] && pass "$f blocked although matching files exist in cwd" || fail "$f blocked" "rc=$rc"
 done
 
@@ -85,6 +110,7 @@ printf '%s' "$esc_err" | grep -q "escaped quote" && pass "escaped quote is repor
 # --- post-format ---
 echo "--- post-format (PostToolUse) ---"
 t=$(mk_tmp)
+export CLAUDE_PROJECT_DIR="$t"
 target="$t/file.txt"; marker="$t/formatted.marker"
 printf 'content\n' > "$target"
 printf 'HOOKS_ENABLED=1\nFORMAT_ON_EDIT=1\nFORMAT_CMD="cp {} %s"\n' "$marker" > "$t/fmt.conf"
@@ -101,13 +127,52 @@ printf 'HOOKS_ENABLED=1\nFORMAT_ON_EDIT=0\nFORMAT_CMD="cp {} %s.off"\n' "$marker
 run_hook "$HOOKS/post-format.sh" "$t/fmtoff.conf" "{\"tool_input\":{\"file_path\":\"$target\"}}"
 [ ! -f "$marker.off" ] && pass "FORMAT_ON_EDIT=0 → no formatting" || fail "FORMAT_ON_EDIT=0 → no formatting" "ran anyway"
 
+printf 'content\n' > "$t/appended.txt"
+printf 'HOOKS_ENABLED=1\nFORMAT_CMD="rm"\n' > "$t/fmt-append.conf"
+run_hook "$HOOKS/post-format.sh" "$t/fmt-append.conf" "{\"tool_input\":{\"file_path\":\"$t/appended.txt\"}}"
+[ ! -f "$t/appended.txt" ] && pass "FORMAT_CMD without {} gets the path appended" || fail "FORMAT_CMD without {} appends path" "file still there"
+
+printf 'HOOKS_ENABLED=1\nFORMAT_CMD="false"\n' > "$t/fmt-fail.conf"
+run_hook "$HOOKS/post-format.sh" "$t/fmt-fail.conf" "{\"tool_input\":{\"file_path\":\"$target\"}}"
+{ [ "$RC" -eq 0 ] && system_message "$OUT" "format command failed"; } \
+    && pass "format failure → exit 0 + systemMessage" || fail "format failure → systemMessage" "rc=$RC out=$OUT"
+
+outside="$(mk_tmp)/outside.txt"
+printf 'content\n' > "$outside"
+run_hook "$HOOKS/post-format.sh" "$t/fmt-append.conf" "{\"tool_input\":{\"file_path\":\"$outside\"}}"
+[ -f "$outside" ] && pass "file outside CLAUDE_PROJECT_DIR is not formatted" || fail "outside file not formatted" "FORMAT_CMD ran on it"
+unset CLAUDE_PROJECT_DIR
+
 # --- stop-test-gate ---
 echo "--- stop-test-gate (Stop) ---"
 t=$(mk_tmp)
 printf 'HOOKS_ENABLED=1\nSTOP_GATE="warn"\nTEST_CMD="false"\n' > "$t/warn.conf"
 run_hook "$HOOKS/stop-test-gate.sh" "$t/warn.conf" '{"hook_event_name":"Stop"}'
-{ [ "$RC" -eq 0 ] && printf '%s' "$ERR" | grep -q "test gate"; } \
-    && pass "warn mode: failing tests → exit 0 + stderr warning" || fail "warn mode" "rc=$RC err=$ERR"
+{ [ "$RC" -eq 0 ] && system_message "$OUT" "test gate"; } \
+    && pass "warn mode: failing tests → exit 0 + systemMessage" || fail "warn mode" "rc=$RC out=$OUT"
+
+printf 'HOOKS_ENABLED=1\nSTOP_GATE="off"\nTEST_CMD="touch %s/off.marker"\n' "$t" > "$t/gate-off.conf"
+run_hook "$HOOKS/stop-test-gate.sh" "$t/gate-off.conf" '{"hook_event_name":"Stop"}'
+[ ! -f "$t/off.marker" ] && pass "STOP_GATE=off → TEST_CMD not run" || fail "STOP_GATE=off" "TEST_CMD ran"
+
+printf 'HOOKS_ENABLED=1\nSTOP_GATE="block"\nTEST_CMD="touch %s/active.marker"\n' "$t" > "$t/active.conf"
+run_hook "$HOOKS/stop-test-gate.sh" "$t/active.conf" '{"hook_event_name":"Stop","stop_hook_active":true}'
+[ ! -f "$t/active.marker" ] && pass "stop_hook_active=true → suite not re-run" || fail "stop_hook_active skips suite" "TEST_CMD ran"
+
+cat > "$t/noisy.sh" <<'SH'
+pad=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+i=0
+while [ "$i" -lt 200 ]; do printf '\033[31mFAIL\033[0m line %s %s\n' "$i" "$pad"; i=$((i + 1)); done
+exit 1
+SH
+printf 'HOOKS_ENABLED=1\nSTOP_GATE="block"\nTEST_CMD="bash %s/noisy.sh"\n' "$t" > "$t/noisy.conf"
+run_hook "$HOOKS/stop-test-gate.sh" "$t/noisy.conf" '{"hook_event_name":"Stop","stop_hook_active":false}'
+esc="$(printf '\033')"
+{ printf '%s' "$OUT" | grep -q '"decision":"block"' && valid_json "$OUT" && [ "${#OUT}" -le 5000 ] \
+    && printf '%s' "$OUT" | grep -q "Test output" && ! printf '%s' "$OUT" | grep -q "$esc" \
+    && ! printf '%s' "$OUT" | grep -qi 'u001b'; } \
+    && pass "block reason: valid JSON, no ANSI, capped, labelled" \
+    || fail "block reason sanitized" "len=${#OUT} out=$(printf '%s' "$OUT" | head -c 300)"
 
 printf 'HOOKS_ENABLED=1\nSTOP_GATE="block"\nTEST_CMD="false"\n' > "$t/block.conf"
 run_hook "$HOOKS/stop-test-gate.sh" "$t/block.conf" '{"hook_event_name":"Stop","stop_hook_active":false}'
@@ -149,25 +214,45 @@ run_hook "$HOOKS/stop-test-gate.sh" "$t/pass.conf" '{"hook_event_name":"Stop"}'
 # --- subagent-scope ---
 echo "--- subagent-scope (SubagentStop) ---"
 t=$(mk_tmp)
-tr="$t/transcript.jsonl"
-cat > "$tr" <<'JSONL'
-{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"src/ok.js","content":"x"}}]}}
-{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{"file_path":"config/secret.yml"}}]}}
-{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"config/reads-are-fine.yml"}}]}}
+export CLAUDE_PROJECT_DIR="$t"
+tr="$t/agent.jsonl"; main_tr="$t/main.jsonl"
+cat > "$tr" <<JSONL
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"$t/src/ok.js","content":"x"}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{"file_path":"$t/config/secret.yml"}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"$t/config/reads-are-fine.yml"}}]}}
 JSONL
+printf '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"%s/lib/main.js"}}]}}\n' "$t" > "$main_tr"
+payload="{\"transcript_path\":\"$main_tr\",\"agent_transcript_path\":\"$tr\",\"stop_hook_active\":false}"
 printf 'HOOKS_ENABLED=1\nSUBAGENT_SCOPE="warn"\nALLOWED_SUBAGENT_PATHS="src/*"\n' > "$t/scope-warn.conf"
-run_hook "$HOOKS/subagent-scope.sh" "$t/scope-warn.conf" "{\"transcript_path\":\"$tr\"}"
-{ [ "$RC" -eq 0 ] && printf '%s' "$ERR" | grep -q "config/secret.yml" \
-    && ! printf '%s' "$ERR" | grep -q "reads-are-fine.yml"; } \
-    && pass "warn: out-of-scope WRITE flagged, READ ignored" || fail "scope warn" "rc=$RC err=$ERR"
+run_hook "$HOOKS/subagent-scope.sh" "$t/scope-warn.conf" "$payload"
+{ [ "$RC" -eq 0 ] && system_message "$OUT" "config/secret.yml" \
+    && ! printf '%s' "$OUT" | grep -q "reads-are-fine.yml" && ! printf '%s' "$OUT" | grep -q "src/ok.js"; } \
+    && pass "warn: absolute out-of-scope WRITE flagged via systemMessage, READ ignored" || fail "scope warn" "rc=$RC out=$OUT"
 
 printf 'HOOKS_ENABLED=1\nSUBAGENT_SCOPE="block"\nALLOWED_SUBAGENT_PATHS="src/*"\n' > "$t/scope-block.conf"
-run_hook "$HOOKS/subagent-scope.sh" "$t/scope-block.conf" "{\"transcript_path\":\"$tr\"}"
+run_hook "$HOOKS/subagent-scope.sh" "$t/scope-block.conf" "$payload"
 printf '%s' "$OUT" | grep -q '"decision":"block"' && pass "block mode: out-of-scope → decision:block" || fail "scope block" "out=$OUT"
 
+run_hook "$HOOKS/subagent-scope.sh" "$t/scope-block.conf" "{\"agent_transcript_path\":\"$tr\",\"stop_hook_active\":true}"
+! printf '%s' "$OUT" | grep -q '"decision":"block"' && pass "block mode: stop_hook_active=true → no re-block" || fail "scope loop guard" "out=$OUT"
+
 printf 'HOOKS_ENABLED=1\nSUBAGENT_SCOPE="warn"\nALLOWED_SUBAGENT_PATHS="src/* config/*"\n' > "$t/scope-ok.conf"
-run_hook "$HOOKS/subagent-scope.sh" "$t/scope-ok.conf" "{\"transcript_path\":\"$tr\"}"
-{ [ "$RC" -eq 0 ] && [ -z "$ERR" ]; } && pass "all writes in scope → silent exit 0" || fail "scope ok" "rc=$RC err=$ERR"
+run_hook "$HOOKS/subagent-scope.sh" "$t/scope-ok.conf" "$payload"
+{ [ "$RC" -eq 0 ] && [ -z "$OUT" ] && [ -z "$ERR" ]; } && pass "all writes in scope → silent exit 0" || fail "scope ok" "rc=$RC out=$OUT err=$ERR"
+
+run_hook "$HOOKS/subagent-scope.sh" "$t/scope-warn.conf" "{\"transcript_path\":\"$tr\",\"agent_transcript_path\":\"$main_tr\"}"
+printf '%s' "$OUT" | grep -q "lib/main.js" && ! printf '%s' "$OUT" | grep -q "secret.yml" \
+    && pass "agent_transcript_path is scanned, not transcript_path" || fail "reads agent_transcript_path" "out=$OUT"
+
+printf '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/elsewhere/notes.md"}}]}}\n' > "$t/out.jsonl"
+printf 'HOOKS_ENABLED=1\nSUBAGENT_SCOPE="warn"\nALLOWED_SUBAGENT_PATHS="*.md"\n' > "$t/scope-md.conf"
+run_hook "$HOOKS/subagent-scope.sh" "$t/scope-md.conf" "{\"agent_transcript_path\":\"$t/out.jsonl\"}"
+printf '%s' "$OUT" | grep -q "/elsewhere/notes.md" && pass "write outside the project is a violation" || fail "outside-project write flagged" "out=$OUT"
+
+printf 'HOOKS_ENABLED=1\nSUBAGENT_SCOPE="off"\nALLOWED_SUBAGENT_PATHS="src/*"\n' > "$t/scope-off.conf"
+run_hook "$HOOKS/subagent-scope.sh" "$t/scope-off.conf" "$payload"
+{ [ -z "$OUT" ] && [ -z "$ERR" ]; } && pass "SUBAGENT_SCOPE=off → silent" || fail "SUBAGENT_SCOPE=off" "out=$OUT err=$ERR"
+unset CLAUDE_PROJECT_DIR
 
 # --- committed hooks.conf vs. user-local hooks.local.conf ---
 echo "--- hooks.conf / hooks.local.conf split ---"
@@ -200,6 +285,19 @@ run_hook "$HOOKS/pre-protect-secrets.sh" "$t/local-on.conf" '{"tool_input":{"fil
 printf 'HOOKS_ENABLED=1\nPROTECT_SECRETS=0\n' > "$t/local-nosecrets.conf"
 run_hook "$HOOKS/pre-protect-secrets.sh" "$t/local-nosecrets.conf" '{"tool_input":{"file_path":"a.custom"}}' "$t/globs.conf"
 [ "$RC" -eq 0 ] && pass "hooks.local.conf overrides a hooks.conf key" || fail "hooks.local.conf overrides a hooks.conf key" "rc=$RC"
+
+if [ -z "${HOOKS_TEST_NOJQ:-}" ] && ! PATH="$sandbox" command -v jq >/dev/null 2>&1; then
+    for b in touch cp mkdir ln readlink chmod wc sort; do
+        p="$(command -v "$b" 2>/dev/null)" && ln -sf "$p" "$sandbox/$b"
+    done
+    ln -sf "$BASH" "$sandbox/bash"
+    echo ""
+    if PATH="$sandbox" HOOKS_TEST_NOJQ=1 JSON_CHECK="$JSON_CHECK" HOOKS_UNDER_TEST="$HOOKS" "$BASH" "$0"; then
+        pass "whole suite passes without jq"
+    else
+        fail "whole suite passes without jq" "see the (no jq) run above"
+    fi
+fi
 
 echo ""
 echo "================================================"
