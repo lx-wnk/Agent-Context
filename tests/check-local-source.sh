@@ -11,10 +11,8 @@ INSTALL="$REPO_ROOT/install.sh"
 
 PASS=0
 FAIL=0
-# mk_tmp runs inside $(...), so it can only create under a root owned by this shell.
-TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/localsrc.XXXXXX")
-trap 'rm -rf "$TMP_ROOT"' EXIT
-mk_tmp() { mktemp -d "$TMP_ROOT/XXXXXX"; }
+# shellcheck source=tests/lib.sh
+source "$REPO_ROOT/tests/lib.sh"
 pass() { printf "  PASS  %s\n" "$1"; PASS=$((PASS + 1)); }
 fail() { printf "  FAIL  %s\n    => %s\n" "$1" "$2"; FAIL=$((FAIL + 1)); }
 

@@ -25,13 +25,8 @@ FAIL=0
 # Helpers
 # ---------------------------------------------------------------------------
 
-# mk_tmp runs inside $(...), so it can only create under a root owned by this shell.
-TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/agent-context.XXXXXX")
-trap 'rm -rf "$TMP_ROOT"' EXIT
-
-mk_tmp() {
-    mktemp -d "$TMP_ROOT/XXXXXX"
-}
+# shellcheck source=tests/lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 pass() { printf "  PASS  %s\n" "$1"; PASS=$(( PASS + 1 )); }
 fail() { printf "  FAIL  %s\n    => %s\n" "$1" "$2"; FAIL=$(( FAIL + 1 )); }
