@@ -6,6 +6,7 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ### Fixed
 
+- **Sourcing `install.sh` from zsh ran the installer** — the "run only when executed" guard compared `${BASH_SOURCE[0]:-$0}` with `$0`; zsh has no `BASH_SOURCE` and sets `$0` to the sourced file, so the guard always passed and the full installer (including the `claude` spawn) ran. `install.sh` now refuses any non-bash shell up front.
 - **`--local-source` was only recognized as the first argument** — `install.sh --force --local-source ./clone` silently ran a remote install, and `--local-source` without a path did the same. The flag is now honored in any position and in the `--local-source=<path>` spelling; a missing path — including a following flag such as `--local-source --force` — exits 1 with "requires a path", and the not-found error names both the flag and `AGENT_CONTEXT_SOURCE`.
 - **Stale-cache warning never printed** — `get_latest_version` ran inside `$(...)`, so the `CACHE_STALE` flag it set was lost with the subshell and the fast-path never warned that its "already up to date" rested on a stale cache. It now sets `LATEST_VERSION`/`CACHE_STALE` in the caller's shell.
 
