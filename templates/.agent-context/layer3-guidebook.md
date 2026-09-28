@@ -11,9 +11,9 @@ Skip files that are empty or contain only comments.
 
 ## Load By Task Type
 
-| Working on...                                           | Read first                                                                                  |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Unfamiliar subsystem / onboarding / "where does X live" | Run `/discover` (discovery-map skill), then `map.json` → pick node → its `memory/<node>.md` |
+| Working on...                     | Read first                                                                                                               |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Unfamiliar subsystem / onboarding | `map.json` exists → pick node → its `memory/map/<node>.md`; else offer discovery (`/discover` or "discover the project") |
 
 <!-- TODO: Add your project's task-routing rules. Examples:
 | Cart / checkout  | `memory/cart.md`, `skills/payment-flow.md` |
