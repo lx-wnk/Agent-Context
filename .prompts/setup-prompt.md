@@ -17,21 +17,28 @@ A file may only appear in `knowledge-map.md` if ALL of the following are true:
 
 This classification is used in UPDATE mode (Migration Cleanup step) and SETUP mode (cleanup and verification phases).
 
-### AI Docs (migratable — safe to delete/replace)
+### AI Docs (inventory first, then route)
 
-Built-in directories and files always treated as AI docs:
+Built-in directories and files always treated as AI docs. The knowledge inventory (Phase S2 in SETUP, Step 5a in UPDATE) reads **every** one of them that exists, so its content is routed into the layers before anything is removed:
 
 - `.ai/`
 - `.agent-context/` (only migrate away from it when replacing with a newer structure — never delete the current destination)
 - `AGENTS.md` (Agent-Context entry point — never delete during migration, only referenced)
-- `CLAUDE.md` (root)
+- `CLAUDE.md` (root — `install.sh` swaps it for the bootstrap pointer; the agent never deletes it)
 - `GEMINI.md` (root)
 - `.claude/CLAUDE.md` (bootstrap pointer — never delete during migration, only referenced)
+- `.claude/rules/`
 - `.cursorrules`
 - `.cursor/rules/`
 - `.github/copilot-instructions.md`
 
 If the prompt was invoked with an `--ai-dirs` argument (injected by `install.sh`), those directories extend this built-in list.
+
+What may be removed after the inventory — this list is exhaustive:
+
+- **Other tools' live configuration — never deleted or emptied:** `GEMINI.md`, `.claude/rules/`, `.cursorrules`, `.cursor/rules/`, `.github/copilot-instructions.md`. Their content is routed into the layers; the files stay, so they keep working for teammates who use those tools.
+- **Legacy Agent-Context artefacts — removable only when recoverable:** `.ai/` and the `--ai-dirs` directories, and only when every file in them is committed to git and unmodified (Step 4.5c). Anything untracked, modified, or ignored stays in place and goes to the `UNRESOLVED` list.
+- Nothing else is removed by this prompt.
 
 ### Real Docs (never modify, move, or delete)
 
@@ -194,12 +201,15 @@ pids=()
     -o ".agent-context/bin/check-map-budget.sh.tmp" && mv ".agent-context/bin/check-map-budget.sh.tmp" ".agent-context/bin/check-map-budget.sh" || { rm -f ".agent-context/bin/check-map-budget.sh.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/skills/discovery-map.md" \
     -o ".agent-context/skills/discovery-map.md.tmp" && mv ".agent-context/skills/discovery-map.md.tmp" ".agent-context/skills/discovery-map.md" || { rm -f ".agent-context/skills/discovery-map.md.tmp"; exit 1; }) & pids+=($!)
-(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/commands/discover.md" \
-    -o ".claude/commands/discover.md.tmp" && mv ".claude/commands/discover.md.tmp" ".claude/commands/discover.md" || { rm -f ".claude/commands/discover.md.tmp"; exit 1; }) & pids+=($!)
-(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/commands/memory-review.md" \
-    -o ".claude/commands/memory-review.md.tmp" && mv ".claude/commands/memory-review.md.tmp" ".claude/commands/memory-review.md" || { rm -f ".claude/commands/memory-review.md.tmp"; exit 1; }) & pids+=($!)
-(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/commands/decision-review.md" \
-    -o ".claude/commands/decision-review.md.tmp" && mv ".claude/commands/decision-review.md.tmp" ".claude/commands/decision-review.md" || { rm -f ".claude/commands/decision-review.md.tmp"; exit 1; }) & pids+=($!)
+# Shipped commands all reference .agent-context/; a same-named file without it is the user's own — keep it.
+for _cmd in discover.md memory-review.md decision-review.md; do
+  (_dst=".claude/commands/$_cmd"
+  if [ -f "$_dst" ] && ! grep -q '\.agent-context/' "$_dst"; then
+    echo "Skipping $_dst: user-owned command (no .agent-context/ reference)" >&2; exit 0
+  fi
+  curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/commands/$_cmd" \
+      -o "$_dst.tmp" && mv "$_dst.tmp" "$_dst" || { rm -f "$_dst.tmp"; exit 1; }) & pids+=($!)
+done
 for _hook in lib.sh pre-protect-secrets.sh post-format.sh stop-test-gate.sh subagent-scope.sh; do
   (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/hooks/$_hook" \
       -o ".agent-context/hooks/$_hook.tmp" && mv ".agent-context/hooks/$_hook.tmp" ".agent-context/hooks/$_hook" || { rm -f ".agent-context/hooks/$_hook.tmp"; exit 1; }) & pids+=($!)
@@ -210,12 +220,14 @@ for pid in "${pids[@]}"; do
     wait "$pid" || fail=1
 done
 if [ "$fail" -ne 0 ]; then
-    rm -f .agent-context/*.tmp .agent-context/bin/*.tmp .agent-context/hooks/*.tmp .agent-context/skills/*.tmp
+    rm -f .agent-context/*.tmp .agent-context/bin/*.tmp .agent-context/hooks/*.tmp .agent-context/skills/*.tmp .claude/commands/*.tmp
     echo "Error: one or more shared file downloads failed" >&2
     exit 1
 fi
 chmod +x .agent-context/bin/*.sh .agent-context/hooks/*.sh 2>/dev/null || true
 ```
+
+A `.claude/commands/` file without an `.agent-context/` reference is a user-owned command of the same name: the block leaves it untouched and prints `Skipping …`. List every skipped command in the final summary so the user can rename theirs to receive ours.
 
 > **Important:** If the parallel download block above exits non-zero (any file failed to download), **stop here — do NOT write the version file.** Recording a new version tag in `.agent-context/.agent-context-version` when one or more shared files are missing would leave the installation in an inconsistent state where the version number claims a complete update but the files do not match.
 
@@ -440,20 +452,29 @@ For each found old directory/file:
 
 1. Apply the **File Classification** rules from the top of this prompt.
 2. Any file that cannot be classified confidently → add to `UNRESOLVED` list, do NOT touch it (log command in 4.5d).
-3. All confirmed AI-doc files → proceed to deletion.
+3. Other tools' live configuration (`GEMINI.md`, `.claude/rules/`, `.cursorrules`, `.cursor/rules/`, `.github/copilot-instructions.md`) → keep in place; its content is routed by the inventory.
+4. Legacy Agent-Context artefacts (`.ai/`, `--ai-dirs` directories) → removal candidates for 4.5c.
 
-### 4.5c: Delete old AI directories
+### 4.5c: Remove legacy Agent-Context artefacts (recoverable only)
 
-Delete only confirmed AI-doc directories and files:
+Before removing a candidate, make sure its content has been inventoried and routed: in SETUP, Phase S2 already read it; in UPDATE, this step runs before Step 5, so read it now and route it with the **Knowledge Decision Logic** (same rules as Steps 5a–5b).
+
+Remove a candidate only when git can restore it — every file under it is tracked, committed, and unmodified, and nothing ignored lives inside:
 
 ```bash
-# Example — adapt to what was found in 4.5a:
-rm -rf .ai/          # directory
-rm .cursorrules      # flat file
+# Adapt the list to what was found in 4.5a.
+for _p in .ai; do
+  [ -e "$_p" ] || continue
+  if [ -n "$(git ls-files -- "$_p")" ] && [ -z "$(git status --porcelain --ignored -- "$_p")" ]; then
+    git rm -r -q -- "$_p" && echo "Removed $_p (recoverable from git history)"
+  else
+    echo "[agent-context] UNRESOLVED: $_p" >> .agent-context/setup.log
+  fi
+done
 ```
 
-Do NOT delete Real Docs. Do NOT carry over any file contents or path references to the new structure.
-A directory is only safe to delete if **all** of its contents are confirmed AI-docs. If any file inside cannot be confidently classified, skip deletion of that whole directory and add the unclassifiable paths to the `UNRESOLVED` list instead.
+Do NOT delete Real Docs. Do NOT delete or empty other tools' live configuration. Do NOT carry path references to removed artefacts into the new structure.
+A directory is only safe to remove if **all** of its contents are confirmed AI-docs. If any file inside cannot be confidently classified, skip the whole directory and add the unclassifiable paths to the `UNRESOLVED` list instead.
 Do NOT delete `.agent-context/` itself — it is the destination of this migration.
 
 ### 4.5d: Mark UNRESOLVED files
@@ -477,19 +498,21 @@ echo "[agent-context] MIGRATION_CLEANUP: ran" >> .agent-context/setup.log
 
 ## Step 4.6: Memory Layout Migration (UPDATE only)
 
-This step migrates existing projects to the new memory layout: `memory/log.md` is removed, `memory/todo.md` becomes local-only. The step is idempotent — re-running on an already-migrated project is a no-op.
+This step migrates existing projects to the new memory layout: `memory/log.md` is retired, `memory/todo.md` becomes local-only. The step is idempotent — re-running on an already-migrated project is a no-op.
 
-### 4.6a: Remove `memory/log.md` if present
+### 4.6a: Retire `memory/log.md` if present
 
-If `.agent-context/memory/log.md` exists in the working tree:
+If `.agent-context/memory/log.md` exists in the working tree: a tracked copy is removed (Git history keeps it); an untracked copy has no other copy, so it is moved to the memory archive (appended if an archived log already exists):
 
 ```bash
 if git ls-files --error-unmatch .agent-context/memory/log.md >/dev/null 2>&1; then
   git rm -f .agent-context/memory/log.md
   echo "Removed memory/log.md — cross-session activity now lives in Git history."
 elif [ -f .agent-context/memory/log.md ]; then
-  rm -f .agent-context/memory/log.md
-  echo "Removed memory/log.md — cross-session activity now lives in Git history."
+  mkdir -p .agent-context/memory/archive
+  cat .agent-context/memory/log.md >> .agent-context/memory/archive/log.md \
+    && rm -f .agent-context/memory/log.md
+  echo "Moved untracked memory/log.md to memory/archive/log.md — cross-session activity now lives in Git history."
 fi
 ```
 
@@ -528,7 +551,7 @@ fi
 
 ### Idempotency
 
-All three substeps are guarded by existence/tracking/marker checks — running this step twice produces no further changes. There is no separate marker file; the absence of `memory/log.md`, the untracked status of `memory/todo.md`, and the presence of the gitignore marker collectively encode "migration done".
+All three substeps are guarded by existence/tracking/marker checks — running this step twice produces no further changes. There is no separate marker file; the absence of `memory/log.md` (an archived copy under `memory/archive/` does not count), the untracked status of `memory/todo.md`, and the presence of the gitignore marker collectively encode "migration done".
 
 ---
 
@@ -625,6 +648,7 @@ bash .agent-context/bin/discovery-digest.sh > .agent-context/discovery-digest.md
 Launch parallel subagents (same set as SETUP Phase S2 — **including Subagent 7: Project Specifics & Complexity**) to scan within the constraint set:
 
 - Existing `.agent-context/` (all layers, memory/, decisions.json, skills/)
+- Every built-in AI-doc path that exists (see **File Classification** — incl. other tools' configuration, which is read but never deleted)
 - All root-level `*.md` files
 - Any folder containing 3+ markdown or structured-data files
 - The digest's "Distillation candidates" — heavy docs whose non-obvious gold may never have been distilled on an older install
@@ -663,12 +687,12 @@ For each fact/finding collected in 5a:
 
 **If Migration Cleanup (Step 4.5) ran** (check: `grep -q "MIGRATION_CLEANUP: ran" .agent-context/setup.log`):
 
-Regenerate `knowledge-map.md` from scratch; reconcile `setup-decisions.json` by removing stale entries:
+Re-verify every Real-Doc row of `knowledge-map.md` (row-level edits only — never empty the file or recreate it from the template); reconcile `setup-decisions.json` by removing stale entries:
 
-1. Empty `.agent-context/knowledge-map.md`; for `.agent-context/setup-decisions.json` keep entries whose source file still exists — only remove entries pointing to deleted paths
+1. For `.agent-context/setup-decisions.json` keep entries whose source file still exists — only remove entries pointing to deleted paths
 2. Scan all Real Docs currently in the repo (apply **Global Constraint: Knowledge Map Sources**)
 3. Compute fresh SHA256 for each source: `sha256sum <file>`
-4. Rebuild `knowledge-map.md` routing table and Knowledge Sources table from scratch
+4. In `knowledge-map.md`, update the rows whose source is a Real Doc (SHA256, Last Verified), append rows for Real Docs not listed yet, and drop rows whose source path no longer exists. Keep every row that points to `memory/`, `map.json`, `decisions.json`, or `skills/` — those come from discovery or were curated by hand
 5. Ensure entries exist in `setup-decisions.json` for all currently-existing Real Docs; update SHA256 where changed
 6. Scan `.agent-context/skills/` and rebuild `skills/index.md` from what actually exists there
 
@@ -802,6 +826,7 @@ Scan for all existing documentation and structured knowledge sources within that
 
 - Root-level markdown files: `CLAUDE.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`
 - `.claude/rules/*.md`, `skills-lock.json`
+- Other AI-doc paths (see **File Classification**): `GEMINI.md`, `.cursorrules`, `.cursor/rules/`, `.github/copilot-instructions.md`, `.ai/`, and any `--ai-dirs` directory — read for routing, never deleted by the inventory
 - Any folder containing 3+ markdown or structured-data files (YAML, JSON, OpenAPI):
   `docs/`, `architecture/`, `wiki/`, `api/`, `specs/`, `rfcs/`, `decisions/`, or similarly named directories
 
@@ -1031,8 +1056,8 @@ Do not modify any source file — the map is a pointer index only.
 
 **Cleanup:**
 
-- Run **Step 4.5: Migration Cleanup** — detect and delete legacy AI directories (`.ai/`, `.cursorrules`, etc.)
-- Delete or empty migrated source files (`.claude/rules/*.md`, etc.)
+- Run **Step 4.5: Migration Cleanup** — removes only committed, unmodified legacy Agent-Context artefacts (`.ai/`, `--ai-dirs` directories)
+- Do NOT delete or empty other tools' source files (`GEMINI.md`, `.claude/rules/`, `.cursorrules`, `.cursor/rules/`, `.github/copilot-instructions.md`) — their content is routed into the layers, the files keep working for teammates
 - Verify `.agent-context/` is NOT in `.gitignore`
 
 **Verification:**
@@ -1124,5 +1149,5 @@ If anything didn't go as expected, resume this session with:
 - **Ask, don't guess:** If information cannot be auto-detected, ask the user
 - **One fact, one place:** No duplication across files
 - **No over-engineering:** Skip skills if total content < ~200 lines, skip memory stubs if domain < ~30 lines
-- **Preserve knowledge:** Nothing gets deleted — it gets routed, filtered, or promoted to code
+- **Preserve knowledge:** Nothing gets deleted — it gets routed, filtered, or promoted to code. The only removals are committed, unmodified legacy Agent-Context artefacts (Step 4.5c) and a tracked `memory/log.md` (Step 4.6a), both recoverable from git; other tools' configuration is never deleted or emptied
 - **Audit before overwrite:** Always run Phase S3.5 before overwriting shared files in existing projects — the new shared files are generic and will silently drop project-specific workflow rules
