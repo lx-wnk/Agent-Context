@@ -50,43 +50,47 @@ assert_hasnt "excludes .agent-context from inventory" "$OUT" '.agent-context/int
 assert_hasnt "excludes node_modules from inventory" "$OUT" 'node_modules/dep.md'
 
 # Git fixture: exercises the ls-files path (ignore rules, non-ASCII names, bin/, Makefile, compose).
-g=$(mk_tmp)
-git -C "$g" init -q
-mkdir -p "$g/docs" "$g/bin"
-printf '{"name":"x"}\n' > "$g/package.json"
-printf 'ignored.md\n' > "$g/.gitignore"
-printf '# Ignored\n' > "$g/ignored.md"
-UMLAUT_DOC="$(printf 'docs/\303\274ber.md')"
-printf '# Umlaut\n' > "$g/$UMLAUT_DOC"
-printf '#!/usr/bin/env php\n' > "$g/bin/console"
-printf '# Seven\n## a\n## b\n## c\n## d\n## e\n## f\n' > "$g/docs/seven.md"
-printf '# Eight\n## a\n## b\n## c\n## d\n## e\n## f\n## g\n' > "$g/docs/eight.md"
-printf 'FOO:=1\nBAR ?= 2\nBAZ::=3\nQUX := 4\nbuild: deps\n\t@echo build\ncheck :\n\t@echo check\n' > "$g/Makefile"
-printf 'services:\n  web:\n    image: nginx\n  db:\n    image: postgres\nvolumes:\n  data:\n' > "$g/docker-compose.yml"
-git -C "$g" add package.json .gitignore Makefile "$UMLAUT_DOC"
-GOUT="$(bash "$DIGEST" "$g" 2>/dev/null)"
+if ! command -v git >/dev/null 2>&1; then
+    echo "  SKIP  git fixture (git not installed)"
+else
+    g=$(mk_tmp)
+    git -C "$g" init -q
+    mkdir -p "$g/docs" "$g/bin"
+    printf '{"name":"x"}\n' > "$g/package.json"
+    printf 'ignored.md\n' > "$g/.gitignore"
+    printf '# Ignored\n' > "$g/ignored.md"
+    UMLAUT_DOC="$(printf 'docs/\303\274ber.md')"
+    printf '# Umlaut\n' > "$g/$UMLAUT_DOC"
+    printf '#!/usr/bin/env php\n' > "$g/bin/console"
+    printf '# Seven\n## a\n## b\n## c\n## d\n## e\n## f\n' > "$g/docs/seven.md"
+    printf '# Eight\n## a\n## b\n## c\n## d\n## e\n## f\n## g\n' > "$g/docs/eight.md"
+    printf 'FOO:=1\nBAR ?= 2\nBAZ::=3\nQUX := 4\nbuild: deps\n\t@echo build\ncheck :\n\t@echo check\n' > "$g/Makefile"
+    printf 'services:\n  web:\n    image: nginx\n  db:\n    image: postgres\nvolumes:\n  data:\n' > "$g/docker-compose.yml"
+    git -C "$g" add package.json .gitignore Makefile "$UMLAUT_DOC"
+    GOUT="$(bash "$DIGEST" "$g" 2>/dev/null)"
 
-assert_hasnt "git: .gitignored file excluded" "$GOUT" 'ignored.md'
-assert_has "git: untracked, not-ignored doc listed" "$GOUT" '`docs/seven.md`'
-assert_has "git: non-ASCII file name inventoried" "$GOUT" "\`$UMLAUT_DOC\`"
-assert_hasnt "git: no quoted octal file name" "$GOUT" '\303'
-assert_line "git: top-level bin/ is listed" "$GOUT" '- bin'
-assert_line "Makefile target build" "$GOUT" '  - build'
-assert_line "Makefile target with space before colon" "$GOUT" '  - check'
-assert_no_line "Makefile FOO:= is not a target" "$GOUT" '  - FOO'
-assert_no_line "Makefile BAZ::= is not a target" "$GOUT" '  - BAZ'
-assert_no_line "Makefile QUX := is not a target" "$GOUT" '  - QUX'
-assert_line "compose services listed" "$GOUT" '- `docker-compose.yml` services: web db '
-gcand="$(printf '%s' "$GOUT" | sed -n '/Distillation candidates/,$p')"
-assert_has "8 headings is a distillation candidate" "$gcand" '`docs/eight.md` (8 lines, 8 headings)'
-assert_hasnt "7 headings is NOT a distillation candidate" "$gcand" 'docs/seven.md'
-assert_has "doc table row has lines, heading, count" "$GOUT" '| `docs/eight.md` | 8 | Eight | 8 |'
+    assert_hasnt "git: .gitignored file excluded" "$GOUT" 'ignored.md'
+    assert_has "git: untracked, not-ignored doc listed" "$GOUT" '`docs/seven.md`'
+    assert_has "git: non-ASCII file name inventoried" "$GOUT" "\`$UMLAUT_DOC\`"
+    assert_hasnt "git: no quoted octal file name" "$GOUT" '\303'
+    assert_line "git: top-level bin/ is listed" "$GOUT" '- bin'
+    assert_line "Makefile target build" "$GOUT" '  - build'
+    assert_line "Makefile target with space before colon" "$GOUT" '  - check'
+    assert_no_line "Makefile FOO:= is not a target" "$GOUT" '  - FOO'
+    assert_no_line "Makefile BAZ::= is not a target" "$GOUT" '  - BAZ'
+    assert_no_line "Makefile QUX := is not a target" "$GOUT" '  - QUX'
+    assert_line "compose services listed" "$GOUT" '- `docker-compose.yml` services: web db '
+    gcand="$(printf '%s' "$GOUT" | sed -n '/Distillation candidates/,$p')"
+    assert_has "8 headings is a distillation candidate" "$gcand" '`docs/eight.md` (8 lines, 8 headings)'
+    assert_hasnt "7 headings is NOT a distillation candidate" "$gcand" 'docs/seven.md'
+    assert_has "doc table row has lines, heading, count" "$GOUT" '| `docs/eight.md` | 8 | Eight | 8 |'
 
-# Empty project: no manifests, still produces a digest without erroring.
-t2=$(mk_tmp)
-OUT2="$(bash "$DIGEST" "$t2" 2>/dev/null)"; RC=$?
-{ [ "$RC" -eq 0 ] && printf '%s' "$OUT2" | grep -q 'Discovery Digest'; } \
-    && pass "empty project produces a digest, exit 0" || fail "empty project" "rc=$RC"
+    # Empty project: no manifests, still produces a digest without erroring.
+    t2=$(mk_tmp)
+    OUT2="$(bash "$DIGEST" "$t2" 2>/dev/null)"; RC=$?
+    { [ "$RC" -eq 0 ] && printf '%s' "$OUT2" | grep -q 'Discovery Digest'; } \
+        && pass "empty project produces a digest, exit 0" || fail "empty project" "rc=$RC"
+fi
 
 echo ""
 echo "================================================"
