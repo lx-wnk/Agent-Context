@@ -22,7 +22,7 @@ setup, update, and runtime. See [README.md](../README.md) for the front-page pit
 | **Path globs**      | Yes (Claude Code native)    | No (agent reads guidebook)          |
 | **Discoverability** | Hidden directory convention | Explicit, self-documenting          |
 
-The guidebook pattern (layer 3) replaces path-based auto-loading with task-based routing. `.claude/CLAUDE.md` serves as a minimal bootstrap pointer to `AGENTS.md`.
+The guidebook pattern (layer 3) replaces path-based auto-loading with task-based routing. `.claude/CLAUDE.md` serves as a minimal bootstrap pointer to `AGENTS.md`: it contains `@../AGENTS.md`, because Claude Code resolves `@` imports relative to the importing file, not the project root.
 
 ## How It Works
 
@@ -36,14 +36,16 @@ Paste [`.prompts/setup-prompt.md`](../.prompts/setup-prompt.md) into Claude Code
 4. Writes the release version to `.agent-context/.agent-context-version`
 5. Discovers your tech stack and fills in the TODO placeholders — and **distills** the non-obvious gold from your docs (hard invariants, architecture decisions, complex subsystems) into `memory/`, `decisions.json`, and skills, so it loads by task routing rather than sitting unread. A deterministic discovery digest (`bin/discovery-digest.sh`) orients the scan so no doc is missed. Memory stubs that stay empty after setup are expected — runtime-accumulated knowledge (lessons, preferences) fills as you work.
 
-### Every Session (automatic)
+### Updates (on demand)
 
-Updates can be triggered manually by fetching the setup prompt from remote and following its instructions:
+Updates are not automatic. Re-run the installer one-liner, or fetch the setup prompt from remote and follow its instructions (see `agent-startup.md`). The installer:
 
 1. Reads `.agent-context/.agent-context-version` (local) and fetches the latest release tag from the GitHub API (remote, cached for 1 hour)
 2. **If already up-to-date and templates intact:** exits immediately — no Claude spawn needed
 3. **If versions differ:** spawns Claude with the setup prompt fetched from that same release tag, so its download table always matches the files it downloads; Claude downloads shared files in parallel, writes the new version
 4. **If API fails:** falls back to the cached version; warns if the cache is stale
+
+During an UPDATE the agent re-syncs knowledge only for sources that changed since the last run, or are new; if nothing changed, the knowledge scan is skipped and only the token-budget check runs (setup-prompt Step 5.0). A full rescan is what `--force` or `/discover` is for.
 
 ### What the agent sees at runtime
 
@@ -76,6 +78,7 @@ your-project/
 ├── AGENTS.md                              ← Entry point
 ├── .claude/CLAUDE.md                      ← Bootstrap pointer → @../AGENTS.md
 ├── .claude/settings.json                  ← Settings file (created if missing, never overwritten)
+├── .claude/commands/                      ← Slash commands (shared): discover, memory-review, decision-review
 └── .agent-context/
     ├── agent-startup.md                   ← Startup info (shared)
     ├── layer0-agent-workflow.md            ← Universal agent workflow (shared)
@@ -130,11 +133,13 @@ The installer flags (`--force`, `--discover`, `--local-source`, `--ai-dirs`) app
 agent-context/
 ├── context/           # Shared agent context (copied to .agent-context/)
 │   ├── bin/           #   Shared tooling (budget gates, baseline report, prune, digest, conf parser)
-│   └── hooks/         #   Shared hook scripts (lib + 4 hooks)
+│   ├── commands/      #   Claude Code slash commands (copied to .claude/commands/)
+│   ├── hooks/         #   Shared hook scripts (lib + 4 hooks)
+│   └── skills/        #   Shared skills (discovery-map)
 ├── templates/         # Project setup templates (copied once, never overwritten)
-├── tests/             # Pure-bash tests (install, coverage, budget, prune, hooks)
+├── tests/             # Pure-bash tests (install, coverage, budget, prune, hooks, install smoke)
+├── docs/              # Deep reference (this folder)
 ├── .github/workflows/ # CI: prettier, shell tests, token-budget gate
-├── plugins.json       # Base plugin set for Claude Code
 ├── example.md         # Annotated example (Shopware 6 project)
 ├── install.sh         # Installer script (curl one-liner entry point)
 ├── .prompts/          # Prompt files for Claude (setup + review instructions)
@@ -143,7 +148,7 @@ agent-context/
 
 ## Agents
 
-Specialist agents (`ac-*`) are distributed as the [`agents@lx-wnk`](https://github.com/lx-wnk/agents) plugin — installed automatically via `plugins.json`. See the plugin repo for the full agent list and documentation.
+Specialist agents (`ac-*`) are distributed as the [`agents@lx-wnk`](https://github.com/lx-wnk/agents) plugin — optional and installed separately (the framework does not install plugins). See the plugin repo for the full agent list and documentation.
 
 ## Example
 

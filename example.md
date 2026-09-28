@@ -6,23 +6,43 @@
 ## Project Structure
 
 ```
-AGENTS.md
+AGENTS.md                       ← project-owned entry point
+.claude/
+  CLAUDE.md                     ← bootstrap pointer (@../AGENTS.md)
+  settings.json                 ← hook registrations (created if missing)
+  commands/                     ← shared slash commands: discover, memory-review, decision-review
 .agent-context/
-  agent-startup.md            ← shared (auto-updated)
-  layer0-agent-workflow.md    ← shared (auto-updated)
-  base-principles.md          ← shared (auto-updated)
-  plugins.json                ← shared (auto-updated)
-  .agent-context-version                    ← written by agent
-  layer1-bootstrap.md         ← project-owned
-  layer2-project-core.md      ← project-owned
-  layer3-guidebook.md         ← project-owned
+  agent-startup.md              ← shared (auto-updated)
+  layer0-agent-workflow.md      ← shared (auto-updated)
+  base-principles.md            ← shared (auto-updated)
+  agent-delegation.md           ← shared (auto-updated, read on demand)
+  memory-maintenance.md         ← shared (auto-updated, read on demand)
+  memory-review-prompt.md       ← shared (auto-updated)
+  decision-review-prompt.md     ← shared (auto-updated)
+  bin/                          ← shared tooling (auto-updated)
+  hooks/                        ← shared hook scripts (auto-updated)
+  .agent-context-version        ← written by setup/update
+  layer1-bootstrap.md           ← project-owned
+  layer2-project-core.md        ← project-owned
+  layer3-guidebook.md           ← project-owned
   decisions.json                ← structured decisions (JSON)
+  knowledge-map.md              ← knowledge pointer index
+  hooks.conf                    ← hook toggles (project-owned)
+  budget.conf                   ← token-budget config (project-owned)
   memory/
+    index.md
+    lessons.md
+    decisions.md                ← legacy stub (migrated to decisions.json)
+    people.md
+    preferences.md
+    user.md
+    todo.md                     ← local-only (gitignored)
     architecture.md
     dal-conventions.md
     infrastructure.md
-    lessons.md
   skills/
+    index.md
+    discovery-map.md            ← shared (auto-updated)
     dal-reference.md
     infrastructure.md
 ```
@@ -44,6 +64,10 @@ These are identical across all projects using agent-context. They are overwritte
 ### `base-principles.md`
 
 → See [context/base-principles.md](context/base-principles.md)
+
+The remaining shared files (`agent-delegation.md`, `memory-maintenance.md`, the review prompts, `bin/`, `hooks/`,
+`skills/discovery-map.md`, and `.claude/commands/`) are listed in the download table of
+[`.prompts/setup-prompt.md`](.prompts/setup-prompt.md) (Step 2).
 
 ---
 

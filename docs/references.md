@@ -2,7 +2,7 @@
 
 ## Core Papers
 
-- [ETH Zurich: Evaluating AGENTS.md (arxiv 2602.11988)](https://arxiv.org/abs/2602.11988) — Empirical evaluation of context files across coding agents; finds auto-generated context tends to reduce task success rates while increasing token cost by 20%+
+- [ETH Zurich: Evaluating AGENTS.md (arxiv 2602.11988)](https://arxiv.org/abs/2602.11988) — Empirical evaluation of context files across coding agents; finds that context files (LLM-generated and developer-committed) do not generally improve task success rates while increasing inference cost by over 20% on average; useful mainly for non-standard coding practices
 - [Empirical Study of CLAUDE.md Files (arxiv 2509.14744)](https://arxiv.org/abs/2509.14744) — Analysis of 253 CLAUDE.md files across 242 repositories; validates layered hierarchy design; identifies dominant content categories (Build/Run, Implementation Details, Architecture)
 - [Lost in the Middle: How LLMs Use Long Contexts (arxiv 2307.03172)](https://arxiv.org/abs/2307.03172) — Foundational paper on U-shaped position bias; explains why critical constraints belong at the top of context files, not the middle
 - [Agentic Context Engineering (arxiv 2510.04618)](https://arxiv.org/abs/2510.04618) — Treats context as an evolving playbook refined through generation, reflection, and curation; directly relevant to the memory self-improvement loop

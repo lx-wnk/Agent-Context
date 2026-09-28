@@ -4,6 +4,10 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Docs
+
+- **`docs/` and `example.md` match the installed layout** — structure listings include the slash commands, shared tooling and config files; stale `plugins.json` references and dead discovery-map links are gone; updates are described as on-demand with the Step 5.0 change gate and the importer-relative `@../AGENTS.md`. The ETH Zurich result (arXiv 2602.11988) is quoted from its abstract instead of paraphrased — it covers developer-written context files too and names no "~3%" figure — and the German agent best-practices guide is reframed as general guidance now that the `ac-*` agents ship as a separate plugin.
+
 ### Added
 
 - **Cross-repo lesson fallback** (#33) — a lesson belongs in the repo owning the code, but in a multi-repo project that repo is often not checked out, and the agent had nowhere valid to put it. It now parks the lesson in the current repo's `memory/lessons.md` with an `owner:<repo>` tag; the memory review moves it to the owning repo once that repo is reachable. The rule lives in the on-demand `memory-maintenance.md` (Cross-Repo Fallback) with a pointer from the layer-0 routing row; siblings are declared in a new optional "Sibling Repos" section of `layer1-bootstrap.md`, which existing installs add by hand (the template is project-owned).

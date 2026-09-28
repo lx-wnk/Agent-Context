@@ -1,6 +1,6 @@
 # Best Practices: Agent-Erstellung
 
-Dieses Dokument ist die verbindliche Referenz für das Erstellen neuer Agents im Agent-Context-Projekt.
+Dieses Dokument sammelt allgemeine Empfehlungen für das Erstellen eigener Agents, die mit Agent-Context zusammenarbeiten. Es ist eine Orientierungshilfe, keine verbindliche Vorgabe: Die früheren `ac-*`-Agents werden nicht mehr in diesem Repository gepflegt, sondern als separates Plugin [`agents@lx-wnk`](https://github.com/lx-wnk/agents) verteilt. Namen wie `ac-beispiel` unten sind nur Beispiele.
 
 ---
 
@@ -37,7 +37,7 @@ effort: medium
 
 | Feld          | Beschreibung                                                                     |
 | ------------- | -------------------------------------------------------------------------------- |
-| `name`        | Kebab-case, beginnt mit Projekt-Präfix (`ac-`)                                   |
+| `name`        | Kebab-case, optional mit Projekt-Präfix (z.B. `ac-`)                             |
 | `description` | Trigger-Text für automatisches Routing (siehe unten)                             |
 | `tools`       | Nur tatsächlich benötigte Tools — keine Defaults                                 |
 | `model`       | `opus` / `sonnet` / `haiku` (siehe Tabelle unten)                                |
@@ -95,7 +95,7 @@ Nur Tools deklarieren, die der Agent tatsächlich verwendet. Überflüssige Tool
 | Research                        | `Read, Glob, Grep, Bash, WebFetch, WebSearch` |
 | Browser-Automatisierung         | `Read, Glob, Grep, Bash, Write` + MCP-Tools   |
 
-Das `Agent`-Tool nur für Agents verwenden, die explizit Sub-Agents dispatchen (z.B. `ac-review` für parallele Review-Perspektiven).
+Das `Agent`-Tool nur für Agents verwenden, die explizit Sub-Agents dispatchen (z.B. ein Review-Agent für parallele Review-Perspektiven).
 
 ---
 

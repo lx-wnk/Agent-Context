@@ -23,9 +23,4 @@ small index, picks the 1–2 relevant nodes, and reads only those notes — so e
 | Cost control | Re-extraction, external API for non-code         | Incremental by git watermark; no extra runtime deps             |
 | Enforcement  | —                                                | Caps in `budget.conf`, enforced by `check-map-budget.sh` + CI   |
 
-## Further reading
-
-- [Discovery Map design](discovery-map-design.md)
-- [Discovery Map implementation plan](discovery-map-plan.md)
-
 See also [Architecture](architecture.md) and [Enforcement & Hygiene](enforcement.md).
