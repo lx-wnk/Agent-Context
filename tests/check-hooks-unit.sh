@@ -49,6 +49,35 @@ run_hook "$HOOKS/pre-protect-secrets.sh" "$t/on.conf" '{"tool_name":"Write","too
 run_hook "$HOOKS/pre-protect-secrets.sh" "$t/off.conf" '{"tool_name":"Write","tool_input":{"file_path":".env"}}'
 [ "$RC" -eq 0 ] && pass "master off → .env write not blocked" || fail "master off → not blocked" "rc=$RC"
 
+# Patterns are matched literally, never glob-expanded against the hook's cwd (the project root),
+# and case-insensitively: a.pem / .env.local on disk must not narrow `*.pem` / `.env.*`, and .ENV
+# is the same file as .env on a case-insensitive filesystem.
+t2=$(mk_tmp)
+touch "$t2/a.pem" "$t2/.env.local"
+printf 'HOOKS_ENABLED=1\nPROTECT_SECRETS=1\nPROTECTED_GLOBS=".env .env.* *.pem"\n' > "$t2/on.conf"
+for f in b.pem .env.production .ENV; do
+    rc=0
+    ( cd "$t2" && printf '{"tool_name":"Write","tool_input":{"file_path":"%s/%s"}}' "$t2" "$f" \
+        | AGENT_CONTEXT_HOOKS_CONF="$t2/on.conf" bash "$HOOKS/pre-protect-secrets.sh" >/dev/null 2>&1 ) || rc=$?
+    [ "$rc" -eq 2 ] && pass "$f blocked although matching files exist in cwd" || fail "$f blocked" "rc=$rc"
+done
+
+# A CRLF hooks.conf (Windows checkout) must not silently switch every hook off.
+printf 'HOOKS_ENABLED=1\r\nPROTECT_SECRETS=1\r\nPROTECTED_GLOBS=".env"\r\n' > "$t/crlf.conf"
+run_hook "$HOOKS/pre-protect-secrets.sh" "$t/crlf.conf" '{"tool_name":"Write","tool_input":{"file_path":".env"}}'
+[ "$RC" -eq 2 ] && pass "CRLF hooks.conf still blocks .env" || fail "CRLF hooks.conf still blocks .env" "rc=$RC"
+
+# An escaped quote inside a double-quoted value is not supported; truncating at it would turn
+# TEST_CMD="echo \"hi\" && false" into `echo \`, a gate that always passes. Refuse the key instead.
+printf 'TEST_CMD="echo \\"hi\\" && false"\n' > "$t/esc.conf"
+esc_err="$( bash -c '. "$1"; conf_get "$2" TEST_CMD; echo "[${_conf_v_TEST_CMD-unset}]"' _ \
+    "$REPO_ROOT/context/bin/conf-read.sh" "$t/esc.conf" 2>&1 >/dev/null )"
+esc_out="$( bash -c '. "$1"; if conf_get "$2" TEST_CMD >/dev/null 2>&1; then echo set; else echo unset; fi' _ \
+    "$REPO_ROOT/context/bin/conf-read.sh" "$t/esc.conf" )"
+[ "$esc_out" = "unset" ] && pass "escaped quote leaves the key unset" || fail "escaped quote leaves the key unset" "got $esc_out"
+printf '%s' "$esc_err" | grep -q "escaped quote" && pass "escaped quote is reported on stderr" \
+    || fail "escaped quote is reported" "stderr: $esc_err"
+
 # --- post-format ---
 echo "--- post-format (PostToolUse) ---"
 t=$(mk_tmp)
