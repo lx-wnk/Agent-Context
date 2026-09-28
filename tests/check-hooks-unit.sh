@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # tests/check-hooks-unit.sh — unit tests for context/hooks/*.sh
 #
-# Drives each hook with a realistic stdin JSON payload and a temp hooks.conf (via
-# AGENT_CONTEXT_HOOKS_CONF) and asserts: master off = no-op, secret-block exits 2,
-# format runs the command, the Stop gate warns vs blocks, and the subagent scope check fires.
+# Drives each hook with a realistic stdin JSON payload and a temp hooks.local.conf (via
+# AGENT_CONTEXT_HOOKS_LOCAL_CONF), optionally beside a committed hooks.conf (AGENT_CONTEXT_HOOKS_CONF),
+# and asserts: master off = no-op, secret-block exits 2, format runs the command, the Stop gate
+# warns vs blocks, the subagent scope check fires, and executable keys are honoured only locally.
 
 set -uo pipefail
 
@@ -17,12 +18,15 @@ source "$REPO_ROOT/tests/lib.sh"
 pass() { printf "  PASS  %s\n" "$1"; PASS=$((PASS + 1)); }
 fail() { printf "  FAIL  %s\n    => %s\n" "$1" "$2"; FAIL=$((FAIL + 1)); }
 
-# run_hook <script> <conf> <stdin-json> -> sets RC, OUT (stdout), ERR (stderr)
+NO_CONF="$(mk_tmp)/absent.conf"
+
+# run_hook <script> <local-conf> <stdin-json> [<committed-conf>] -> sets RC, OUT (stdout), ERR (stderr)
 run_hook() {
-    local script="$1" conf="$2" json="$3" outf errf
+    local script="$1" local_conf="$2" json="$3" conf="${4:-$NO_CONF}" outf errf
     outf=$(mktemp); errf=$(mktemp)
-    AGENT_CONTEXT_HOOKS_CONF="$conf" printf '%s' "$json" \
-        | AGENT_CONTEXT_HOOKS_CONF="$conf" bash "$script" >"$outf" 2>"$errf"
+    printf '%s' "$json" \
+        | AGENT_CONTEXT_HOOKS_CONF="$conf" AGENT_CONTEXT_HOOKS_LOCAL_CONF="$local_conf" \
+            bash "$script" >"$outf" 2>"$errf"
     RC=$?
     OUT="$(cat "$outf")"; ERR="$(cat "$errf")"
     rm -f "$outf" "$errf"
@@ -58,7 +62,7 @@ printf 'HOOKS_ENABLED=1\nPROTECT_SECRETS=1\nPROTECTED_GLOBS=".env .env.* *.pem"\
 for f in b.pem .env.production .ENV; do
     rc=0
     ( cd "$t2" && printf '{"tool_name":"Write","tool_input":{"file_path":"%s/%s"}}' "$t2" "$f" \
-        | AGENT_CONTEXT_HOOKS_CONF="$t2/on.conf" bash "$HOOKS/pre-protect-secrets.sh" >/dev/null 2>&1 ) || rc=$?
+        | AGENT_CONTEXT_HOOKS_CONF="$NO_CONF" AGENT_CONTEXT_HOOKS_LOCAL_CONF="$t2/on.conf" bash "$HOOKS/pre-protect-secrets.sh" >/dev/null 2>&1 ) || rc=$?
     [ "$rc" -eq 2 ] && pass "$f blocked although matching files exist in cwd" || fail "$f blocked" "rc=$rc"
 done
 
@@ -124,13 +128,13 @@ if PATH="$sandbox" command -v jq >/dev/null 2>&1; then
     echo "  SKIP  no-jq loop guard (could not isolate jq)"
 else
     outf=$(mktemp)
-    PATH="$sandbox" AGENT_CONTEXT_HOOKS_CONF="$t/block.conf" "$sandbox/bash" "$HOOKS/stop-test-gate.sh" \
+    PATH="$sandbox" AGENT_CONTEXT_HOOKS_CONF="$NO_CONF" AGENT_CONTEXT_HOOKS_LOCAL_CONF="$t/block.conf" "$sandbox/bash" "$HOOKS/stop-test-gate.sh" \
         <<<'{"hook_event_name":"Stop","stop_hook_active":true}' >"$outf" 2>/dev/null
     grep -q '"decision":"block"' "$outf" \
         && fail "no-jq: loop guard holds (stop_hook_active=true → no re-block)" "re-blocked without jq" \
         || pass "no-jq: loop guard holds (stop_hook_active=true → no re-block)"
     # And block mode WITHOUT jq still emits valid block JSON when it should (sed fallback path).
-    PATH="$sandbox" AGENT_CONTEXT_HOOKS_CONF="$t/block.conf" "$sandbox/bash" "$HOOKS/stop-test-gate.sh" \
+    PATH="$sandbox" AGENT_CONTEXT_HOOKS_CONF="$NO_CONF" AGENT_CONTEXT_HOOKS_LOCAL_CONF="$t/block.conf" "$sandbox/bash" "$HOOKS/stop-test-gate.sh" \
         <<<'{"hook_event_name":"Stop","stop_hook_active":false}' >"$outf" 2>/dev/null
     grep -q '"decision":"block"' "$outf" \
         && pass "no-jq: block mode still emits decision payload" \
@@ -164,6 +168,38 @@ printf '%s' "$OUT" | grep -q '"decision":"block"' && pass "block mode: out-of-sc
 printf 'HOOKS_ENABLED=1\nSUBAGENT_SCOPE="warn"\nALLOWED_SUBAGENT_PATHS="src/* config/*"\n' > "$t/scope-ok.conf"
 run_hook "$HOOKS/subagent-scope.sh" "$t/scope-ok.conf" "{\"transcript_path\":\"$tr\"}"
 { [ "$RC" -eq 0 ] && [ -z "$ERR" ]; } && pass "all writes in scope → silent exit 0" || fail "scope ok" "rc=$RC err=$ERR"
+
+# --- committed hooks.conf vs. user-local hooks.local.conf ---
+echo "--- hooks.conf / hooks.local.conf split ---"
+t=$(mk_tmp)
+printf 'HOOKS_ENABLED=1\nSTOP_GATE="block"\nTEST_CMD="touch %s/pulled.marker"\n' "$t" > "$t/pulled.conf"
+run_hook "$HOOKS/stop-test-gate.sh" "$NO_CONF" '{"hook_event_name":"Stop"}' "$t/pulled.conf"
+{ [ ! -f "$t/pulled.marker" ] && [ -z "$OUT" ]; } && pass "committed HOOKS_ENABLED=1 + TEST_CMD → nothing runs" \
+    || fail "committed HOOKS_ENABLED=1 + TEST_CMD → nothing runs" "TEST_CMD executed or out=$OUT"
+
+printf 'HOOKS_ENABLED=1\n' > "$t/local-on.conf"
+run_hook "$HOOKS/stop-test-gate.sh" "$t/local-on.conf" '{"hook_event_name":"Stop"}' "$t/pulled.conf"
+[ ! -f "$t/pulled.marker" ] && pass "local HOOKS_ENABLED=1 does not adopt a committed TEST_CMD" \
+    || fail "local HOOKS_ENABLED=1 does not adopt a committed TEST_CMD" "committed TEST_CMD was executed"
+
+printf 'HOOKS_ENABLED=1\nTEST_CMD="touch %s/local.marker"\n' "$t" > "$t/local-test.conf"
+run_hook "$HOOKS/stop-test-gate.sh" "$t/local-test.conf" '{"hook_event_name":"Stop"}' "$t/pulled.conf"
+[ -f "$t/local.marker" ] && pass "TEST_CMD from hooks.local.conf runs" || fail "TEST_CMD from hooks.local.conf runs" "marker missing"
+
+target="$t/file.txt"
+printf 'content\n' > "$target"
+printf 'HOOKS_ENABLED=1\nFORMAT_CMD="cp {} %s/pulled-fmt.marker"\n' "$t" > "$t/pulled-fmt.conf"
+run_hook "$HOOKS/post-format.sh" "$t/local-on.conf" "{\"tool_input\":{\"file_path\":\"$target\"}}" "$t/pulled-fmt.conf"
+[ ! -f "$t/pulled-fmt.marker" ] && pass "committed FORMAT_CMD is ignored" || fail "committed FORMAT_CMD is ignored" "FORMAT_CMD was executed"
+
+printf 'PROTECT_SECRETS=1\nPROTECTED_GLOBS="*.custom"\n' > "$t/globs.conf"
+run_hook "$HOOKS/pre-protect-secrets.sh" "$t/local-on.conf" '{"tool_input":{"file_path":"a.custom"}}' "$t/globs.conf"
+[ "$RC" -eq 2 ] && pass "PROTECTED_GLOBS from hooks.conf apply once enabled locally" \
+    || fail "PROTECTED_GLOBS from hooks.conf apply once enabled locally" "rc=$RC"
+
+printf 'HOOKS_ENABLED=1\nPROTECT_SECRETS=0\n' > "$t/local-nosecrets.conf"
+run_hook "$HOOKS/pre-protect-secrets.sh" "$t/local-nosecrets.conf" '{"tool_input":{"file_path":"a.custom"}}' "$t/globs.conf"
+[ "$RC" -eq 0 ] && pass "hooks.local.conf overrides a hooks.conf key" || fail "hooks.local.conf overrides a hooks.conf key" "rc=$RC"
 
 echo ""
 echo "================================================"

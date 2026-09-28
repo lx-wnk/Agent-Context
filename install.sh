@@ -84,6 +84,26 @@ migrate_import_paths() {
     strip_nested_imports ".agent-context/layer3-guidebook.md"
 }
 
+# The per-developer hook settings must never be committed; installs that predate them lack the line.
+ensure_hooks_local_conf_ignored() {
+    [ -d .agent-context ] || return 0
+    [ -f .gitignore ] && grep -qxF '/.agent-context/hooks.local.conf' .gitignore && return 0
+    if [ -s .gitignore ] && [ "$(tail -c 1 .gitignore | wc -l)" -eq 0 ]; then
+        printf '\n' >> .gitignore
+    fi
+    printf '/.agent-context/hooks.local.conf\n' >> .gitignore
+    echo "Added /.agent-context/hooks.local.conf to .gitignore"
+}
+
+# Since 0.10 these keys only take effect from hooks.local.conf; hooks configured the old way are now off.
+warn_committed_hook_keys() {
+    local conf=".agent-context/hooks.conf"
+    [ -f "$conf" ] && [ ! -f .agent-context/hooks.local.conf ] || return 0
+    grep -qE '^[[:space:]]*(export[[:space:]]+)?(HOOKS_ENABLED=["'"'"']?1|(TEST_CMD|FORMAT_CMD)=["'"'"']?[^"'"'"'[:space:]])' "$conf" || return 0
+    echo "Note: $conf sets HOOKS_ENABLED, TEST_CMD or FORMAT_CMD — these now only take effect from"
+    echo "      .agent-context/hooks.local.conf (gitignored, per developer). Hooks stay off until you move them there."
+}
+
 # Returns 0 if all critical project-owned template files are present.
 # Adding a new template to templates/ requires a matching entry here.
 # tests/check-template-coverage.sh auto-reads this list — no changes needed there.
@@ -274,6 +294,8 @@ main() {
 
 
     migrate_import_paths
+    ensure_hooks_local_conf_ignored
+    warn_committed_hook_keys
 
     # Fast-path: skip Claude spawn if already up-to-date.
     # Guards: version match alone is not proof of a complete installation — a CLAUDE.md with
@@ -371,6 +393,7 @@ main() {
     # that hasn't yet been routed to layer files.
     [ "$EXIT_CODE" -eq 0 ] && update_claude_md
     migrate_import_paths
+    ensure_hooks_local_conf_ignored
 
     if ! grep -q "^\[agent-context\]" "$LOG" 2>/dev/null; then
         echo "Warning: no progress was logged — Claude may have exited early or encountered an error."

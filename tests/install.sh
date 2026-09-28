@@ -369,6 +369,34 @@ assert_eq "symlinked CLAUDE.md stays a symlink" "AGENTS.md" "$(readlink "$t/CLAU
 case "$out" in *"symlink"*) pass "skipped symlink is reported" ;; *) fail "skipped symlink is reported" "output: $out" ;; esac
 
 # ---------------------------------------------------------------------------
+# hooks.local.conf: ignored by git, and committed executable hook keys are flagged
+# ---------------------------------------------------------------------------
+t=$(mk_tmp)
+mkdir -p "$t/.agent-context"
+printf 'node_modules/\n' > "$t/.gitignore"
+(cd "$t" && ensure_hooks_local_conf_ignored >/dev/null)
+(cd "$t" && ensure_hooks_local_conf_ignored >/dev/null)
+assert_eq "hooks.local.conf is ignored exactly once" "1" "$(grep -cxF '/.agent-context/hooks.local.conf' "$t/.gitignore")"
+assert_eq "existing .gitignore lines are kept" "node_modules/" "$(head -1 "$t/.gitignore")"
+
+t=$(mk_tmp)
+(cd "$t" && ensure_hooks_local_conf_ignored >/dev/null)
+[ -e "$t/.gitignore" ] && fail "no .gitignore written without an install" "created" || pass "no .gitignore written without an install"
+
+t=$(mk_tmp)
+mkdir -p "$t/.agent-context"
+printf 'HOOKS_ENABLED=1\nTEST_CMD="npm test"\n' > "$t/.agent-context/hooks.conf"
+out="$(cd "$t" && warn_committed_hook_keys 2>&1)"
+case "$out" in *hooks.local.conf*) pass "committed executable hook keys are flagged" ;; *) fail "committed hook keys flagged" "output: $out" ;; esac
+printf 'HOOKS_ENABLED=1\n' > "$t/.agent-context/hooks.local.conf"
+out="$(cd "$t" && warn_committed_hook_keys 2>&1)"
+assert_eq "no warning once hooks.local.conf exists" "" "$out"
+t=$(mk_tmp)
+mkdir -p "$t/.agent-context"
+printf 'HOOKS_ENABLED=0\nTEST_CMD=""\nFORMAT_CMD=""\n' > "$t/.agent-context/hooks.conf"
+assert_eq "no warning for the shipped defaults" "" "$(cd "$t" && warn_committed_hook_keys 2>&1)"
+
+# ---------------------------------------------------------------------------
 # Claude Code resolves @imports relative to the importing file
 # ---------------------------------------------------------------------------
 echo ""
