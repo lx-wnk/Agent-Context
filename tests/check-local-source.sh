@@ -133,6 +133,29 @@ run_install "$TGT" --local-source
 { [ "$RC" -eq 1 ] && [ -z "$CAP" ]; } \
     && pass "--local-source without a path exits 1" || fail "--local-source without a path" "rc=$RC, agent invoked: $([ -n "$CAP" ] && echo yes || echo no)"
 
+# 10. --local-source=<path> (the --ai-dirs= spelling) is honored, and an empty value fails.
+TGT=$(mk_tmp)
+run_install "$TGT" --local-source="$SRC"
+printf '%s' "$CAP" | grep -q "LOCAL SOURCE MODE" \
+    && pass "--local-source=<path> is honored" || fail "--local-source=<path>" "fell back to a remote install"
+TGT=$(mk_tmp)
+run_install "$TGT" --local-source=
+{ [ "$RC" -eq 1 ] && [ -z "$CAP" ]; } \
+    && pass "--local-source= without a path exits 1" || fail "--local-source= empty" "rc=$RC"
+
+# 11. A flag after --local-source is not taken as the path; the flag itself still applies.
+TGT=$(mk_tmp)
+err11="$( cd "$TGT" && PATH="$STUB:$PATH" bash "$INSTALL" --local-source --force 2>&1 >/dev/null )"
+rc11=$?
+{ [ "$rc11" -eq 1 ] && printf '%s' "$err11" | grep -q "requires a path"; } \
+    && pass "--local-source followed by a flag reports the missing path" || fail "flag as path" "rc=$rc11: $err11"
+
+# 12. A missing source dir names both the flag and the env var.
+TGT=$(mk_tmp)
+err12="$( cd "$TGT" && PATH="$STUB:$PATH" bash "$INSTALL" --local-source "/no/such/dir" 2>&1 >/dev/null )"
+printf '%s' "$err12" | grep -q -- "--local-source / AGENT_CONTEXT_SOURCE" \
+    && pass "not-found error names flag and env var" || fail "not-found message" "$err12"
+
 # 9. API down + stale cache matching the installed version: the fast-path warns that the check is stale.
 TGT=$(mk_tmp)
 mkdir -p "$TGT/.agent-context/skills"
