@@ -4,6 +4,10 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Fixed
+
+- **Setup deleted other tools' AI configuration without reading it** — `GEMINI.md`, `.claude/rules/`, `.cursorrules`, `.cursor/rules/` and `.github/copilot-instructions.md` were removed by the migration cleanup although their content was never inventoried. They are now read, routed into the layers and recorded in `setup-decisions.json` like any knowledge source, and never deleted or emptied — they keep working for teammates who use those tools. Only committed, unmodified legacy Agent-Context artefacts (`.ai/`, `--ai-dirs`) are removed, and `MIGRATION_CLEANUP: ran` is logged only after such a removal, so a project with a `.cursorrules` no longer bypasses the Step 5.0 change gate. After a cleanup, `knowledge-map.md` is updated row by row instead of rebuilt, a user's same-named command in `.claude/commands/` is kept instead of overwritten, and an untracked `memory/log.md` moves to `memory/archive/log.md` instead of being deleted.
+
 ### Added
 
 - **Cross-repo lesson fallback** (#33) — a lesson belongs in the repo owning the code, but in a multi-repo project that repo is often not checked out, and the agent had nowhere valid to put it. It now parks the lesson in the current repo's `memory/lessons.md` with an `owner:<repo>` tag; the memory review moves it to the owning repo once that repo is reachable. The rule lives in the on-demand `memory-maintenance.md` (Cross-Repo Fallback) with a pointer from the layer-0 routing row; siblings are declared in a new optional "Sibling Repos" section of `layer1-bootstrap.md`, which existing installs add by hand (the template is project-owned).
