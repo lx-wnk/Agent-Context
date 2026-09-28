@@ -40,12 +40,48 @@ rewrite_exact_line() {
     echo "Migrated $file: $old → $new"
 }
 
-# Rewrites the root-relative imports that installs before 0.9.1 shipped; project edits stay untouched.
+# Inside .agent-context/, `@.agent-context/<path>` always resolves to .agent-context/.agent-context/<path>,
+# so every such import becomes `@<path>` wherever it sits in a line. An `@` only counts as an import at
+# line start or after whitespace, `(` or `>`; code spans and fenced blocks are left alone.
+strip_nested_imports() {
+    local file="$1" tmp
+    [ -f "$file" ] && [ ! -L "$file" ] || return 0
+    grep -q '@\.agent-context/' "$file" || return 0
+    tmp=$(mktemp "$file.XXXXXX") || return 1
+    awk '
+        function fix(s,    out, i, prev) {
+            out = ""
+            while ((i = index(s, "@.agent-context/")) > 0) {
+                prev = i > 1 ? substr(s, i - 1, 1) : (out == "" ? "" : substr(out, length(out), 1))
+                if (prev == "" || prev ~ /[ \t(>]/) out = out substr(s, 1, i)
+                else out = out substr(s, 1, i + 15)
+                s = substr(s, i + 16)
+            }
+            return out s
+        }
+        /^[ \t]*```/ { fence = !fence; print; next }
+        fence { print; next }
+        {
+            n = split($0, part, "`")
+            line = ""
+            for (j = 1; j <= n; j++) line = line (j > 1 ? "`" : "") (j % 2 ? fix(part[j]) : part[j])
+            print line
+        }
+    ' "$file" > "$tmp"
+    if cmp -s "$tmp" "$file"; then
+        rm -f "$tmp"
+        return 0
+    fi
+    cat "$tmp" > "$file"
+    rm -f "$tmp"
+    echo "Migrated $file: nested @.agent-context/ imports → importer-relative"
+}
+
+# Rewrites the root-relative imports that installs before 0.9.1 shipped; code spans stay untouched.
 migrate_import_paths() {
     rewrite_exact_line ".claude/CLAUDE.md" "@AGENTS.md" "@../AGENTS.md"
-    rewrite_exact_line ".agent-context/layer2-project-core.md" "@.agent-context/base-principles.md" "@base-principles.md"
-    rewrite_exact_line ".agent-context/layer3-guidebook.md" "@.agent-context/knowledge-map.md" "@knowledge-map.md"
-    rewrite_exact_line ".agent-context/layer3-guidebook.md" "@.agent-context/skills/index.md" "@skills/index.md"
+    strip_nested_imports ".agent-context/layer2-project-core.md"
+    strip_nested_imports ".agent-context/layer3-guidebook.md"
 }
 
 # Returns 0 if all critical project-owned template files are present.
