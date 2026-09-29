@@ -24,7 +24,7 @@ NO_CONF="$(mk_tmp)/absent.conf"
 # run_hook <script> <local-conf> <stdin-json> [<committed-conf>] -> sets RC, OUT (stdout), ERR (stderr)
 run_hook() {
     local script="$1" local_conf="$2" json="$3" conf="${4:-$NO_CONF}" outf errf
-    outf=$(mktemp); errf=$(mktemp)
+    outf=$(mktemp "$TMP_ROOT/XXXXXX"); errf=$(mktemp "$TMP_ROOT/XXXXXX")
     printf '%s' "$json" \
         | AGENT_CONTEXT_HOOKS_CONF="$conf" AGENT_CONTEXT_HOOKS_LOCAL_CONF="$local_conf" \
             "$BASH" "$script" >"$outf" 2>"$errf"
@@ -221,7 +221,7 @@ done
 if PATH="$sandbox" command -v jq >/dev/null 2>&1; then
     echo "  SKIP  no-jq loop guard (could not isolate jq)"
 else
-    outf=$(mktemp)
+    outf=$(mktemp "$TMP_ROOT/XXXXXX")
     PATH="$sandbox" AGENT_CONTEXT_HOOKS_CONF="$NO_CONF" AGENT_CONTEXT_HOOKS_LOCAL_CONF="$t/block.conf" "$sandbox/bash" "$HOOKS/stop-test-gate.sh" \
         <<<'{"hook_event_name":"Stop","stop_hook_active":true}' >"$outf" 2>/dev/null
     grep -q '"decision":"block"' "$outf" \

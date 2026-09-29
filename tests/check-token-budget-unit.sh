@@ -285,6 +285,11 @@ assert_eq "non-integer --max exits 2" "2" "$?"
 printf 'MAX_EFFECTIVE_LINES=ten\n' > "$t/bad.conf"
 bash "$ENGINE" --conf "$t/bad.conf" "$t/f.md" >/dev/null 2>&1
 assert_eq "non-integer cap in the conf exits 2" "2" "$?"
+t=$(mk_tmp)
+printf 'MAX_EFFECTIVE_LINES=10\n' > "$t/budget.conf"
+err=$(run_in "$t" --conf "$t/budget.conf" --quiet 2>&1 >/dev/null); code=$?
+{ [ "$code" -eq 2 ] && printf '%s' "$err" | grep -q "no files to check"; } \
+    && pass "no files to check exits 2" || fail "no files to check exits 2" "code=$code err=$err"
 
 # 23. Paths are data: backslashes are printed verbatim and JSON-escaped, never interpreted.
 t=$(mk_tmp)

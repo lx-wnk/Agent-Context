@@ -225,8 +225,8 @@ assert_file_not_contains "in-tree symlink is pruned at its target" "$t/memory/sh
 # 15. An unreadable file must not abort the scan — `done < "$file"` under set -e exits 1, which
 # is outside the declared 0/2 contract, and every later file is silently skipped.
 if [ "$(id -u)" -eq 0 ]; then
-    pass "unreadable file skipped, scan continues (skipped: running as root)"
-    pass "unreadable file keeps the exit code at 0 (skipped: running as root)"
+    skip "unreadable file skipped, scan continues" "running as root"
+    skip "unreadable file keeps the exit code at 0" "running as root"
 else
     t=$(mk_tmp); mkdir -p "$t/memory"
     seed_one a "Alpha expired" "$t/memory/aaa.md"
@@ -243,8 +243,8 @@ fi
 # 16. A rewrite that cannot happen after the archive append leaves a duplicate. That must be a
 # loud exit 2, not a set -e death at exit 1 (mktemp path) and not a silent exit 0 (cp/mv path).
 if [ "$(id -u)" -eq 0 ]; then
-    pass "failed rewrite exits 2 (skipped: running as root)"
-    pass "failed rewrite names both copies (skipped: running as root)"
+    skip "failed rewrite exits 2" "running as root"
+    skip "failed rewrite names both copies" "running as root"
 else
     t=$(mk_tmp); mkdir -p "$t/memory"
     seed_one ro "Read-only dir entry" "$t/memory/lessons.md"
@@ -321,10 +321,10 @@ printf '%s' "$err" | grep -qF "entry '*' is not key=value" \
 # "Memory decay scan — ", zero files scanned, exit 0), and an --archive whose parent cannot be
 # searched silently relocated the archive to the filesystem root ("/arch/<week>.md").
 if [ "$(id -u)" -eq 0 ]; then
-    pass "unsearchable --dir exits 2 (skipped: running as root)"
-    pass "unsearchable --dir names the directory (skipped: running as root)"
-    pass "unsearchable --archive parent exits 2 (skipped: running as root)"
-    pass "unsearchable --archive parent names the directory (skipped: running as root)"
+    skip "unsearchable --dir exits 2" "running as root"
+    skip "unsearchable --dir names the directory" "running as root"
+    skip "unsearchable --archive parent exits 2" "running as root"
+    skip "unsearchable --archive parent names the directory" "running as root"
 else
     t=$(mk_tmp); mkdir -p "$t/memory"
     seed_one nodir "Unsearchable dir entry" "$t/memory/lessons.md"
@@ -358,14 +358,14 @@ fi
 # dir or TMPDIR killed the run at exit 1 with a raw "Permission denied". The source file is
 # untouched in all three cases, and the message has to say so.
 if [ "$(id -u)" -eq 0 ]; then
-    pass "unwritable archive dir exits 2 (skipped: running as root)"
-    pass "unwritable archive dir names the archive file (skipped: running as root)"
-    pass "unwritable archive dir leaves the source intact (skipped: running as root)"
-    pass "uncreatable archive dir exits 2 (skipped: running as root)"
-    pass "uncreatable archive dir names the directory (skipped: running as root)"
-    pass "unwritable TMPDIR exits 2 (skipped: running as root)"
-    pass "unwritable TMPDIR names the temp directory (skipped: running as root)"
-    pass "unwritable TMPDIR leaves the source intact (skipped: running as root)"
+    skip "unwritable archive dir exits 2" "running as root"
+    skip "unwritable archive dir names the archive file" "running as root"
+    skip "unwritable archive dir leaves the source intact" "running as root"
+    skip "uncreatable archive dir exits 2" "running as root"
+    skip "uncreatable archive dir names the directory" "running as root"
+    skip "unwritable TMPDIR exits 2" "running as root"
+    skip "unwritable TMPDIR names the temp directory" "running as root"
+    skip "unwritable TMPDIR leaves the source intact" "running as root"
 else
     t=$(mk_tmp); mkdir -p "$t/memory" "$t/arch"
     seed_one aw "Archive append entry" "$t/memory/lessons.md"
@@ -597,14 +597,18 @@ printf '%s' "$out" | grep -qF "Warning: $t/badquote.conf sets MEMORY_TTL_DEFAULT
 # SIGINT at all — POSIX has the shell set INT/QUIT to ignored for asynchronous commands otherwise,
 # which is why this is wrapped in its own `bash -c` rather than a plain `cmd &` in this script.
 if [ "$(id -u)" -eq 0 ]; then
-    pass "SIGINT terminates the run and cleans up temp files (skipped: running as root)"
-    pass "SIGINT does not corrupt the source file (skipped: running as root)"
+    skip "SIGINT terminates the run (exit 130, not a silent continue)" "running as root"
+    skip "SIGINT terminates the run and cleans up temp files" "running as root"
+    skip "SIGINT does not corrupt the source file" "running as root"
+    skip "SIGINT leaves no partial archive" "running as root"
 else
     t=$(mk_tmp); mkdir -p "$t/memory"
     {
         echo "# Lessons Learned"
         echo ""
-        for i in $(seq 1 400); do
+        # 3000 entries: the read loop needs to still be mid-scan a poll interval after the
+        # temp files show up, not just finished by the time `kill -INT` is sent.
+        for i in $(seq 1 3000); do
             printf -- '- **[e%d]** entry number %d (2020-01-01) ttl:90d source:user conf:med\n' "$i" "$i"
         done
     } > "$t/memory/lessons.md"
@@ -627,21 +631,30 @@ else
     ' _ "$tdir" "$PRUNE" "$t/memory" "$t/absent.conf" 2>&1)
     sigint_rc=$(printf '%s' "$result" | grep -oE 'rc=[0-9]+' | cut -d= -f2)
     sigint_found=$(printf '%s' "$result" | grep -oE 'found=[01]' | cut -d= -f2)
-    [ "$sigint_found" = "1" ] || fail "SIGINT test harness caught the run mid-scan" "temp files never appeared: $result"
-    [ "$sigint_rc" = "130" ] \
-        && pass "SIGINT terminates the run (exit 130, not a silent continue)" \
-        || fail "SIGINT terminates the run (exit 130, not a silent continue)" "got: $result"
-    leftover=$(find "$tdir" -name 'memprune.*' 2>/dev/null)
-    [ -z "$leftover" ] \
-        && pass "SIGINT terminates the run and cleans up temp files" \
-        || fail "SIGINT terminates the run and cleans up temp files" "leftover: $leftover"
-    after=$(cat "$t/memory/lessons.md")
-    [ "$before" = "$after" ] \
-        && pass "SIGINT does not corrupt the source file" \
-        || fail "SIGINT does not corrupt the source file" "file content changed after interrupt"
-    [ -d "$t/memory/archive" ] \
-        && fail "SIGINT leaves no partial archive" "archive/ exists" \
-        || pass "SIGINT leaves no partial archive"
+    # The behavioral assertions below only mean something if the process was genuinely caught
+    # mid-work (temp files seen AND killed by the signal, not a completed run coincidentally
+    # matching the same outcome). Gate on both, and fail every one of them loudly, with the
+    # same diagnostic, rather than letting a completed run masquerade as an interrupted one.
+    if [ "$sigint_found" = "1" ] && [ "$sigint_rc" = "130" ]; then
+        pass "SIGINT terminates the run (exit 130, not a silent continue)"
+        leftover=$(find "$tdir" -name 'memprune.*' 2>/dev/null)
+        [ -z "$leftover" ] \
+            && pass "SIGINT terminates the run and cleans up temp files" \
+            || fail "SIGINT terminates the run and cleans up temp files" "leftover: $leftover"
+        after=$(cat "$t/memory/lessons.md")
+        [ "$before" = "$after" ] \
+            && pass "SIGINT does not corrupt the source file" \
+            || fail "SIGINT does not corrupt the source file" "file content changed after interrupt"
+        [ -d "$t/memory/archive" ] \
+            && fail "SIGINT leaves no partial archive" "archive/ exists" \
+            || pass "SIGINT leaves no partial archive"
+    else
+        reason="run was not caught interrupted mid-work (found=$sigint_found rc=$sigint_rc): $result"
+        fail "SIGINT terminates the run (exit 130, not a silent continue)" "$reason"
+        fail "SIGINT terminates the run and cleans up temp files" "$reason"
+        fail "SIGINT does not corrupt the source file" "$reason"
+        fail "SIGINT leaves no partial archive" "$reason"
+    fi
 fi
 
 # 32. A symlinked archive FILE is never written through: a repo can ship archive/<week>.md -> ~/.bashrc,
@@ -755,5 +768,5 @@ printf '%s' "$out" | grep -qF "second [2Jdomain" \
 echo ""
 echo "================================================"
 TOTAL=$((PASS + FAIL))
-printf "Results: %d/%d passed\n" "$PASS" "$TOTAL"
+printf "Results: %d/%d passed, %d skipped\n" "$PASS" "$TOTAL" "$SKIP"
 [ "$FAIL" -eq 0 ] && { echo "ALL PASSED"; exit 0; } || { echo "FAILED"; exit 1; }
