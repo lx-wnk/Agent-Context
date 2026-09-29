@@ -8,3 +8,6 @@ fi
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
 mk_tmp() { mktemp -d "$TMP_ROOT/XXXXXX"; }
+
+SKIP=0
+skip() { printf "  SKIP  %s (%s)\n" "$1" "$2"; SKIP=$((SKIP + 1)); }
