@@ -304,6 +304,12 @@ printf '%s\n' "$CAP" | grep -qx -- "--strict-mcp-config" \
     && pass "user MCP servers are not loaded" || fail "--strict-mcp-config" "$CAP"
 printf '%s\n' "$CAP" | grep -A1 -x -- "--disallowedTools" | grep -qx "WebFetch,WebSearch" \
     && pass "web tools are denied" || fail "--disallowedTools WebFetch,WebSearch" "$CAP"
+# The variadic flags take every following non-flag argument, so the prompt must precede all of them.
+order17=$(printf '%s\n' "$CAP" | awk '
+    /^--(allowedTools|allowed-tools|disallowedTools|disallowed-tools|add-dir|mcp-config)$/ && !flag { flag = NR }
+    /^Read .*setup-prompt\.md and follow/ && !prompt { prompt = NR }
+    END { print (prompt && (!flag || prompt < flag)) ? "ok" : "prompt " prompt " after variadic flag " flag }')
+[ "$order17" = "ok" ] && pass "prompt precedes the variadic flags" || fail "prompt precedes the variadic flags" "$order17"
 allowed17=$(printf '%s\n' "$CAP" | grep -A1 -x -- "--allowedTools" | tail -n 1)
 { printf '%s' "$allowed17" | grep -q "Bash(" && ! printf '%s' "$allowed17" | grep -qE '(^|,)(Bash|WebFetch|WebSearch)(,|$)'; } \
     && pass "allowed tools scope Bash and exclude web tools" || fail "scoped allowlist" "$allowed17"
