@@ -46,10 +46,12 @@ if [ -n "${CAPTURE:-}" ]; then
     printf '%s\0' "$@" > "$CAPTURE"
     if [ -f .agent-context/bin/conf-read.sh ]; then echo present > "$CAPTURE.pre"; fi
     printf '%s\n' "$2" | sed -n 's|^Read \(.*\)/\.prompts/setup-prompt\.md and follow.*|\1|p' > "$CAPTURE.root"
+    printf '%s' "${AI_DIRS-unset}" > "$CAPTURE.aidirs"
 fi
+echo "AGENT SUMMARY: UNRESOLVED none"
 mkdir -p .agent-context/skills
 for f in AGENTS.md .agent-context/layer1-bootstrap.md .agent-context/layer2-project-core.md \
-    .agent-context/layer3-guidebook.md .agent-context/skills/index.md; do
+    .agent-context/layer3-guidebook.md .agent-context/skills/index.md .agent-context/knowledge-map.md; do
     [ -f "$f" ] || echo x > "$f"
 done
 if [ -n "${STUB_VERSION:-}" ]; then echo "$STUB_VERSION" > .agent-context/.agent-context-version; fi
@@ -82,6 +84,11 @@ case "$_url" in
 esac
 EOF
 chmod +x "$STUB/curl"
+cat > "$STUB/uuidgen" <<'EOF'
+#!/usr/bin/env bash
+echo "${UUIDGEN_OUT:-0F1E2D3C-4B5A-4978-8695-A4B3C2D1E0F9}"
+EOF
+chmod +x "$STUB/uuidgen"
 export XDG_CACHE_HOME
 XDG_CACHE_HOME=$(mk_tmp)
 VERSION_CACHE="$XDG_CACHE_HOME/agent-context/latest-version"
@@ -124,9 +131,14 @@ printf '%s' "$CAP" | grep -q "Read $SRC_ABS/.prompts/setup-prompt.md" \
 # 2. Env form AGENT_CONTEXT_SOURCE triggers the same behavior (no flag).
 TGT=$(mk_tmp)
 cap2="$(mk_tmp)/cap"
-( cd "$TGT" && CAPTURE="$cap2" AGENT_CONTEXT_SOURCE="$SRC" PATH="$STUB:$PATH" bash "$INSTALL" >/dev/null 2>&1 )
+out2="$( cd "$TGT" && CAPTURE="$cap2" AGENT_CONTEXT_SOURCE="$SRC" PATH="$STUB:$PATH" bash "$INSTALL" 2>&1 )"
 { [ -f "$cap2" ] && tr '\0' '\n' < "$cap2" | grep -q "LOCAL SOURCE MODE"; } \
     && pass "AGENT_CONTEXT_SOURCE env triggers local-source" || fail "env form" "directive not injected"
+printf '%s' "$out2" | grep -q "AGENT_CONTEXT_SOURCE is set" \
+    && pass "an ambient AGENT_CONTEXT_SOURCE is announced" || fail "ambient source notice" "$out2"
+out2b="$( cd "$(mk_tmp)" && PATH="$STUB:$PATH" bash "$INSTALL" --local-source "$SRC" 2>&1 )"
+printf '%s' "$out2b" | grep -q "AGENT_CONTEXT_SOURCE is set" \
+    && fail "no notice for an explicit --local-source" "$out2b" || pass "no notice for an explicit --local-source"
 
 # 3. Nonexistent source dir → exit 1.
 TGT=$(mk_tmp)
@@ -213,7 +225,7 @@ TGT=$(mk_tmp)
 mkdir -p "$TGT/.agent-context/skills"
 printf '1.0.0\n' > "$TGT/.agent-context/.agent-context-version"
 for f in AGENTS.md .agent-context/layer1-bootstrap.md .agent-context/layer2-project-core.md \
-    .agent-context/layer3-guidebook.md .agent-context/skills/index.md; do
+    .agent-context/layer3-guidebook.md .agent-context/skills/index.md .agent-context/knowledge-map.md; do
     printf 'x\n' > "$TGT/$f"
 done
 cache9=$(mk_tmp)
@@ -438,6 +450,89 @@ TGT=$(mk_tmp)
 rc25=$?
 { [ "$rc25" -eq 2 ] && [ ! -f "$TGT/.agent-context/.agent-context-version" ]; } \
     && pass "no Done line exits 2 without a version file" || fail "no Done line" "rc=$rc25"
+
+# 26. Unknown flags fail loudly with usage; --help prints usage; --ai-dirs takes a space-separated value.
+for bad in --froce --ai-dirs; do
+    TGT=$(mk_tmp)
+    run_install "$TGT" --local-source "$SRC" "$bad"
+    { [ "$RC" -eq 2 ] && [ -z "$CAP" ] && printf '%s' "$OUT" | grep -q "Usage:"; } \
+        && pass "$bad fails with usage and exit 2" || fail "$bad rejected" "rc=$RC: $OUT"
+done
+TGT=$(mk_tmp)
+out26="$( cd "$TGT" && PATH="$STUB:$PATH" bash "$INSTALL" --help 2>/dev/null )"
+rc26=$?
+{ [ "$rc26" -eq 0 ] && printf '%s' "$out26" | grep -q "Usage:" && printf '%s' "$out26" | grep -q -- "--ai-dirs" \
+    && [ ! -e "$TGT/.agent-context" ]; } \
+    && pass "--help prints usage and exits 0 without installing" || fail "--help" "rc=$rc26: $out26"
+TGT=$(mk_tmp)
+run_install "$TGT" --local-source "$SRC" --ai-dirs .x,.y
+{ [ "$RC" -eq 0 ] && printf '%s' "$CAP" | grep -q "Additional AI directories.*: .x,.y"; } \
+    && pass "--ai-dirs <dirs> reaches the prompt" || fail "--ai-dirs space form" "rc=$RC: $CAP"
+[ "$(cat "$CAP_FILE.aidirs" 2>/dev/null)" = ".x,.y" ] \
+    && pass "AI_DIRS is passed in the agent's environment" || fail "AI_DIRS env" "$(cat "$CAP_FILE.aidirs" 2>/dev/null)"
+
+# 27. The agent's own output is shown; its file is removed after success and kept after a failure.
+TGT=$(mk_tmp)
+run_install "$TGT" --local-source "$SRC"
+{ [ "$RC" -eq 0 ] && printf '%s' "$OUT" | grep -q "AGENT SUMMARY: UNRESOLVED none"; } \
+    && pass "agent output is printed" || fail "agent output printed" "rc=$RC: $OUT"
+[ ! -e "$TGT/.agent-context/setup-output.md" ] \
+    && pass "setup-output.md is removed after a verified run" || fail "setup-output.md removed" "kept"
+TGT=$(mk_tmp)
+out27="$( cd "$TGT" && CLAUDE_EXIT=3 PATH="$STUB:$PATH" bash "$INSTALL" --local-source "$SRC" 2>&1 )"
+{ grep -q "AGENT SUMMARY" "$TGT/.agent-context/setup-output.md" 2>/dev/null \
+    && printf '%s' "$out27" | grep -q "AGENT SUMMARY"; } \
+    && pass "setup-output.md is kept and shown after a failed run" || fail "setup-output.md kept" "$out27"
+
+# 28. A symlinked setup.log is replaced, never written through.
+TGT=$(mk_tmp)
+mkdir -p "$TGT/.agent-context"
+victim="$(mk_tmp)/victim"
+printf 'precious\n' > "$victim"
+ln -s "$victim" "$TGT/.agent-context/setup.log"
+run_install "$TGT" --local-source "$SRC" --force
+{ [ "$RC" -eq 0 ] && [ "$(cat "$victim")" = "precious" ]; } \
+    && pass "a symlinked setup.log target is left untouched" || fail "symlinked setup.log" "rc=$RC victim=$(cat "$victim")"
+
+# 29. Only a valid v4 UUID is passed as --session-id.
+TGT=$(mk_tmp)
+run_install "$TGT" --local-source "$SRC"
+printf '%s\n' "$CAP" | grep -A1 -x -- "--session-id" | tail -n 1 | grep -qx "0f1e2d3c-4b5a-4978-8695-a4b3c2d1e0f9" \
+    && pass "a v4 session id is passed lowercased" || fail "--session-id v4" "$CAP"
+TGT=$(mk_tmp)
+cap29="$(mk_tmp)/cap"
+out29="$( cd "$TGT" && CAPTURE="$cap29" UUIDGEN_OUT=unknown PATH="$STUB:$PATH" bash "$INSTALL" --local-source "$SRC" 2>&1 )"
+rc29=$?
+{ [ "$rc29" -eq 0 ] && ! tr '\0' '\n' < "$cap29" | grep -qx -- "--session-id" \
+    && ! printf '%s' "$out29" | grep -q "Session ID"; } \
+    && pass "an invalid session id omits --session-id" || fail "invalid session id" "rc=$rc29: $out29"
+
+# 30. TERM while the agent runs: the agent is killed, setup.log kept, exit 130.
+HANG="$(mk_tmp)/bin"
+mkdir -p "$HANG"
+cat > "$HANG/claude" <<'EOF'
+#!/usr/bin/env bash
+echo "$$" > "$HANG_PID"
+echo "[agent-context] Step 1/5: Checking version..." >> .agent-context/setup.log
+exec sleep 30
+EOF
+chmod +x "$HANG/claude"
+TGT=$(mk_tmp)
+export HANG_PID
+HANG_PID="$(mk_tmp)/pid"
+( cd "$TGT" && AGENT_CONTEXT_POLL_SECS=0.2 PATH="$HANG:$STUB:$PATH" exec bash "$INSTALL" --local-source "$SRC" >/dev/null 2>&1 ) &
+inst30=$!
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do [ -s "$HANG_PID" ] && break; sleep 0.25; done
+sleep 0.5
+kill -TERM "$inst30" 2>/dev/null
+wait "$inst30"
+rc30=$?
+agent30=$(cat "$HANG_PID" 2>/dev/null)
+alive30=no
+[ -n "$agent30" ] && kill -0 "$agent30" 2>/dev/null && alive30=yes
+[ -n "$agent30" ] && kill "$agent30" 2>/dev/null
+{ [ "$rc30" -eq 130 ] && [ "$alive30" = no ] && [ -f "$TGT/.agent-context/setup.log" ]; } \
+    && pass "TERM kills the agent, keeps setup.log and exits 130" || fail "TERM trap" "rc=$rc30 agent alive=$alive30"
 
 # Downgrade guard: an install newer than the latest release is left alone (release mode only).
 TGT=$(mk_tmp)

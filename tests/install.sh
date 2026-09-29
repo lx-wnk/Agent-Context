@@ -131,22 +131,11 @@ result=$(resolve_cache_dir "/home/user/.cache")
 assert_eq "absolute XDG_CACHE_HOME gets /agent-context appended" "/home/user/.cache/agent-context" "$result"
 
 # ---------------------------------------------------------------------------
-# 7. Cache path validation: relative path → falls back to /tmp/agent-context
+# 7-9. Cache path validation: relative, .. segment or empty → no cache (never a shared /tmp dir)
 # ---------------------------------------------------------------------------
-result=$(resolve_cache_dir "relative/path")
-assert_eq "relative cache path falls back to /tmp/agent-context" "/tmp/agent-context" "$result"
-
-# ---------------------------------------------------------------------------
-# 8. Cache path validation: path with .. segment → falls back to /tmp/agent-context
-# ---------------------------------------------------------------------------
-result=$(resolve_cache_dir "/home/user/../etc")
-assert_eq "path with .. segment falls back to /tmp/agent-context" "/tmp/agent-context" "$result"
-
-# ---------------------------------------------------------------------------
-# 9. Cache path validation: empty string → falls back to /tmp/agent-context
-# ---------------------------------------------------------------------------
-result=$(resolve_cache_dir "")
-assert_eq "empty cache path falls back to /tmp/agent-context" "/tmp/agent-context" "$result"
+assert_eq "relative cache path disables the cache" "" "$(resolve_cache_dir "relative/path")"
+assert_eq "path with .. segment disables the cache" "" "$(resolve_cache_dir "/home/user/../etc")"
+assert_eq "empty cache path disables the cache" "" "$(resolve_cache_dir "")"
 
 
 # CACHE_DIR default: XDG_CACHE_HOME wins, HOME/.cache is the fallback.
@@ -157,6 +146,40 @@ assert_eq "CACHE_DIR follows XDG_CACHE_HOME" "/xdg/agent-context" \
 # shellcheck disable=SC2016
 assert_eq "CACHE_DIR falls back to HOME/.cache" "/home/u/.cache/agent-context" \
     "$(env -u XDG_CACHE_HOME HOME=/home/u bash -c 'source "$1"; echo "$CACHE_DIR"' _ "$INSTALL_SH")"
+# shellcheck disable=SC2016
+assert_eq "no XDG_CACHE_HOME and no HOME: no cache" "" \
+    "$(env -u XDG_CACHE_HOME -u HOME bash -c 'source "$1"; echo "$CACHE_DIR"' _ "$INSTALL_SH")"
+
+# get_latest_version: the cache dir is private and a cached value is validated before use.
+t=$(mk_tmp)
+(
+    CACHE_DIR="$t/cache" CACHE_FILE="$t/cache/latest-version"
+    curl() { echo '{"tag_name": "2.0.0"}'; }
+    get_latest_version
+    assert_eq "fresh lookup returns the API tag" "2.0.0" "$LATEST_VERSION"
+    assert_eq "cache dir is created mode 700" "drwx------" "$(ls -ld "$CACHE_DIR" | cut -c1-10)"
+    printf '1.0.0;evil\n' > "$CACHE_FILE"
+    get_latest_version
+    assert_eq "an invalid fresh cache value is ignored" "2.0.0" "$LATEST_VERSION"
+    curl() { return 22; }
+    printf '1.0.0;evil\n' > "$CACHE_FILE"
+    touch -t 200001010000 "$CACHE_FILE"
+    get_latest_version 2>/dev/null
+    assert_eq "an invalid stale cache value is ignored" "" "$LATEST_VERSION"
+    CACHE_DIR="" CACHE_FILE=""
+    curl() { echo '{"tag_name": "3.0.0"}'; }
+    get_latest_version
+    assert_eq "no cache dir: the lookup still works" "3.0.0" "$LATEST_VERSION"
+    printf '%s\n' "$PASS $FAIL" > "$t/counts"
+)
+read -r PASS FAIL < "$t/counts"
+
+# new_session_id: only a v4 UUID is used (lowercased); anything else yields no session id.
+assert_eq "v4 UUID is lowercased" "abcdef01-2345-4678-89ab-0123456789ab" \
+    "$(uuidgen() { echo ABCDEF01-2345-4678-89AB-0123456789AB; }; new_session_id)"
+assert_eq "non-UUID yields no session id" "" "$(uuidgen() { echo unknown; }; new_session_id)"
+assert_eq "non-v4 UUID yields no session id" "" \
+    "$(uuidgen() { echo 12345678-1234-1234-1234-123456789012; }; new_session_id)"
 # ---------------------------------------------------------------------------
 # 10. Bootstrap-only check: file with only @AGENTS.md → true
 # ---------------------------------------------------------------------------
@@ -246,6 +269,7 @@ _mk_complete_install() {
     touch "$dir/.agent-context/layer2-project-core.md"
     touch "$dir/.agent-context/layer3-guidebook.md"
     touch "$dir/.agent-context/skills/index.md"
+    touch "$dir/.agent-context/knowledge-map.md"
 }
 
 # 16. All critical templates present → returns 0
@@ -305,6 +329,15 @@ if ! (cd "$t" && check_critical_templates); then
     pass "missing skills/index.md → returns 1"
 else
     fail "missing skills/index.md → returns 1" "returned 0"
+fi
+
+t=$(mk_tmp)
+_mk_complete_install "$t"
+rm "$t/.agent-context/knowledge-map.md"
+if ! (cd "$t" && check_critical_templates); then
+    pass "missing knowledge-map.md → returns 1"
+else
+    fail "missing knowledge-map.md → returns 1" "returned 0"
 fi
 
 # ---------------------------------------------------------------------------
