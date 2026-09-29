@@ -597,8 +597,10 @@ printf '%s' "$out" | grep -qF "Warning: $t/badquote.conf sets MEMORY_TTL_DEFAULT
 # SIGINT at all — POSIX has the shell set INT/QUIT to ignored for asynchronous commands otherwise,
 # which is why this is wrapped in its own `bash -c` rather than a plain `cmd &` in this script.
 if [ "$(id -u)" -eq 0 ]; then
+    skip "SIGINT terminates the run (exit 130, not a silent continue)" "running as root"
     skip "SIGINT terminates the run and cleans up temp files" "running as root"
     skip "SIGINT does not corrupt the source file" "running as root"
+    skip "SIGINT leaves no partial archive" "running as root"
 else
     t=$(mk_tmp); mkdir -p "$t/memory"
     {
