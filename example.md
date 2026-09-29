@@ -32,7 +32,6 @@ AGENTS.md                       ← project-owned entry point
   memory/
     index.md
     lessons.md
-    decisions.md                ← legacy stub (migrated to decisions.json)
     people.md
     preferences.md
     user.md
@@ -79,7 +78,7 @@ These are created once by the installer and then owned by the project. Auto-upda
 
 Identifies the project as Shopware 6.7 with PHP 8.2+, Symfony 7, MySQL 8.0+, and a custom DAL (no Doctrine ORM).
 Describes the modular monolith structure (`src/Core/{Framework,System,Content,Checkout}`, plugins in `custom/plugins/`).
-References `@.agent-context/agent-startup.md` for auto-updates. Lists 5 quick rules: always run `composer run check`
+Imports `@.agent-context/agent-startup.md`, which says how to update (re-run the installer). Lists 5 quick rules: always run `composer run check`
 before committing, DAL over Doctrine, typed DTOs with `readonly class`, Conventional Commits, and PHPUnit with
 `IntegrationTestBehaviour`. Includes compaction preservation hints for long sessions.
 

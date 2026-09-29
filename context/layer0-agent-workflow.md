@@ -60,7 +60,7 @@ If you're unsure whether something is worth saving, ask: "Would a future session
 - **During session**: triggers are handled inline (see directive above)
 - **Session end**: review whether any triggers fired but were missed and persist them. Cross-session activity history lives in Git history and external session logs (e.g., Obsidian) — not in repo memory
 - **After 3+ memory updates**: scan for contradictions with existing entries before closing
-- **Knowledge source changed / lesson proven 3+ times**: update `knowledge-map.md` / promote the lesson — procedures in `.agent-context/memory-maintenance.md` (Knowledge Map Triggers, Lesson Graduation)
+- **Knowledge source changed / lesson confirmed in 3 separate sessions**: update `knowledge-map.md` / promote the lesson — procedures in `.agent-context/memory-maintenance.md` (Knowledge Map Triggers, Lesson Graduation)
 
 ## Delegating to Specialist Agents
 
