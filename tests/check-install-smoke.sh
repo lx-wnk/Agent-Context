@@ -50,6 +50,55 @@ row_count="$(printf '%s\n' "$table_rows" | grep -c . || true)"
 [ "$row_count" -ge 1 ] && pass "parsed $row_count shared-file rows from download table" \
     || fail "parse download table" "no rows found in $PROMPT"
 
+# 2a. Drift check: every tracked shared file (context/** plus the two review prompts) needs a
+#     table row. Catches a row removed from the table while the file itself stays tracked.
+table_sources="$(printf '%s\n' "$table_rows" | awk -F'\t' '{print $1}' | sort -u)"
+expected_shared="$({ git -C "$REPO_ROOT" ls-files context/; printf '%s\n' ".prompts/decision-review-prompt.md" ".prompts/memory-review-prompt.md"; } | sort -u)"
+missing_from_table="$(comm -23 <(printf '%s\n' "$expected_shared") <(printf '%s\n' "$table_sources"))"
+[ -z "$missing_from_table" ] && pass "every tracked shared file is wired into the Step 2 table" \
+    || fail "shared files wired into table" "missing from table: $(printf '%s' "$missing_from_table" | tr '\n' ' ')"
+extra_in_table="$(comm -13 <(printf '%s\n' "$expected_shared") <(printf '%s\n' "$table_sources"))"
+[ -z "$extra_in_table" ] && pass "no table row points outside the tracked shared-file set" \
+    || fail "table rows match tracked shared-file set" "extra in table: $(printf '%s' "$extra_in_table" | tr '\n' ' ')"
+
+# 2b. Drift check: the curl block must fetch exactly the sources listed in the table (the two
+#     `for` loops expand their $_cmd / $_hook items). Catches a curl line removed or added
+#     without a matching table row, in either direction.
+curl_sources="$(awk '
+    /^## Step 2: Install Shared Files/ { insec = 1 }
+    /^## Step 3: Template Files/ { insec = 0 }
+    insec && /^for [A-Za-z_][A-Za-z0-9_]* in / {
+        line = $0
+        sub(/^for /, "", line)
+        p = index(line, " in ")
+        var = substr(line, 1, p - 1)
+        rest = substr(line, p + 4)
+        sub(/;.*/, "", rest)
+        forlist[var] = rest
+        next
+    }
+    insec {
+        idx = index($0, "Agent-Context/<tag>/")
+        if (idx == 0) next
+        rest = substr($0, idx + length("Agent-Context/<tag>/"))
+        q = index(rest, "\"")
+        if (q == 0) next
+        path = substr(rest, 1, q - 1)
+        d = index(path, "$")
+        if (d == 0) { print path; next }
+        prefix = substr(path, 1, d - 1)
+        var = substr(path, d + 1)
+        n = split(forlist[var], items, " ")
+        for (i = 1; i <= n; i++) print prefix items[i]
+    }
+' "$PROMPT" | sort -u)"
+missing_from_curl="$(comm -23 <(printf '%s\n' "$table_sources") <(printf '%s\n' "$curl_sources"))"
+[ -z "$missing_from_curl" ] && pass "every table source is fetched by the curl block" \
+    || fail "curl block fetches every table source" "missing from curl block: $(printf '%s' "$missing_from_curl" | tr '\n' ' ')"
+extra_in_curl="$(comm -13 <(printf '%s\n' "$table_sources") <(printf '%s\n' "$curl_sources"))"
+[ -z "$extra_in_curl" ] && pass "curl block fetches no source outside the table" \
+    || fail "curl block matches table sources" "extra in curl block: $(printf '%s' "$extra_in_curl" | tr '\n' ' ')"
+
 missing_src=0
 copied=0
 while IFS="$(printf '\t')" read -r src dst; do
