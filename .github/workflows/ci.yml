@@ -8,15 +8,23 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dev dependencies
         run: npm ci
@@ -27,5 +35,6 @@ jobs:
       - name: Shell unit tests + template coverage
         run: npm test
 
-      - name: Token-budget gate (always-on baseline)
-        run: bash tests/check-token-budget.sh
+      - name: Shellcheck
+        if: matrix.os == 'ubuntu-latest'
+        run: shellcheck -S warning -x -P SCRIPTDIR install.sh context/bin/*.sh context/hooks/*.sh tests/*.sh

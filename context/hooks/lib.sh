@@ -17,14 +17,17 @@ LOCAL_CONF_FILE="${AGENT_CONTEXT_HOOKS_LOCAL_CONF:-$HOOK_DIR/../hooks.local.conf
 # Defaults — overridden by hooks.conf / hooks.local.conf. The secret guard is on; the other
 # three hooks stay off until HOOKS_ENABLED=1.
 HOOKS_ENABLED=0
-PROTECT_SECRETS=1
-PROTECTED_GLOBS=".env .env.* *.pem *.key id_rsa id_rsa.* *.secret secrets.*"
-FORMAT_ON_EDIT=1
-FORMAT_CMD=""
-STOP_GATE="warn"
-TEST_CMD=""
-SUBAGENT_SCOPE="off"
-ALLOWED_SUBAGENT_PATHS=""
+# shellcheck disable=SC2034  # config vars consumed by the sourcing hook scripts, not this file
+{
+    PROTECT_SECRETS=1
+    PROTECTED_GLOBS=".env .env.* *.pem *.key id_rsa id_rsa.* *.secret secrets.*"
+    FORMAT_ON_EDIT=1
+    FORMAT_CMD=""
+    STOP_GATE="warn"
+    TEST_CMD=""
+    SUBAGENT_SCOPE="off"
+    ALLOWED_SUBAGENT_PATHS=""
+}
 
 # Both confs are parsed, never sourced. hooks.conf is committed and can arrive via `git pull`,
 # so the keys that switch hooks on or name a command to run (HOOKS_ENABLED, TEST_CMD, FORMAT_CMD)
