@@ -47,7 +47,7 @@ AGENTS.md                          (~35 lines — identity, quick rules)
   knowledge-map.md                 (index of external doc sources)
   hooks.conf, budget.conf          (project-owned config: hook toggles, budget caps)
   bin/                             (budget gates, baseline measurement, memory prune)
-  hooks/                           (optional deterministic hooks, off by default)
+  hooks/                           (deterministic hooks: secret guard on, the rest opt-in)
   memory/                          (stubs, 3-25 lines each)
   skills/                          (full reference, loaded on-demand)
 ```

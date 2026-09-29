@@ -4,6 +4,14 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Security
+
+- **The secret-write guard is on by default** — `pre-protect-secrets.sh` no longer depends on `HOOKS_ENABLED`: it blocks writes to protected files (`.env`, `.env.*`, `*.pem`, `*.key`, `id_rsa`, `id_rsa.*`, …) unless `PROTECT_SECRETS=0` is set in `hooks.conf` or `hooks.local.conf`. It fails closed: a missing conf reader or an unparseable conf falls back to the built-in globs, which now include `id_rsa.*`. Format, test gate and scope check stay opt-in via `HOOKS_ENABLED=1`.
+
+### Upgrade note
+
+Existing installs now block writes to protected files by default; set `PROTECT_SECRETS=0` to switch the guard off.
+
 ### Added
 
 - **Cross-repo lesson fallback** (#33) — a lesson belongs in the repo owning the code, but in a multi-repo project that repo is often not checked out, and the agent had nowhere valid to put it. It now parks the lesson in the current repo's `memory/lessons.md` with an `owner:<repo>` tag; the memory review moves it to the owning repo once that repo is reachable. The rule lives in the on-demand `memory-maintenance.md` (Cross-Repo Fallback) with a pointer from the layer-0 routing row; siblings are declared in a new optional "Sibling Repos" section of `layer1-bootstrap.md`, which existing installs add by hand (the template is project-owned).
