@@ -113,13 +113,12 @@ your-project/
     │   ├── index.md                       ← Skill registry (on-demand)
     │   └── discovery-map.md               ← On-demand discovery skill
     └── memory/
-        ├── decisions.md                   ← Legacy stub (migrated to decisions.json)
+        ├── index.md                       ← Memory file catalog
         ├── lessons.md                     ← Hard-won lessons
         ├── people.md                      ← Team members & stakeholders
         ├── preferences.md                 ← Agent behavior preferences
         ├── todo.md                        ← Active task plan (local-only, gitignored)
-        ├── user.md                        ← Primary user profile
-        └── index.md                       ← Memory file catalog
+        └── user.md                        ← Primary user profile
 ```
 
 ### Alternative: paste into a session

@@ -32,7 +32,6 @@ AGENTS.md                       ← project-owned entry point
   memory/
     index.md
     lessons.md
-    decisions.md                ← legacy stub (migrated to decisions.json)
     people.md
     preferences.md
     user.md
