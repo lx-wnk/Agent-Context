@@ -101,7 +101,7 @@ warn_committed_hook_keys() {
     [ -f "$conf" ] && [ ! -f .agent-context/hooks.local.conf ] || return 0
     grep -qE '^[[:space:]]*(export[[:space:]]+)?(HOOKS_ENABLED=["'"'"']?1|(TEST_CMD|FORMAT_CMD)=["'"'"']?[^"'"'"'[:space:]])' "$conf" || return 0
     echo "Note: $conf sets HOOKS_ENABLED, TEST_CMD or FORMAT_CMD — these now only take effect from"
-    echo "      .agent-context/hooks.local.conf (gitignored, per developer). Hooks stay off until you move them there."
+    echo "      .agent-context/hooks.local.conf (gitignored, per developer). The format, test-gate and scope hooks stay off until you move them there."
 }
 
 # Returns 0 if all critical project-owned template files are present.
@@ -303,21 +303,21 @@ register_hooks() {
     if [ ! -f "$dst" ]; then
         mkdir -p .claude
         cp "$template" "$dst"
-        echo "Created $dst with the Agent-Context hooks (off until HOOKS_ENABLED=1)"
+        echo "Created $dst with the Agent-Context hooks (secret guard on; the rest off until HOOKS_ENABLED=1)"
         return 0
     fi
     settings_has_hooks "$template" "$dst" && return 0
     if ! command -v jq >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
         HOOKS_UNVERIFIABLE=1
         echo "Note: neither jq nor python3 is available to merge JSON — add the hook entries from"
-        echo "      $template to $dst by hand (they stay off until HOOKS_ENABLED=1)."
+        echo "      $template to $dst by hand (the secret guard is on by default; the rest stays off until HOOKS_ENABLED=1)."
         return 0
     fi
     tmp=$(mktemp "$dst.XXXXXX")
     if merge_hooks_json "$template" "$dst" > "$tmp" && settings_has_hooks "$template" "$tmp"; then
         cat "$tmp" > "$dst"
         rm -f "$tmp"
-        echo "Registered the missing Agent-Context hooks in $dst (off until HOOKS_ENABLED=1)"
+        echo "Registered the missing Agent-Context hooks in $dst (secret guard on; the rest off until HOOKS_ENABLED=1)"
         return 0
     fi
     rm -f "$tmp"
