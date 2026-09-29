@@ -157,6 +157,7 @@ Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
 | `context/bin/memory-prune.sh`          | `.agent-context/bin/memory-prune.sh`          |
 | `context/bin/discovery-digest.sh`      | `.agent-context/bin/discovery-digest.sh`      |
 | `context/bin/check-map-budget.sh`      | `.agent-context/bin/check-map-budget.sh`      |
+| `context/bin/setup-steps.sh`           | `.agent-context/bin/setup-steps.sh`           |
 | `context/skills/discovery-map.md`      | `.agent-context/skills/discovery-map.md`      |
 | `context/commands/discover.md`         | `.claude/commands/discover.md`                |
 | `context/commands/memory-review.md`    | `.claude/commands/memory-review.md`           |
@@ -199,6 +200,8 @@ pids=()
     -o ".agent-context/bin/discovery-digest.sh.tmp" && mv ".agent-context/bin/discovery-digest.sh.tmp" ".agent-context/bin/discovery-digest.sh" || { rm -f ".agent-context/bin/discovery-digest.sh.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/check-map-budget.sh" \
     -o ".agent-context/bin/check-map-budget.sh.tmp" && mv ".agent-context/bin/check-map-budget.sh.tmp" ".agent-context/bin/check-map-budget.sh" || { rm -f ".agent-context/bin/check-map-budget.sh.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/setup-steps.sh" \
+    -o ".agent-context/bin/setup-steps.sh.tmp" && mv ".agent-context/bin/setup-steps.sh.tmp" ".agent-context/bin/setup-steps.sh" || { rm -f ".agent-context/bin/setup-steps.sh.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/skills/discovery-map.md" \
     -o ".agent-context/skills/discovery-map.md.tmp" && mv ".agent-context/skills/discovery-map.md.tmp" ".agent-context/skills/discovery-map.md" || { rm -f ".agent-context/skills/discovery-map.md.tmp"; exit 1; }) & pids+=($!)
 # Shipped commands all reference .agent-context/; a same-named file without it is the user's own — keep it.
@@ -414,35 +417,10 @@ Run this step in both SETUP and UPDATE mode — it self-skips in 4.5a if no lega
 
 ### 4.5a: Detect old AI directories
 
-Check whether any built-in AI-doc directories (other than `.agent-context/` itself) exist:
+Check whether any built-in AI-doc directories (other than `.agent-context/` itself) exist. The script also checks the `--ai-dirs` paths (the installer passes them as `AI_DIRS`; otherwise give them as the comma-separated argument) and skips a root `CLAUDE.md` that is only the `@AGENTS.md` pointer:
 
 ```bash
-bash <<'AC_SH'
-for dir in .ai .cursor/rules; do [ -d "$dir" ] && echo "FOUND: $dir"; done
-for f in CLAUDE.md GEMINI.md .cursorrules .github/copilot-instructions.md; do
-  if [ -f "$f" ]; then
-    # Skip CLAUDE.md if it is bootstrap-only: up to 5 total lines, with all
-    # non-blank lines consisting solely of the @AGENTS.md pointer.
-    if [ "$f" = "CLAUDE.md" ] && [ "$(awk 'END{print NR}' "$f")" -le 5 ] && \
-       grep -q "@AGENTS.md" "$f" && \
-       [ "$(grep -cve '^[[:space:]]*$' "$f")" -eq "$(grep -cxe '[[:space:]]*@AGENTS\.md[[:space:]]*' "$f")" ]; then
-      continue
-    fi
-    echo "FOUND: $f"
-  fi
-done
-AI_DIRS="${AI_DIRS:-}"
-OLD_IFS="$IFS"
-IFS=','
-for extra in $AI_DIRS; do
-  IFS="$OLD_IFS"
-  [ -n "$extra" ] || continue
-  [ -d "$extra" ] && echo "FOUND: $extra"
-  [ -f "$extra" ] && echo "FOUND: $extra"
-  IFS=','
-done
-IFS="$OLD_IFS"
-AC_SH
+bash .agent-context/bin/setup-steps.sh detect-legacy
 ```
 
 If none found → log `[agent-context] Step 4.5: Migration cleanup — skipped (no legacy AI dirs found)` and skip to Step 4.6 (4.6 and 4.7 still run).
@@ -462,20 +440,10 @@ For each found old directory/file:
 
 Before removing a candidate, make sure its content has been inventoried and routed: in SETUP, Phase S2 already read it; in UPDATE, this step runs before Step 5, so read it now and route it with the **Knowledge Decision Logic** (same rules as Steps 5a–5b).
 
-Remove a candidate only when git can restore it — every file under it is tracked, committed, and unmodified, and nothing ignored lives inside:
+Remove the candidates in one call — the script removes a candidate only when git can restore it (every file under it tracked, committed and unmodified, nothing ignored inside), logs any other candidate as `UNRESOLVED`, and writes `MIGRATION_CLEANUP: ran` only after an actual removal:
 
 ```bash
-# Adapt the list to what was found in 4.5a.
-_removed=0
-for _p in .ai; do
-  [ -e "$_p" ] || continue
-  if [ -n "$(git ls-files -- "$_p")" ] && [ -z "$(git status --porcelain --ignored -- "$_p")" ]; then
-    git rm -r -q -- "$_p" && _removed=1 && echo "Removed $_p (recoverable from git history)"
-  else
-    echo "[agent-context] UNRESOLVED: $_p" >> .agent-context/setup.log
-  fi
-done
-if [ "$_removed" -eq 1 ]; then echo "[agent-context] MIGRATION_CLEANUP: ran" >> .agent-context/setup.log; fi
+bash .agent-context/bin/setup-steps.sh remove-legacy <candidate>...   # e.g. remove-legacy .ai
 ```
 
 `MIGRATION_CLEANUP: ran` means exactly one thing: this run removed at least one legacy Agent-Context artefact. Steps 5.0 and 5d depend on that meaning. Finish Step 4.5 with its result line, e.g. `[agent-context] Step 4.5: Migration cleanup — removed .ai` or `[agent-context] Step 4.5: Migration cleanup — nothing removed (1 unresolved)`.
@@ -493,7 +461,7 @@ If any files could not be classified, store them for the post-migration report:
 echo "[agent-context] UNRESOLVED: <path/to/file>" >> .agent-context/setup.log
 ```
 
-If nothing is unresolved, skip this step. Never write `MIGRATION_CLEANUP: ran` here — only the 4.5c block writes it, and only after a removal.
+If nothing is unresolved, skip this step. Never write `MIGRATION_CLEANUP: ran` here — only the 4.5c `remove-legacy` call writes it, and only after a removal.
 
 ---
 
@@ -535,19 +503,7 @@ fi
 Append the agent-context gitignore block to the consumer's `.gitignore` if (and only if) the marker `###> agent-context (transient working state) ###` is not already present. This makes the operation idempotent across re-runs.
 
 ```bash
-GITIGNORE_MARKER="###> agent-context (transient working state) ###"
-if [ ! -f .gitignore ] || ! grep -qF "$GITIGNORE_MARKER" .gitignore; then
-  # Ensure the file ends with a newline before appending, so the marker starts on its own line.
-  if [ -s .gitignore ] && [ "$(tail -c 1 .gitignore | wc -l)" -eq 0 ]; then
-    printf '\n' >> .gitignore
-  fi
-  cat >> .gitignore <<'EOF'
-###> agent-context (transient working state) ###
-# Per-session task plan, kept locally to avoid merge conflicts across branches.
-/.agent-context/memory/todo.md
-###< agent-context ###
-EOF
-fi
+bash .agent-context/bin/setup-steps.sh ensure-gitignore
 ```
 
 ### Idempotency
@@ -802,6 +758,7 @@ AGENTS.md                                PROJECT — customize freely
     memory-prune.sh                      🔒 SHARED — memory decay/archive (auto-updated)
     discovery-digest.sh                  🔒 SHARED — deterministic discovery inventory (auto-updated)
     check-map-budget.sh                  🔒 SHARED — discovery-map cap gate (auto-updated)
+    setup-steps.sh                       🔒 SHARED — deterministic setup steps (auto-updated)
   hooks/
     lib.sh                               🔒 SHARED — hook helpers (auto-updated)
     pre-protect-secrets.sh               🔒 SHARED — PreToolUse secret block (auto-updated)
@@ -1138,18 +1095,7 @@ fi
 Then append the agent-context gitignore block to the consumer's `.gitignore` so the file stays untracked. The block is idempotent — guarded by the marker check, re-runs are a no-op:
 
 ```bash
-GITIGNORE_MARKER="###> agent-context (transient working state) ###"
-if [ ! -f .gitignore ] || ! grep -qF "$GITIGNORE_MARKER" .gitignore; then
-  if [ -s .gitignore ] && [ "$(tail -c 1 .gitignore | wc -l)" -eq 0 ]; then
-    printf '\n' >> .gitignore
-  fi
-  cat >> .gitignore <<'EOF'
-###> agent-context (transient working state) ###
-# Per-session task plan, kept locally to avoid merge conflicts across branches.
-/.agent-context/memory/todo.md
-###< agent-context ###
-EOF
-fi
+bash .agent-context/bin/setup-steps.sh ensure-gitignore
 ```
 
 Then run **Record the Installed Version** as the last action before `[agent-context] Done.`

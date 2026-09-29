@@ -101,6 +101,7 @@ your-project/
     │   ├── memory-prune.sh                ← Memory decay / archive
     │   ├── discovery-digest.sh            ← Deterministic discovery inventory
     │   ├── check-map-budget.sh            ← Discovery-map cap gate
+    │   ├── setup-steps.sh                 ← Deterministic setup steps (legacy detect/remove, gitignore)
     │   └── conf-read.sh                   ← Non-evaluating .conf parser (sourced)
     ├── hooks/                             ← Shared hook scripts (auto-updated)
     │   ├── lib.sh
