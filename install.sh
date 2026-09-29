@@ -440,6 +440,7 @@ main() {
     ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(grep:*),Bash(wc:*),Bash(head:*),Bash(tail:*),Bash(ls:*),Bash(test:*)"
     ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(bash *.agent-context/bin/discovery-digest.sh*)"
     ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(bash *.agent-context/bin/check-token-budget.sh*)"
+    ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(bash *.agent-context/bin/setup-steps.sh*)"
     LOG=".agent-context/setup.log"
     AGENT_OUTPUT=".agent-context/setup-output.md"
     VERSION_FILE=".agent-context/.agent-context-version"
