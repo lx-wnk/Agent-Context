@@ -70,8 +70,9 @@ echo
 #   - templates/AGENTS.md
 #   - templates/.agent-context/layer*.md   (direct children only, not memory/)
 #   - templates/.agent-context/skills/index.md
+#   - templates/.agent-context/knowledge-map.md
 #
-# decisions.json, knowledge-map.md, and memory/* are intentionally excluded.
+# decisions.json and memory/* are intentionally excluded.
 
 uncovered=0
 

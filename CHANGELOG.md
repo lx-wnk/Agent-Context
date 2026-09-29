@@ -158,7 +158,7 @@ lessons.md=infinite
 
 Automatic via the `install.sh` one-liner (UPDATE mode). New shared files (hooks, `bin/` scripts, `agent-delegation.md`, `memory-maintenance.md`) download alongside the existing shared files; project-owned `hooks.conf` and `budget.conf` are created if absent and never overwritten. Hook registration is merged into an existing `settings.json` additively and idempotently. All changes are backward compatible — no manual steps required.
 
-## [0.7.0] - 2026-05-04
+## [0.7.0] - 2026-05-04 [UNRELEASED — shipped in 0.8.0]
 
 ### Removed
 
@@ -172,3 +172,26 @@ Automatic via the `install.sh` one-liner (UPDATE mode). New shared files (hooks,
 ### Migration
 
 Automatic via the `install.sh` one-liner (UPDATE mode). The migration is idempotent: re-running setup on an already-migrated project produces no further changes.
+
+[Unreleased]: https://github.com/lx-wnk/Agent-Context/compare/0.9.1...HEAD
+[0.9.1]: https://github.com/lx-wnk/Agent-Context/compare/0.9.0...0.9.1
+[0.9.0]: https://github.com/lx-wnk/Agent-Context/compare/0.8.1...0.9.0
+[0.8.1]: https://github.com/lx-wnk/Agent-Context/compare/0.8.0...0.8.1
+[0.8.0]: https://github.com/lx-wnk/Agent-Context/compare/0.6.1...0.8.0
+[0.6.1]: https://github.com/lx-wnk/Agent-Context/compare/0.6.0...0.6.1
+[0.6.0]: https://github.com/lx-wnk/Agent-Context/compare/0.5.3...0.6.0
+[0.5.3]: https://github.com/lx-wnk/Agent-Context/compare/0.5.2...0.5.3
+[0.5.2]: https://github.com/lx-wnk/Agent-Context/compare/0.5.1...0.5.2
+[0.5.1]: https://github.com/lx-wnk/Agent-Context/compare/0.5.0...0.5.1
+[0.5.0]: https://github.com/lx-wnk/Agent-Context/compare/0.4.0...0.5.0
+[0.4.0]: https://github.com/lx-wnk/Agent-Context/compare/0.3.0...0.4.0
+[0.3.0]: https://github.com/lx-wnk/Agent-Context/compare/0.2.0...0.3.0
+[0.2.0]: https://github.com/lx-wnk/Agent-Context/compare/0.1.7...0.2.0
+[0.1.7]: https://github.com/lx-wnk/Agent-Context/compare/0.1.6...0.1.7
+[0.1.6]: https://github.com/lx-wnk/Agent-Context/compare/0.1.5...0.1.6
+[0.1.5]: https://github.com/lx-wnk/Agent-Context/compare/0.1.4...0.1.5
+[0.1.4]: https://github.com/lx-wnk/Agent-Context/compare/0.1.3...0.1.4
+[0.1.3]: https://github.com/lx-wnk/Agent-Context/compare/0.1.2...0.1.3
+[0.1.2]: https://github.com/lx-wnk/Agent-Context/compare/0.1.1...0.1.2
+[0.1.1]: https://github.com/lx-wnk/Agent-Context/compare/0.1.0...0.1.1
+[0.1.0]: https://github.com/lx-wnk/Agent-Context/releases/tag/0.1.0
