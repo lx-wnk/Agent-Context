@@ -41,9 +41,9 @@ FILES=()
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        --conf) CONF="${2:-}"; shift 2 ;;
+        --conf) [ "$#" -ge 2 ] || { echo "Error: --conf requires an argument" >&2; exit 2; }; CONF="$2"; shift 2 ;;
         --conf=*) CONF="${1#--conf=}"; shift ;;
-        --max) MAX_OVERRIDE="${2:-}"; shift 2 ;;
+        --max) [ "$#" -ge 2 ] || { echo "Error: --max requires an argument" >&2; exit 2; }; MAX_OVERRIDE="$2"; shift 2 ;;
         --max=*) MAX_OVERRIDE="${1#--max=}"; shift ;;
         --quiet) QUIET=1; shift ;;
         --json) JSON=1; QUIET=1; shift ;;
@@ -79,7 +79,7 @@ fi
 [ -n "$MAX_EFFECTIVE_LINES_HARD" ] || MAX_EFFECTIVE_LINES_HARD=250
 
 for _cap in MAX_EFFECTIVE_LINES MAX_EFFECTIVE_LINES_HARD; do
-    eval "_v=\${$_cap}"
+    _v="${!_cap}"
     if ! [[ "$_v" =~ ^[0-9]+$ ]]; then
         echo "Error: $_cap must be an integer, got '$_v'." >&2
         exit 2
@@ -146,7 +146,7 @@ walk_imports() {
             if [ -f "$target" ]; then
                 queue="${queue:+$queue$'\n'}$target"
             else
-                DANGLING="${DANGLING}  $cur -> @$imp\n"
+                DANGLING="${DANGLING}  $cur -> @$imp"$'\n'
             fi
         done < <(extract_imports "$cur")
     done
@@ -156,7 +156,8 @@ if [ "${#FILES[@]}" -eq 0 ]; then
     for _root in .claude/CLAUDE.md CLAUDE.md; do
         [ -f "$_root" ] && walk_imports "$_root"
     done
-    # Both lists are newline/space separated.
+    # Both lists are newline/space separated paths, never globs.
+    set -f
     # shellcheck disable=SC2206
     _session=($SESSION_START_FILES)
     for _f in ${_session[@]+"${_session[@]}"}; do
@@ -164,6 +165,7 @@ if [ "${#FILES[@]}" -eq 0 ]; then
     done
     # shellcheck disable=SC2206
     _extra=($INCLUDE_FILES)
+    set +f
     for _f in ${_extra[@]+"${_extra[@]}"}; do
         _f="$(normalize_path "$_f")"
         if add_file "$_f" && [ "$LIST" -ne 1 ]; then
@@ -174,7 +176,7 @@ fi
 
 if [ -n "$DANGLING" ]; then
     echo "Warning: @-imports that resolve to no file (not counted):" >&2
-    printf '%b' "$DANGLING" >&2
+    printf '%s' "$DANGLING" >&2
 fi
 
 if [ "${#FILES[@]}" -eq 0 ]; then
@@ -242,8 +244,20 @@ count_effective() {
 # would see. The two numbers answer different questions and are both reported.
 count_bytes() { wc -c < "$1" | tr -d '[:space:]'; }
 
-# JSON string escaping for the few characters a path could legally carry.
-json_escape() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+json_escape() {
+    printf '%s\n' "$1" | LC_ALL=C awk '
+        BEGIN { for (i = 1; i < 32; i++) if (i != 10) esc[sprintf("%c", i)] = sprintf("\\u%04x", i) }
+        {
+            out = ""
+            for (i = 1; i <= length($0); i++) {
+                c = substr($0, i, 1)
+                if (c == "\\" || c == "\"") out = out "\\" c
+                else if (c in esc) out = out esc[c]
+                else out = out c
+            }
+            printf "%s%s", (NR > 1 ? "\\n" : ""), out
+        }'
+}
 
 total=0
 total_bytes=0
@@ -252,17 +266,17 @@ rows=""
 json_files=""
 for f in "${FILES[@]}"; do
     if [ ! -f "$f" ]; then
-        rows="${rows}  MISSING  ${f}\n"
+        rows="${rows}  MISSING  ${f}"$'\n'
         missing=1
-        json_files="${json_files}    { \"path\": \"$(json_escape "$f")\", \"present\": false, \"effective_lines\": 0, \"bytes\": 0 },\n"
+        json_files="${json_files:+$json_files,$'\n'}    { \"path\": \"$(json_escape "$f")\", \"present\": false, \"effective_lines\": 0, \"bytes\": 0 }"
         continue
     fi
     c=$(count_effective "$f")
     b=$(count_bytes "$f")
     total=$((total + c))
     total_bytes=$((total_bytes + b))
-    rows="${rows}$(printf '  %5d  %s' "$c" "$f")\n"
-    json_files="${json_files}    { \"path\": \"$(json_escape "$f")\", \"present\": true, \"effective_lines\": ${c}, \"bytes\": ${b} },\n"
+    rows="${rows}$(printf '  %5d  %s' "$c" "$f")"$'\n'
+    json_files="${json_files:+$json_files,$'\n'}    { \"path\": \"$(json_escape "$f")\", \"present\": true, \"effective_lines\": ${c}, \"bytes\": ${b} }"
 done
 
 # ceil(bytes/4) — the byte heuristic every provider-agnostic estimate uses. Not a tokenizer.
@@ -282,15 +296,14 @@ if [ "$JSON" -eq 1 ]; then
     echo "  \"missing_files\": ${missing},"
     echo "  \"status\": \"${status}\","
     echo "  \"files\": ["
-    printf '%b' "${json_files%,\\n}" | sed -e '$ s/,$//'
-    echo ""
+    printf '%s\n' "$json_files"
     echo "  ]"
     echo "}"
 fi
 
 if [ "$QUIET" -ne 1 ]; then
     echo "Token-budget audit (effective instruction lines, always-on closure):"
-    printf '%b' "$rows"
+    printf '%s' "$rows"
     echo "  -----"
     printf '  %5d  TOTAL (soft: %d · hard: %d)\n' "$total" "$MAX_EFFECTIVE_LINES" "$MAX_EFFECTIVE_LINES_HARD"
 fi
