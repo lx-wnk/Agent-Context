@@ -560,7 +560,7 @@ All three substeps are guarded by existence/tracking/marker checks — running t
 
 > Skipped when the launching instruction contains `INSTALLER MANAGES` (Step 0) — the installer merges the hook entries itself.
 
-Agent-Context ships four optional, deterministic hooks (`.agent-context/hooks/`): secret-write block (PreToolUse), auto-format (PostToolUse), test gate (Stop), and subagent scope check (SubagentStop). They are governed by the project-owned `.agent-context/hooks.conf` and are **off by default** (`HOOKS_ENABLED=0`) — registering them changes nothing until the user opts in.
+Agent-Context ships four optional, deterministic hooks (`.agent-context/hooks/`): secret-write block (PreToolUse), auto-format (PostToolUse), test gate (Stop), and subagent scope check (SubagentStop). The secret-write block is **on by default** (switch it off with `PROTECT_SECRETS=0`); the other three are **off** until `HOOKS_ENABLED=1` is set in the gitignored, per-developer `.agent-context/hooks.local.conf` — registering them enables only the secret-write block.
 
 **Registration is additive and idempotent — never overwrite or remove existing `settings.json` content.**
 
