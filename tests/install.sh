@@ -85,11 +85,13 @@ assert_eq "created .claude/CLAUDE.md points one level up" "@../AGENTS.md" "$(cat
 t=$(mk_tmp)
 mkdir -p "$t/.claude"
 printf '@AGENTS.md\n' > "$t/.claude/CLAUDE.md"
-_mtime_before=$(date -r "$t/.claude/CLAUDE.md" +%s 2>/dev/null || stat -f %m "$t/.claude/CLAUDE.md" 2>/dev/null || echo 0)
-sleep 1
+cp "$t/.claude/CLAUDE.md" "$t/.claude/CLAUDE.md.orig"
 (cd "$t" && update_claude_md)
-_mtime_after=$(date -r "$t/.claude/CLAUDE.md" +%s 2>/dev/null || stat -f %m "$t/.claude/CLAUDE.md" 2>/dev/null || echo 0)
-assert_eq "bootstrap-only .claude/CLAUDE.md is not rewritten" "$_mtime_before" "$_mtime_after"
+if cmp -s "$t/.claude/CLAUDE.md" "$t/.claude/CLAUDE.md.orig"; then
+    pass "bootstrap-only .claude/CLAUDE.md is not rewritten"
+else
+    fail "bootstrap-only .claude/CLAUDE.md is not rewritten" "content changed"
+fi
 
 # ---------------------------------------------------------------------------
 # 3. update_claude_md: CLAUDE.md has real content → overwritten with @AGENTS.md
@@ -115,11 +117,13 @@ assert_eq "mixed CLAUDE.md reduced to bootstrap-only" "@AGENTS.md" "$content"
 # ---------------------------------------------------------------------------
 t=$(mk_tmp)
 printf '@AGENTS.md' > "$t/CLAUDE.md"   # no trailing newline
-_mtime_before=$(date -r "$t/CLAUDE.md" +%s 2>/dev/null || stat -f %m "$t/CLAUDE.md" 2>/dev/null || echo 0)
-sleep 1
+cp "$t/CLAUDE.md" "$t/CLAUDE.md.orig"
 (cd "$t" && update_claude_md)
-_mtime_after=$(date -r "$t/CLAUDE.md" +%s 2>/dev/null || stat -f %m "$t/CLAUDE.md" 2>/dev/null || echo 0)
-assert_eq "@AGENTS.md without trailing newline is still treated as bootstrap-only" "$_mtime_before" "$_mtime_after"
+if cmp -s "$t/CLAUDE.md" "$t/CLAUDE.md.orig"; then
+    pass "@AGENTS.md without trailing newline is still treated as bootstrap-only"
+else
+    fail "@AGENTS.md without trailing newline is still treated as bootstrap-only" "content changed"
+fi
 
 # ---------------------------------------------------------------------------
 # 6. Cache path validation: absolute path → appended with /agent-context
