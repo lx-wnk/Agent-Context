@@ -116,7 +116,8 @@ cat > "$t/map-label.json" <<'EOF'
   "edges": []
 }
 EOF
-if bash "$ENGINE" --conf "$t/budget.conf" --map "$t/map-label.json" --quiet >/dev/null 2>&1; then fail "long label still trips the line cap" "long label passed the cap"; else pass "long label still trips the line cap"; fi
+code=0; bash "$ENGINE" --conf "$t/budget.conf" --map "$t/map-label.json" --quiet >/dev/null 2>&1 || code=$?
+[ "$code" -eq 1 ] && pass "long label still trips the line cap" || fail "long label still trips the line cap" "got exit $code"
 
 # 9. Node count counts "id": occurrences, not lines: two nodes on one line exceed a cap of 1.
 t=$(mk_tmp); write_conf "$t" 100000 1 100000
@@ -130,6 +131,16 @@ label="$(printf '\303\244%.0s' $(seq 1 40))"
 printf '{"id":"a","label":"%s"}\n' "$label" > "$t/map.json"
 code=0; LC_ALL=en_US.UTF-8 bash "$ENGINE" --conf "$t/budget.conf" --quiet >/dev/null 2>&1 || code=$?
 [ "$code" -eq 1 ] && pass "multibyte label measured in bytes under UTF-8 locale" || fail "line cap in bytes" "got exit $code"
+
+# 11. Usage and config errors exit 2, never 1 — 1 means over a cap.
+code=0; bash "$ENGINE" --conf >/dev/null 2>&1 || code=$?
+[ "$code" -eq 2 ] && pass "--conf without a value exits 2" || fail "--conf without a value exits 2" "got exit $code"
+code=0; bash "$ENGINE" --map >/dev/null 2>&1 || code=$?
+[ "$code" -eq 2 ] && pass "--map without a value exits 2" || fail "--map without a value exits 2" "got exit $code"
+code=0; bash "$ENGINE" --bogus >/dev/null 2>&1 || code=$?
+[ "$code" -eq 2 ] && pass "unknown option exits 2" || fail "unknown option exits 2" "got exit $code"
+code=0; bash "$ENGINE" extra-arg >/dev/null 2>&1 || code=$?
+[ "$code" -eq 2 ] && pass "unexpected positional argument exits 2" || fail "unexpected positional argument exits 2" "got exit $code"
 
 echo ""
 echo "================================================"
