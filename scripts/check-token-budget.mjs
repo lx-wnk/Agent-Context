@@ -1,8 +1,13 @@
 #!/usr/bin/env node
-// Node port of context/bin/check-token-budget.sh — dependency-free, same CLI/behavior.
-// See that file for the full spec; this keeps the same file-set resolution, effective-line
-// counting, caps, stdout/stderr texts, --json shape and exit codes (0 within, 1 over hard,
-// 2 usage/config error).
+// Repo-side always-on budget gate. Installs count the same way via .agent-context/skills/budget-check.md.
+//
+//   check-token-budget.mjs [--conf PATH] [--max N] [--quiet|--json] [--list] [FILE...]
+//
+// File set: explicit FILE arguments, or else the @-import closure walked from .claude/CLAUDE.md
+// (and ./CLAUDE.md), each import relative to the importing file, plus the conf's
+// SESSION_START_FILES and INCLUDE_FILES (an INCLUDE_FILES entry no import reaches is counted and
+// noted). --max sets both caps; otherwise they come from the conf (hard cap defaults to 250).
+// Exit codes: 0 = within budget, 1 = over the hard cap, 2 = usage/config error.
 
 import { readFileSync, existsSync, statSync } from "node:fs";
 import path from "node:path";

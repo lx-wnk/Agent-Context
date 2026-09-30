@@ -8,14 +8,9 @@ cd "$REPO_ROOT"
 suites=(
     tests/install.sh
     tests/check-template-coverage.sh
-    tests/check-token-budget-unit.sh
     tests/check-token-budget.sh
-    tests/check-measure-baseline-unit.sh
     tests/check-memory-prune-unit.sh
     tests/check-hooks-unit.sh
-    tests/check-discovery-digest-unit.sh
-    tests/check-map-budget-unit.sh
-    tests/check-setup-steps-unit.sh
     tests/check-install-smoke.sh
     tests/check-local-source.sh
 )
@@ -31,6 +26,13 @@ for suite in "${suites[@]}"; do
         failed=1
     fi
 done
+
+if node --test scripts/; then
+    results+=("PASS node --test scripts/")
+else
+    results+=("FAIL node --test scripts/")
+    failed=1
+fi
 
 echo ""
 echo "== Summary =="

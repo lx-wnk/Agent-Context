@@ -7,11 +7,11 @@ set -euo pipefail
 # this check covers only the files the framework controls — the shared always-on files plus the
 # template scaffolding — so a release can never silently bloat what every install is forced to load.
 #
-# Reuses the same counting engine consumers get (context/bin/check-token-budget.sh) — single
-# source of truth for how an "effective instruction line" is defined.
+# scripts/check-token-budget.mjs defines what an "effective instruction line" is; installs count
+# the same way by following .agent-context/skills/budget-check.md.
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ENGINE="$REPO_ROOT/context/bin/check-token-budget.sh"
+ENGINE="$REPO_ROOT/scripts/check-token-budget.mjs"
 
 # Effective-line ceiling for the always-on closure the framework ships.
 # Target from the project brief: always-on < ~150–200 effective instructions.
@@ -43,4 +43,4 @@ for f in "${FILES[@]}"; do
 done
 [ "$missing" -eq 0 ] || { echo "Repo-side budget gate requires every shipped always-on file to exist." >&2; exit 1; }
 
-exec bash "$ENGINE" --max "$MAX" "${FILES[@]}"
+exec node "$ENGINE" --max "$MAX" "${FILES[@]}"

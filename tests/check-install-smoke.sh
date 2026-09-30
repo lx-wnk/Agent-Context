@@ -132,10 +132,10 @@ EOF
     || fail "all destinations present" "see above"
 
 # 5. Gates run in the installed tree (cwd = target so the conf's project-relative paths resolve).
-if ( cd "$TARGET" && bash .agent-context/bin/check-token-budget.sh --quiet ); then
+if ( cd "$TARGET" && node "$REPO_ROOT/scripts/check-token-budget.mjs" --quiet ); then
     pass "always-on token-budget gate passes in installed tree"
 else
-    fail "token-budget gate" "check-token-budget.sh exited non-zero in the installed tree"
+    fail "token-budget gate" "check-token-budget.mjs exited non-zero in the installed tree"
 fi
 
 # 6. @-import closure: Claude Code resolves each `@path` relative to the importing file. Walk it from
@@ -179,20 +179,14 @@ EOF
 [ -z "$missing_inc" ] && pass "every SESSION_START_FILES / INCLUDE_FILES entry exists" \
     || fail "listed entries exist" "missing:$missing_inc"
 expected="$(printf '%s\n%s\n' "$loaded" "$listed_files" | grep . | sort -u)"
-counted="$(cd "$TARGET" && bash .agent-context/bin/check-token-budget.sh --list 2>/dev/null | sort)"
+counted="$(cd "$TARGET" && node "$REPO_ROOT/scripts/check-token-budget.mjs" --list 2>/dev/null | sort)"
 if [ "$counted" = "$expected" ]; then
     pass "gate counts the walked @-closure plus SESSION_START_FILES and INCLUDE_FILES"
 else
     fail "gate set vs closure + listed files" "counted: $(printf '%s\n' "$counted" | tr '\n' ' ') expected: $(printf '%s\n' "$expected" | tr '\n' ' ')"
 fi
-notes="$(cd "$TARGET" && bash .agent-context/bin/check-token-budget.sh --quiet 2>&1 >/dev/null | grep -c 'note:')"
+notes="$(cd "$TARGET" && node "$REPO_ROOT/scripts/check-token-budget.mjs" --quiet 2>&1 >/dev/null | grep -c 'note:')"
 [ "$notes" = "0" ] && pass "installed gate prints no note" || fail "installed gate prints no note" "$notes note line(s)"
-
-# Map gate with no map yet must exit 2 (no map.json) — proves the validator installed and runs.
-mc=0
-( cd "$TARGET" && bash .agent-context/bin/check-map-budget.sh --quiet >/dev/null 2>&1 ) || mc=$?
-[ "$mc" -eq 2 ] && pass "map-budget gate present and reports no-map (exit 2)" \
-    || fail "map-budget gate" "expected exit 2 (no map.json), got $mc"
 
 echo ""
 echo "================================================"
