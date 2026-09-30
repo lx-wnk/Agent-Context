@@ -46,7 +46,7 @@ AGENTS.md                          (~35 lines — identity, quick rules)
   layer3-guidebook.md              (~45 lines — task → file routing table)
   knowledge-map.md                 (index of external doc sources)
   hooks.conf, budget.conf          (project-owned config: hook toggles, budget caps)
-  bin/                             (budget gates, baseline measurement, memory prune)
+  bin/                             (memory prune, conf parser)
   hooks/                           (deterministic hooks: secret guard on, the rest opt-in)
   memory/                          (stubs, 3-25 lines each)
   skills/                          (full reference, loaded on-demand)
@@ -56,7 +56,7 @@ Line counts are for the shipped files and templates before discovery fills them 
 
 **Baseline:** AGENTS.md + all layers. Full reference (skills, memory): loaded only when trigger keywords match.
 
-**Measured, not asserted.** `.agent-context/bin/measure-baseline.sh` counts the always-on closure against the flat equivalent — the same knowledge in a single file — and reports both. On a fresh install of the shipped templates, before discovery adds any project knowledge, 12,077 of 28,558 bytes stay out of a session until a task asks for them (42.3% by estimated token); a project's own memory and skills grow the on-demand side. Reproduce it with `bash tests/check-install-smoke.sh <dir>`, then `bash .agent-context/bin/measure-baseline.sh` inside `<dir>`. That is an upper bound, not a per-session average: a task that pulls two skills pays for those two skills, and no modelled "reads avoided" enter the number. See [Baseline Measurement](docs/enforcement.md#baseline-measurement).
+**Measured, not asserted.** `scripts/measure-baseline.mjs` counts the always-on closure against the flat equivalent — the same knowledge in a single file — and reports both. On a fresh install of the shipped templates, before discovery adds any project knowledge, 15,388 of 31,694 bytes stay out of a session until a task asks for them (48.5% by estimated token); a project's own memory and skills grow the on-demand side. Reproduce it from a clone with `bash tests/check-install-smoke.sh <dir>`, then `node scripts/measure-baseline.mjs --dir <dir>`. That is an upper bound, not a per-session average: a task that pulls two skills pays for those two skills, and no modelled "reads avoided" enter the number. See [Baseline Measurement](docs/enforcement.md#baseline-measurement).
 
 Updates run on demand: re-run the install one-liner. `install.sh` resolves the latest release via the GitHub Releases API, exits early if that version is already installed, and otherwise downloads that release and replaces the shared files. The setup agent then detects UPDATE mode and re-syncs project knowledge only for documentation sources that changed since the last run (`--force` re-scans everything). Project-owned files are never overwritten.
 

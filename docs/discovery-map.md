@@ -21,6 +21,6 @@ small index, picks the 1–2 relevant nodes, and reads only those notes — so e
 | Content      | Mechanical symbol/call graph from parsers        | Agent judgment — non-obvious facts, not what's greppable        |
 | Scaling      | Graph grows with the codebase                    | Top index stays flat; depth lazy underneath, hierarchical split |
 | Cost control | Re-extraction, external API for non-code         | Incremental by git watermark; no extra runtime deps             |
-| Enforcement  | —                                                | Caps in `budget.conf`, enforced by `check-map-budget.sh` + CI   |
+| Enforcement  | —                                                | Caps in `budget.conf`, checked per the `budget-check` skill     |
 
 See also [Architecture](architecture.md) and [Enforcement & Hygiene](enforcement.md).
