@@ -27,10 +27,10 @@ for suite in "${suites[@]}"; do
     fi
 done
 
-if node --test scripts/; then
-    results+=("PASS node --test scripts/")
+if node --test scripts/*.test.mjs; then
+    results+=("PASS node --test scripts/*.test.mjs")
 else
-    results+=("FAIL node --test scripts/")
+    results+=("FAIL node --test scripts/*.test.mjs")
     failed=1
 fi
 
