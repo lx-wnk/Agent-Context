@@ -4,6 +4,12 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Changed
+
+- **Budget and map checks are a skill** — the new shared `.agent-context/skills/budget-check.md` describes how to count the always-on budget and the discovery-map caps from `budget.conf`; Step 5e, `/discover` and the discovery-map skill follow it. The agent recounts when a total lands within two lines of a cap. In a measurement on three fixtures, an instruction-only count matched the script in 14 of 15 runs; the miss was one line at the hard cap.
+- **Setup steps use file tools** — legacy detection (Step 4.5a) and the `.gitignore` block (4.6c, S5) use Glob/Read/Edit; legacy removal (4.5c) runs `git ls-files`, `git status --porcelain --ignored` and `git rm -r` one candidate at a time, all covered by the installer's allowlist. The discovery inventory in Phase S2/Step 5a is built from `git ls-files` instead of a script.
+- **Repo checks run on Node** — the CI budget gate and the baseline measurement are `scripts/check-token-budget.mjs` and `scripts/measure-baseline.mjs` (no dependencies, `node:test` suites), byte-identical in output to the retired bash versions. They are not installed.
+
 ### Fixed
 
 - **The budget audit read every unimported `INCLUDE_FILES` entry as a stale entry** — an update on an older install recommended removing `knowledge-map.md` from `INCLUDE_FILES`, although the real cause was that the project's layer 3 never got the `@knowledge-map.md` import its template has. Step 5e now classifies each "not @-imported" note as import drift (a template imports the file, the project's layer file does not — names the template line) or a stale entry, and gives the projected total and PASS/WARN/FAIL for every option. `check-token-budget.sh` says on WARN/FAIL how many of the lines come from such entries and never load, and `--json` reports them as `unimported_lines`; exit codes are unchanged. The `budget.conf` template comment names both causes.
@@ -11,6 +17,14 @@ All notable changes to this project will be documented here. Format loosely foll
 ### Docs
 
 - **Private reporting channels** — `SECURITY.md` falls back to agent-context@jinnoflife.com when the advisory form cannot be used (the old "Settings → Security" fallback is visible to maintainers only), and Code of Conduct reports go to that address instead of the security advisory form. `.github/CODEOWNERS` names the maintainer, so the ruleset's code-owner review applies.
+
+### Removed
+
+- **Five shared scripts are no longer installed** — `.agent-context/bin/check-token-budget.sh`, `check-map-budget.sh`, `discovery-digest.sh`, `measure-baseline.sh` and `setup-steps.sh`. Only the hooks, `conf-read.sh` and `memory-prune.sh` stay: they guard against the agent itself or rewrite files, where a script's fixed behaviour matters. The update removes the five from existing installs (only those exact paths; a symlink is removed as a link, its target is kept).
+
+### Upgrade note
+
+Nothing to do. If you ran `.agent-context/bin/check-token-budget.sh` or `measure-baseline.sh` yourself, ask the agent to "check the budget", or run `node scripts/measure-baseline.mjs --dir <project>` from an Agent-Context clone.
 
 ## [0.10.0] - 2026-09-30
 

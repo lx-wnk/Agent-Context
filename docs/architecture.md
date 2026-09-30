@@ -33,7 +33,7 @@ Paste [`.prompts/setup-prompt.md`](../.prompts/setup-prompt.md) into Claude Code
 1. Downloads the latest release from the GitHub Releases API
 2. Copies **shared files** from `context/` → `.agent-context/` (overwritable)
 3. Creates **project-owned files** from `templates/` → `AGENTS.md`, layers 1-3, memory stubs (never overwritten)
-4. Discovers your tech stack and fills in the TODO placeholders — and **distills** the non-obvious gold from your docs (hard invariants, architecture decisions, complex subsystems) into `memory/`, `decisions.json`, and skills, so it loads by task routing rather than sitting unread. A deterministic discovery digest (`bin/discovery-digest.sh`) orients the scan so no doc is missed. Memory stubs that stay empty after setup are expected — runtime-accumulated knowledge (lessons, preferences) fills as you work.
+4. Discovers your tech stack and fills in the TODO placeholders — and **distills** the non-obvious gold from your docs (hard invariants, architecture decisions, complex subsystems) into `memory/`, `decisions.json`, and skills, so it loads by task routing rather than sitting unread. A discovery inventory (manifests, services, every doc with its line count) orients the scan so no doc is missed. Memory stubs that stay empty after setup are expected — runtime-accumulated knowledge (lessons, preferences) fills as you work.
 5. Writes the release version to `.agent-context/.agent-context-version` as its last action — a failed run leaves the old version, so the next run retries
 
 ### Updates (on demand)
@@ -96,12 +96,7 @@ your-project/
     ├── hooks.conf                         ← Hook toggles + toolchain (project-owned)
     ├── budget.conf                        ← Token-budget config (project-owned)
     ├── bin/                               ← Shared tooling (auto-updated)
-    │   ├── check-token-budget.sh          ← Always-on budget audit
-    │   ├── measure-baseline.sh            ← Layered vs. flat baseline report
     │   ├── memory-prune.sh                ← Memory decay / archive
-    │   ├── discovery-digest.sh            ← Deterministic discovery inventory
-    │   ├── check-map-budget.sh            ← Discovery-map cap gate
-    │   ├── setup-steps.sh                 ← Deterministic setup steps (legacy detect/remove, gitignore)
     │   └── conf-read.sh                   ← Non-evaluating .conf parser (sourced)
     ├── hooks/                             ← Shared hook scripts (auto-updated)
     │   ├── lib.sh
@@ -132,7 +127,7 @@ The installer flags (`--force`, `--discover`, `--local-source`, `--ai-dirs`) app
 ```
 agent-context/
 ├── context/           # Shared agent context (copied to .agent-context/)
-│   ├── bin/           #   Shared tooling (budget gates, baseline report, prune, digest, conf parser)
+│   ├── bin/           #   Shared tooling (memory prune, conf parser)
 │   ├── commands/      #   Claude Code slash commands (copied to .claude/commands/)
 │   ├── hooks/         #   Shared hook scripts (lib + 4 hooks)
 │   └── skills/        #   Shared skills (discovery-map)
