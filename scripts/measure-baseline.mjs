@@ -1,7 +1,9 @@
 #!/usr/bin/env node
-// Node port of context/bin/measure-baseline.sh — dependency-free, same CLI/behavior.
-// See that file for the full spec. Reuses loadConf/resolveFileSet/audit/jsonEscape from
-// check-token-budget.mjs instead of shelling out to the bash engine.
+// Layered-vs-flat baseline report for an installed project (repo tool, not shipped).
+//
+//   measure-baseline.mjs [--dir PATH] [--conf PATH] [--json]
+//
+// Counts with check-token-budget.mjs, so the gate and the measurement share one definition.
 //
 // Three sets:
 //   layered    the always-on set as the gate resolves it (@-import closure, SESSION_START_FILES,
