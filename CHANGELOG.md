@@ -4,6 +4,8 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-30
+
 ### Added
 
 - **Cross-repo lesson fallback** (#33) — a lesson belongs in the repo owning the code, but in a multi-repo project that repo is often not checked out, and the agent had nowhere valid to put it. It now parks the lesson in the current repo's `memory/lessons.md` with an `owner:<repo>` tag; the memory review moves it to the owning repo once that repo is reachable. The rule lives in the on-demand `memory-maintenance.md` (Cross-Repo Fallback) with a pointer from the layer-0 routing row; siblings are declared in a new optional "Sibling Repos" section of `layer1-bootstrap.md`, which existing installs add by hand (the template is project-owned).
@@ -174,7 +176,8 @@ Automatic via the `install.sh` one-liner (UPDATE mode). New shared files (hooks,
 
 Automatic via the `install.sh` one-liner (UPDATE mode). The migration is idempotent: re-running setup on an already-migrated project produces no further changes.
 
-[Unreleased]: https://github.com/lx-wnk/Agent-Context/compare/0.9.1...HEAD
+[Unreleased]: https://github.com/lx-wnk/Agent-Context/compare/0.10.0...HEAD
+[0.10.0]: https://github.com/lx-wnk/Agent-Context/compare/0.9.1...0.10.0
 [0.9.1]: https://github.com/lx-wnk/Agent-Context/compare/0.9.0...0.9.1
 [0.9.0]: https://github.com/lx-wnk/Agent-Context/compare/0.8.1...0.9.0
 [0.8.1]: https://github.com/lx-wnk/Agent-Context/compare/0.8.0...0.8.1
