@@ -693,7 +693,11 @@ Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-conte
 - `knowledge-map.md` ≥ 100 lines: flag for cleanup
 - Memory files ≥ 500 lines: flag as skill graduation candidate
 - Include the audit table in the summary output (✅ / ⚠️ per file)
-- Run the always-on budget gate: `bash .agent-context/bin/check-token-budget.sh` (reads `.agent-context/budget.conf`). If it reports FAIL, flag the always-on baseline as over budget and recommend moving optional content behind routing.
+- Run the always-on budget gate: `bash .agent-context/bin/check-token-budget.sh` (reads `.agent-context/budget.conf`). Before recommending anything, classify every `note: <file> is counted from INCLUDE_FILES but not @-imported` line — those files never load, so their lines are not a real cost:
+  - **Import drift** — a template of the target version (`templates/` in the Agent-Context source) has an `@` line that resolves to `<file>`, but the project's copy of that file does not (project-owned layer files are never updated). Report the template file and line and the missing `@` line. Offer: add the import (the file then loads and its lines become real), or remove the entry if the project keeps the file out on purpose.
+  - **Stale entry** — no template imports `<file>`. Offer: remove it from `INCLUDE_FILES`, or move it to `SESSION_START_FILES` if agents read it at session start.
+  - For every option, give the projected total and its status against the soft and hard caps (PASS / WARN / FAIL). If `budget.conf` has no `SESSION_START_FILES` or `MAX_EFFECTIVE_LINES_HARD`, also recommend adding them (CHANGELOG 0.10.0 upgrade note).
+  - Only lines that load (walked imports and `SESSION_START_FILES`) count as over budget; for those, recommend moving optional content behind routing. `budget.conf` and the layer files are project-owned — report and recommend, never edit them here.
 
 ## Record the Installed Version (last action)
 

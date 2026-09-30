@@ -245,6 +245,18 @@ assert_eq "unimported INCLUDE_FILES entry is noted" "1" \
     "$(printf '%s\n' "$err" | grep -cx 'note: extra.md is counted from INCLUDE_FILES but not @-imported')"
 assert_eq "INCLUDE_FILES entry the walk reaches is deduplicated silently" "0" "$(printf '%s\n' "$err" | grep -c 'AGENTS.md')"
 
+# 20a. Over a cap, the verdict says how many lines come from unimported INCLUDE_FILES entries.
+P=$(mk_proj)
+printf 'MAX_EFFECTIVE_LINES=13\nMAX_EFFECTIVE_LINES_HARD=14\nINCLUDE_FILES="\nextra.md\n"\n' > "$P/budget.conf"
+err=$(run_in "$P" --conf budget.conf --quiet 2>&1 >/dev/null)
+assert_eq "unimported lines keep the FAIL exit" "1" "$(run_in "$P" --conf budget.conf --quiet >/dev/null 2>&1; echo $?)"
+assert_eq "FAIL names the unimported share" "1" "$(printf '%s\n' "$err" | grep -c '2 of them come from INCLUDE_FILES entries no @-import reaches')"
+assert_eq "--json reports unimported_lines" "1" "$(run_in "$P" --json --conf budget.conf 2>/dev/null | grep -c '"unimported_lines": 2,')"
+printf 'MAX_EFFECTIVE_LINES=12\nMAX_EFFECTIVE_LINES_HARD=100\n' > "$P/budget.conf"
+err=$(run_in "$P" --conf budget.conf --quiet 2>&1 >/dev/null)
+assert_eq "WARN without unimported entries has no share line" "0" "$(printf '%s\n' "$err" | grep -c 'come from INCLUDE_FILES')"
+assert_eq "--json reports zero unimported_lines" "1" "$(run_in "$P" --json --conf budget.conf 2>/dev/null | grep -c '"unimported_lines": 0,')"
+
 # 20b. SESSION_START_FILES: deliberate session-start reads without an import — counted, never noted.
 P=$(mk_proj)
 printf 'MAX_EFFECTIVE_LINES=100\nSESSION_START_FILES="\nextra.md\nAGENTS.md\n"\n' > "$P/budget.conf"
