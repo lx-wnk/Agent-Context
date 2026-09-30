@@ -4,6 +4,10 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Docs
+
+- **Private reporting channels** — `SECURITY.md` falls back to agent-context@jinnoflife.com when the advisory form cannot be used (the old "Settings → Security" fallback is visible to maintainers only), and Code of Conduct reports go to that address instead of the security advisory form. `.github/CODEOWNERS` names the maintainer, so the ruleset's code-owner review applies.
+
 ## [0.10.0] - 2026-09-30
 
 ### Added
