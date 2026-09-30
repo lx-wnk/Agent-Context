@@ -4,6 +4,10 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Fixed
+
+- **The budget audit read every unimported `INCLUDE_FILES` entry as a stale entry** — an update on an older install recommended removing `knowledge-map.md` from `INCLUDE_FILES`, although the real cause was that the project's layer 3 never got the `@knowledge-map.md` import its template has. Step 5e now classifies each "not @-imported" note as import drift (a template imports the file, the project's layer file does not — names the template line) or a stale entry, and gives the projected total and PASS/WARN/FAIL for every option. `check-token-budget.sh` says on WARN/FAIL how many of the lines come from such entries and never load, and `--json` reports them as `unimported_lines`; exit codes are unchanged. The `budget.conf` template comment names both causes.
+
 ### Docs
 
 - **Private reporting channels** — `SECURITY.md` falls back to agent-context@jinnoflife.com when the advisory form cannot be used (the old "Settings → Security" fallback is visible to maintainers only), and Code of Conduct reports go to that address instead of the security advisory form. `.github/CODEOWNERS` names the maintainer, so the ruleset's code-owner review applies.

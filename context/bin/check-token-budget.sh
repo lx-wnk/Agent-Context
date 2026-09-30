@@ -123,6 +123,7 @@ extract_imports() {
 
 SEEN=$'\n'
 DANGLING=""
+UNIMPORTED=""
 add_file() {
     case "$SEEN" in *$'\n'"$1"$'\n'*) return 1 ;; esac
     SEEN="$SEEN$1"$'\n'
@@ -168,8 +169,9 @@ if [ "${#FILES[@]}" -eq 0 ]; then
     set +f
     for _f in ${_extra[@]+"${_extra[@]}"}; do
         _f="$(normalize_path "$_f")"
-        if add_file "$_f" && [ "$LIST" -ne 1 ]; then
-            echo "note: $_f is counted from INCLUDE_FILES but not @-imported" >&2
+        if add_file "$_f"; then
+            UNIMPORTED="${UNIMPORTED}${_f}"$'\n'
+            [ "$LIST" -ne 1 ] && echo "note: $_f is counted from INCLUDE_FILES but not @-imported" >&2
         fi
     done
 fi
@@ -261,6 +263,7 @@ json_escape() {
 
 total=0
 total_bytes=0
+unimported_lines=0
 missing=0
 rows=""
 json_files=""
@@ -274,6 +277,7 @@ for f in "${FILES[@]}"; do
     c=$(count_effective "$f")
     b=$(count_bytes "$f")
     total=$((total + c))
+    printf '%s' "$UNIMPORTED" | grep -qxF -- "$f" && unimported_lines=$((unimported_lines + c))
     total_bytes=$((total_bytes + b))
     rows="${rows}$(printf '  %5d  %s' "$c" "$f")"$'\n'
     json_files="${json_files:+$json_files,$'\n'}    { \"path\": \"$(json_escape "$f")\", \"present\": true, \"effective_lines\": ${c}, \"bytes\": ${b} }"
@@ -293,6 +297,7 @@ if [ "$JSON" -eq 1 ]; then
     echo "  \"total_est_tokens\": ${est_tokens},"
     echo "  \"soft_cap\": ${MAX_EFFECTIVE_LINES},"
     echo "  \"hard_cap\": ${MAX_EFFECTIVE_LINES_HARD},"
+    echo "  \"unimported_lines\": ${unimported_lines},"
     echo "  \"missing_files\": ${missing},"
     echo "  \"status\": \"${status}\","
     echo "  \"files\": ["
@@ -312,14 +317,22 @@ if [ "$missing" -eq 1 ]; then
     echo "Warning: one or more always-on files are missing — counted as 0." >&2
 fi
 
+unimported_hint() {
+    [ "$unimported_lines" -gt 0 ] || return 0
+    echo "      $unimported_lines of them come from INCLUDE_FILES entries no @-import reaches (see the notes above) —" >&2
+    echo "      those files never load. Resolve each note first: remove a stale entry, or add the @-import its template has." >&2
+}
+
 if [ "$total" -gt "$MAX_EFFECTIVE_LINES_HARD" ]; then
     echo "FAIL: always-on baseline is $total effective lines, over the hard cap of $MAX_EFFECTIVE_LINES_HARD." >&2
+    unimported_hint
     echo "      Move optional content behind task-routing (memory/ or skills/) to reduce it." >&2
     exit 1
 fi
 
 if [ "$total" -gt "$MAX_EFFECTIVE_LINES" ]; then
     echo "WARN: always-on baseline is $total effective lines, over the soft target of $MAX_EFFECTIVE_LINES (hard cap $MAX_EFFECTIVE_LINES_HARD)." >&2
+    unimported_hint
     echo "      Consider moving optional content behind task-routing (memory/ or skills/)." >&2
     [ "$QUIET" -ne 1 ] && echo "PASS: within the hard cap (soft target exceeded)."
     exit 0
