@@ -618,6 +618,7 @@ main() {
         --add-dir "$SOURCE_ROOT" \
         --permission-mode acceptEdits \
         --strict-mcp-config \
+        --setting-sources project,local \
         --output-format text \
         ${SESSION_ARGS[@]+"${SESSION_ARGS[@]}"} \
         < /dev/null > "$AGENT_OUTPUT" &

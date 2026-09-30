@@ -303,7 +303,7 @@ printf '%s\n' "$out16" | sed -n '/Step 1\/5/,$p' | grep -qE '^\.+$' \
 printf '%s\n' "$out16" | grep -qx '\[agent-context\] Done\.' \
     && pass "Done. ends on its own line" || fail "Done. on its own line" "output: $out16"
 
-# 17. The agent runs restricted: no permission bypass, no user MCP servers, no web tools.
+# 17. The agent runs restricted: no permission bypass, no user settings or MCP servers, no web tools.
 TGT=$(mk_tmp)
 run_install "$TGT" --local-source "$SRC"
 printf '%s\n' "$CAP" | grep -qx -- "--dangerously-skip-permissions" \
@@ -312,6 +312,8 @@ printf '%s\n' "$CAP" | grep -A1 -x -- "--permission-mode" | grep -qx "acceptEdit
     && pass "permission mode is acceptEdits" || fail "--permission-mode acceptEdits" "$CAP"
 printf '%s\n' "$CAP" | grep -qx -- "--strict-mcp-config" \
     && pass "user MCP servers are not loaded" || fail "--strict-mcp-config" "$CAP"
+printf '%s\n' "$CAP" | grep -A1 -x -- "--setting-sources" | grep -qx "project,local" \
+    && pass "user settings and CLAUDE.md are not loaded" || fail "--setting-sources project,local" "$CAP"
 printf '%s\n' "$CAP" | grep -A1 -x -- "--disallowedTools" | grep -qx "WebFetch,WebSearch" \
     && pass "web tools are denied" || fail "--disallowedTools WebFetch,WebSearch" "$CAP"
 # The variadic flags take every following non-flag argument, so the prompt must precede all of them.
