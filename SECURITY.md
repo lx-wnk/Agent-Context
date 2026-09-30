@@ -6,7 +6,7 @@ If you discover a security vulnerability in Agent-Context, please report it priv
 
 **[Report a vulnerability](https://github.com/lx-wnk/Agent-Context/security/advisories/new)**
 
-If that link is unavailable, go to the repository Settings → Security → "Report a vulnerability."
+If you cannot use the form, email [agent-context@jinnoflife.com](mailto:agent-context@jinnoflife.com) instead.
 
 Do not create a public issue for security vulnerabilities.
 
