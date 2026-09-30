@@ -152,13 +152,9 @@ Base URL: `https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/`
 | `.prompts/decision-review-prompt.md`   | `.agent-context/decision-review-prompt.md`    |
 | `.prompts/memory-review-prompt.md`     | `.agent-context/memory-review-prompt.md`      |
 | `context/bin/conf-read.sh`             | `.agent-context/bin/conf-read.sh`             |
-| `context/bin/check-token-budget.sh`    | `.agent-context/bin/check-token-budget.sh`    |
-| `context/bin/measure-baseline.sh`      | `.agent-context/bin/measure-baseline.sh`      |
 | `context/bin/memory-prune.sh`          | `.agent-context/bin/memory-prune.sh`          |
-| `context/bin/discovery-digest.sh`      | `.agent-context/bin/discovery-digest.sh`      |
-| `context/bin/check-map-budget.sh`      | `.agent-context/bin/check-map-budget.sh`      |
-| `context/bin/setup-steps.sh`           | `.agent-context/bin/setup-steps.sh`           |
 | `context/skills/discovery-map.md`      | `.agent-context/skills/discovery-map.md`      |
+| `context/skills/budget-check.md`       | `.agent-context/skills/budget-check.md`       |
 | `context/commands/discover.md`         | `.claude/commands/discover.md`                |
 | `context/commands/memory-review.md`    | `.claude/commands/memory-review.md`           |
 | `context/commands/decision-review.md`  | `.claude/commands/decision-review.md`         |
@@ -190,20 +186,12 @@ pids=()
     -o ".agent-context/memory-review-prompt.md.tmp" && mv ".agent-context/memory-review-prompt.md.tmp" ".agent-context/memory-review-prompt.md" || { rm -f ".agent-context/memory-review-prompt.md.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/conf-read.sh" \
     -o ".agent-context/bin/conf-read.sh.tmp" && mv ".agent-context/bin/conf-read.sh.tmp" ".agent-context/bin/conf-read.sh" || { rm -f ".agent-context/bin/conf-read.sh.tmp"; exit 1; }) & pids+=($!)
-(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/check-token-budget.sh" \
-    -o ".agent-context/bin/check-token-budget.sh.tmp" && mv ".agent-context/bin/check-token-budget.sh.tmp" ".agent-context/bin/check-token-budget.sh" || { rm -f ".agent-context/bin/check-token-budget.sh.tmp"; exit 1; }) & pids+=($!)
-(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/measure-baseline.sh" \
-    -o ".agent-context/bin/measure-baseline.sh.tmp" && mv ".agent-context/bin/measure-baseline.sh.tmp" ".agent-context/bin/measure-baseline.sh" || { rm -f ".agent-context/bin/measure-baseline.sh.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/memory-prune.sh" \
     -o ".agent-context/bin/memory-prune.sh.tmp" && mv ".agent-context/bin/memory-prune.sh.tmp" ".agent-context/bin/memory-prune.sh" || { rm -f ".agent-context/bin/memory-prune.sh.tmp"; exit 1; }) & pids+=($!)
-(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/discovery-digest.sh" \
-    -o ".agent-context/bin/discovery-digest.sh.tmp" && mv ".agent-context/bin/discovery-digest.sh.tmp" ".agent-context/bin/discovery-digest.sh" || { rm -f ".agent-context/bin/discovery-digest.sh.tmp"; exit 1; }) & pids+=($!)
-(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/check-map-budget.sh" \
-    -o ".agent-context/bin/check-map-budget.sh.tmp" && mv ".agent-context/bin/check-map-budget.sh.tmp" ".agent-context/bin/check-map-budget.sh" || { rm -f ".agent-context/bin/check-map-budget.sh.tmp"; exit 1; }) & pids+=($!)
-(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/bin/setup-steps.sh" \
-    -o ".agent-context/bin/setup-steps.sh.tmp" && mv ".agent-context/bin/setup-steps.sh.tmp" ".agent-context/bin/setup-steps.sh" || { rm -f ".agent-context/bin/setup-steps.sh.tmp"; exit 1; }) & pids+=($!)
 (curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/skills/discovery-map.md" \
     -o ".agent-context/skills/discovery-map.md.tmp" && mv ".agent-context/skills/discovery-map.md.tmp" ".agent-context/skills/discovery-map.md" || { rm -f ".agent-context/skills/discovery-map.md.tmp"; exit 1; }) & pids+=($!)
+(curl -fsSL "https://raw.githubusercontent.com/lx-wnk/Agent-Context/<tag>/context/skills/budget-check.md" \
+    -o ".agent-context/skills/budget-check.md.tmp" && mv ".agent-context/skills/budget-check.md.tmp" ".agent-context/skills/budget-check.md" || { rm -f ".agent-context/skills/budget-check.md.tmp"; exit 1; }) & pids+=($!)
 # Shipped commands all reference .agent-context/; a same-named file without it is the user's own — keep it.
 for _cmd in discover.md memory-review.md decision-review.md; do
   (_dst=".claude/commands/$_cmd"
@@ -417,11 +405,13 @@ Run this step in both SETUP and UPDATE mode — it self-skips in 4.5a if no lega
 
 ### 4.5a: Detect old AI directories
 
-Check whether any built-in AI-doc directories (other than `.agent-context/` itself) exist. The script also checks the `--ai-dirs` paths (the installer passes them as `AI_DIRS`; otherwise give them as the comma-separated argument) and skips a root `CLAUDE.md` that is only the `@AGENTS.md` pointer:
+Check with your file tools (Glob/Read) which of these exist — other than `.agent-context/` itself:
 
-```bash
-bash .agent-context/bin/setup-steps.sh detect-legacy
-```
+- directories `.ai/` and `.cursor/rules/`;
+- files `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.github/copilot-instructions.md` — but skip a root `CLAUDE.md` of at most 5 lines whose non-blank lines are all `@AGENTS.md` (that is Agent-Context's own pointer);
+- every path named in the launching instruction's "Additional AI directories" list (`--ai-dirs`).
+
+List each hit as `FOUND: <path>`.
 
 If none found → log `[agent-context] Step 4.5: Migration cleanup — skipped (no legacy AI dirs found)` and skip to Step 4.6 (4.6 and 4.7 still run).
 
@@ -440,11 +430,13 @@ For each found old directory/file:
 
 Before removing a candidate, make sure its content has been inventoried and routed: in SETUP, Phase S2 already read it; in UPDATE, this step runs before Step 5, so read it now and route it with the **Knowledge Decision Logic** (same rules as Steps 5a–5b).
 
-Remove the candidates in one call — the script removes a candidate only when git can restore it (every file under it tracked, committed and unmodified, nothing ignored inside), logs any other candidate as `UNRESOLVED`, and writes `MIGRATION_CLEANUP: ran` only after an actual removal:
+Remove a candidate only when git can restore it. Run these as separate commands, one candidate at a time (e.g. `<path>` = `.ai`):
 
-```bash
-bash .agent-context/bin/setup-steps.sh remove-legacy <candidate>...   # e.g. remove-legacy .ai
-```
+1. `git ls-files -- <path>` — must print at least one file (tracked).
+2. `git status --porcelain --ignored -- <path>` — must print nothing (committed, unmodified, nothing ignored inside).
+3. Both hold → `git rm -r -q -- <path>` and note `Removed <path> (recoverable from git history)`. Otherwise do not touch it and log `echo "[agent-context] UNRESOLVED: <path>" >> .agent-context/setup.log`.
+
+After the last candidate, if at least one was removed: `echo "[agent-context] MIGRATION_CLEANUP: ran" >> .agent-context/setup.log`.
 
 `MIGRATION_CLEANUP: ran` means exactly one thing: this run removed at least one legacy Agent-Context artefact. Steps 5.0 and 5d depend on that meaning. Finish Step 4.5 with its result line, e.g. `[agent-context] Step 4.5: Migration cleanup — removed .ai` or `[agent-context] Step 4.5: Migration cleanup — nothing removed (1 unresolved)`.
 
@@ -502,8 +494,13 @@ fi
 
 Append the agent-context gitignore block to the consumer's `.gitignore` if (and only if) the marker `###> agent-context (transient working state) ###` is not already present. This makes the operation idempotent across re-runs.
 
-```bash
-bash .agent-context/bin/setup-steps.sh ensure-gitignore
+If `.gitignore` does not contain that marker, append this block with the Edit tool (create `.gitignore` if missing; if its last line has no trailing newline, add one first so the marker starts on its own line):
+
+```gitignore
+###> agent-context (transient working state) ###
+# Per-session task plan, kept locally to avoid merge conflicts across branches.
+/.agent-context/memory/todo.md
+###< agent-context ###
 ```
 
 ### Idempotency
@@ -616,11 +613,7 @@ If nothing changed and nothing is new → log `[agent-context] Step 5.0: Change 
 
 Apply the **Global Constraint: Knowledge Map Sources** — run `git ls-files --cached --others --exclude-standard` and only consider files in that output.
 
-Generate the discovery digest first (orientation; delete it at the end of the run):
-
-```bash
-bash .agent-context/bin/discovery-digest.sh > .agent-context/discovery-digest.md 2>/dev/null || true
-```
+Build the discovery inventory first (see Phase S2 — **Discovery inventory**).
 
 Launch parallel subagents (same set as SETUP Phase S2 — **including Subagent 7: Project Specifics & Complexity**) to scan within the constraint set:
 
@@ -693,7 +686,7 @@ Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-conte
 - `knowledge-map.md` ≥ 100 lines: flag for cleanup
 - Memory files ≥ 500 lines: flag as skill graduation candidate
 - Include the audit table in the summary output (✅ / ⚠️ per file)
-- Run the always-on budget gate: `bash .agent-context/bin/check-token-budget.sh` (reads `.agent-context/budget.conf`). Before recommending anything, classify every `note: <file> is counted from INCLUDE_FILES but not @-imported` line — those files never load, so their lines are not a real cost:
+- Measure the always-on budget as `.agent-context/skills/budget-check.md` (section 1) describes — it reads `.agent-context/budget.conf`. Before recommending anything, classify every `note: <file> is counted from INCLUDE_FILES but not @-imported` line — those files never load, so their lines are not a real cost:
   - **Import drift** — a template of the target version (`templates/` in the Agent-Context source) has an `@` line that resolves to `<file>`, but the project's copy of that file does not (project-owned layer files are never updated). Report the template file and line and the missing `@` line. Offer: add the import (the file then loads and its lines become real), or remove the entry if the project keeps the file out on purpose.
   - **Stale entry** — no template imports `<file>`. Offer: remove it from `INCLUDE_FILES`, or move it to `SESSION_START_FILES` if agents read it at session start.
   - For every option, give the projected total and its status against the soft and hard caps (PASS / WARN / FAIL). If `budget.conf` has no `SESSION_START_FILES` or `MAX_EFFECTIVE_LINES_HARD`, also recommend adding them (CHANGELOG 0.10.0 upgrade note).
@@ -757,12 +750,7 @@ AGENTS.md                                PROJECT — customize freely
   decision-review-prompt.md              🔒 SHARED — do NOT modify (auto-updated)
   bin/
     conf-read.sh                         🔒 SHARED — non-evaluating .conf parser (auto-updated)
-    check-token-budget.sh                🔒 SHARED — always-on budget gate (auto-updated)
-    measure-baseline.sh                  🔒 SHARED — layered-vs-flat baseline report (auto-updated)
     memory-prune.sh                      🔒 SHARED — memory decay/archive (auto-updated)
-    discovery-digest.sh                  🔒 SHARED — deterministic discovery inventory (auto-updated)
-    check-map-budget.sh                  🔒 SHARED — discovery-map cap gate (auto-updated)
-    setup-steps.sh                       🔒 SHARED — deterministic setup steps (auto-updated)
   hooks/
     lib.sh                               🔒 SHARED — hook helpers (auto-updated)
     pre-protect-secrets.sh               🔒 SHARED — PreToolUse secret block (auto-updated)
@@ -799,14 +787,14 @@ Put project-specific workflow rules in `layer2-project-core.md`, task routing in
 
 ### Phase S2: Discovery (Parallel Subagent Scan)
 
-**First, generate the discovery digest** — a deterministic orientation map so no manifest, service, or doc is missed and the subagents spend their budget on judgement rather than re-scanning:
+**First, build the discovery inventory** so no manifest, service, or doc is missed and the subagents spend their budget on judgement rather than re-scanning. From `git ls-files --cached --others --exclude-standard` (outside git: all files), excluding `.agent-context/`, `.claude/`, `node_modules/`, `vendor/`, `obj/`, `.deno/`, `dist/`, `build/`, `.git/`, list:
 
-```bash
-bash .agent-context/bin/discovery-digest.sh > .agent-context/discovery-digest.md 2>/dev/null \
-  || echo "(digest script unavailable — subagents scan unaided)"
-```
+- **Manifests** (`package.json`, `composer.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `requirements*.txt`, `Gemfile`, `pom.xml`, `*.csproj`, …) and top-level directories;
+- **Docker / Compose** files and their service names; **task entry points** (`Makefile` targets, `package.json` scripts, `bin/` commands);
+- **Documentation inventory** — every Markdown/text doc with its line count (`wc -l`);
+- **Distillation candidates** — docs with ≥ 100 lines or many headings (extract gotchas and decisions, don't just link).
 
-Pass the digest's contents to every subagent as orientation. It is an **accelerator, not a whitelist** — subagents must still scan deeper than the digest lists. The "Documentation inventory" and "Distillation candidates" tables in the digest are the authoritative list of docs to process (every row must end up either routed+distilled or explicitly classified `ignore` — none silently skipped). Delete `.agent-context/discovery-digest.md` at the end of the run (it is a transient scratch file, not project knowledge).
+Pass the inventory to every subagent as orientation. It is an **accelerator, not a whitelist** — subagents must still scan deeper. The documentation inventory and the distillation candidates are the authoritative list of docs to process (every row must end up either routed+distilled or explicitly classified `ignore` — none silently skipped). Keep the inventory in your working notes; do not write it into the project.
 
 Launch **7 parallel subagents** to scan the project, and run all seven — each covers a source type the others don't, so skipping one silently drops knowledge from the map.
 
@@ -1098,8 +1086,13 @@ fi
 
 Then append the agent-context gitignore block to the consumer's `.gitignore` so the file stays untracked. The block is idempotent — guarded by the marker check, re-runs are a no-op:
 
-```bash
-bash .agent-context/bin/setup-steps.sh ensure-gitignore
+If `.gitignore` does not contain that marker, append this block with the Edit tool (create `.gitignore` if missing; if its last line has no trailing newline, add one first so the marker starts on its own line):
+
+```gitignore
+###> agent-context (transient working state) ###
+# Per-session task plan, kept locally to avoid merge conflicts across branches.
+/.agent-context/memory/todo.md
+###< agent-context ###
 ```
 
 Then run **Record the Installed Version** as the last action before `[agent-context] Done.`

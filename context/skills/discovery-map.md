@@ -26,21 +26,19 @@ are pulled only when a task needs them.
   per-node line cap does not count globs, so a node may carry as many as it genuinely owns. If the
   whole map exceeds the total-byte cap, split a node into finer nodes or go hierarchical — do not
   shorten globs.
-- After writing, you MUST run the cap gate on the top map AND on every sub-map:
-  `bash .agent-context/bin/check-map-budget.sh`
-  `bash .agent-context/bin/check-map-budget.sh --map .agent-context/memory/map/<area>/map.json` (once per sub-map)
+- After writing, you MUST check the caps on the top map AND on every sub-map
+  (`memory/map/<area>/map.json`) as `.agent-context/skills/budget-check.md` (section 2) describes.
   If a map FAILS, split its largest area into `memory/map/<area>/map.json` (hierarchy) and
   re-run until every map passes. The top index stays flat regardless of repo size.
 - Node notes live in `memory/map/`, never beside domain stubs in `memory/`. They are exempt
-  from the 15-line stub cap and Domain Expansion; `check-map-budget.sh` and the skill's
+  from the 15-line stub cap and Domain Expansion; the map caps and the skill's
   "only meaningful things" rule bound them instead.
 
 ## Inputs
 
-1. Run the cheap deterministic inventory first:
-   `bash .agent-context/bin/discovery-digest.sh`
-   Use it to orient — manifests, directory structure, services. Do not re-grep what it
-   already lists; spend judgment on what is non-obvious.
+1. Take a cheap inventory first: `git ls-files --cached --others --exclude-standard` (skip
+   `.agent-context/`, `.claude/`, dependency and build dirs) — manifests, top-level directories,
+   services, docs with their line counts. Use it to orient; spend judgment on what is non-obvious.
 
 ## First run (full)
 

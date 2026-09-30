@@ -6,5 +6,6 @@
 | Skill           | Triggers                                            | Description                                                                                                |
 | --------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `discovery-map` | "discover/map the project", "/discover", onboarding | On-demand concept map; fan-out discovery into a tiny `map.json` + `memory/map/<node>.md`. Never always-on. |
+| `budget-check`  | "check the budget", token budget, map caps          | Measure the always-on budget and the discovery-map caps from `budget.conf` by reading files.               |
 
 <!-- Add one row per skill, mirroring its SKILL.md name + description. -->
