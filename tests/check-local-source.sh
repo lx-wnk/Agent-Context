@@ -29,6 +29,16 @@ cp -R "$REPO_ROOT/.prompts" "$REPO_ROOT/context" "$REPO_ROOT/templates" "$REPO_R
 # against the resolved path, not the symlinked mktemp path.
 SRC_ABS="$(cd "$SRC" && pwd -P)"
 SRC_VERSION=$(sed -n 's/^## \[\([0-9][0-9.]*\)\].*/\1/p' "$SRC/CHANGELOG.md" | head -n 1)
+
+# A second source whose Step 2 table no longer lists the five scripts retired from .agent-context/bin/,
+# mirroring the next release once they stop being shipped as shared files.
+SRC_NL="$FIX/Agent-Context-2.0.0-nolegacy"
+mkdir -p "$SRC_NL"
+cp -R "$REPO_ROOT/.prompts" "$REPO_ROOT/context" "$REPO_ROOT/templates" "$REPO_ROOT/CHANGELOG.md" "$SRC_NL/"
+awk '/^\| `context\/bin\/(check-token-budget|discovery-digest|setup-steps|check-map-budget|measure-baseline)\.sh`/{next} {print}' \
+    "$REPO_ROOT/.prompts/setup-prompt.md" > "$SRC_NL/.prompts/setup-prompt.md.tmp"
+mv "$SRC_NL/.prompts/setup-prompt.md.tmp" "$SRC_NL/.prompts/setup-prompt.md"
+RETIRED_SCRIPTS="check-token-budget.sh check-map-budget.sh discovery-digest.sh measure-baseline.sh setup-steps.sh"
 export TARBALL TARBALL_LOG
 TARBALL="$FIX/release.tar.gz"
 tar -czf "$TARBALL" -C "$FIX" Agent-Context-2.0.0
@@ -367,11 +377,15 @@ run_install "$TGT" --local-source "$SRC"
     || fail "local-source version file" "want $SRC_VERSION, got $(cat "$TGT/.agent-context/.agent-context-version" 2>/dev/null)"
 diffs20=""
 while IFS="$(printf '\t')" read -r src dst; do
-    cmp -s "$SRC/$src" "$TGT/$dst" || diffs20="$diffs20 $dst"
+    case " $RETIRED_SCRIPTS " in
+        *" $(basename "$dst") "*) [ -e "$TGT/$dst" ] && diffs20="$diffs20 $dst(not-removed)" ;;
+        *) cmp -s "$SRC/$src" "$TGT/$dst" || diffs20="$diffs20 $dst" ;;
+    esac
 done <<EOF
 $(shared_rows)
 EOF
-[ -z "$diffs20" ] && pass "every shared file matches its source" || fail "shared files identical" "$diffs20"
+[ -z "$diffs20" ] && pass "every still-shared file matches its source; the five retired ones are removed" \
+    || fail "shared files identical / retired removed" "$diffs20"
 [ -x "$TGT/.agent-context/hooks/lib.sh" ] && [ -x "$TGT/.agent-context/bin/conf-read.sh" ] \
     && pass "shipped scripts are executable" || fail "chmod +x" "bin/ or hooks/ script not executable"
 [ "$(cat "$TGT/.claude/CLAUDE.md" 2>/dev/null)" = "@../AGENTS.md" ] \
@@ -539,6 +553,38 @@ alive30=no
 [ -n "$agent30" ] && kill "$agent30" 2>/dev/null
 { [ "$rc30" -eq 130 ] && [ "$alive30" = no ] && [ -f "$TGT/.agent-context/setup.log" ]; } \
     && pass "TERM kills the agent, keeps setup.log and exits 130" || fail "TERM trap" "rc=$rc30 agent alive=$alive30"
+
+# 31. Shared scripts retired from the download table: leftovers from an old install are removed on
+#     update, a sibling and the still-shared memory-prune.sh are untouched, a symlink at a retired
+#     path is removed as a link without following it, and the headless allowlist drops the three
+#     entries for the scripts it no longer needs to run.
+TGT=$(mk_tmp)
+mkdir -p "$TGT/.agent-context/bin"
+for r in $RETIRED_SCRIPTS; do printf 'legacy\n' > "$TGT/.agent-context/bin/$r"; done
+printf 'keep\n' > "$TGT/.agent-context/bin/my-tool.sh"
+OUTSIDE31="$(mk_tmp)/outside-target"
+printf 'outside\n' > "$OUTSIDE31"
+rm -f "$TGT/.agent-context/bin/setup-steps.sh"
+ln -s "$OUTSIDE31" "$TGT/.agent-context/bin/setup-steps.sh"
+run_install "$TGT" --local-source "$SRC_NL"
+missing31=""
+for r in $RETIRED_SCRIPTS; do
+    [ -e "$TGT/.agent-context/bin/$r" ] && missing31="$missing31 $r"
+done
+[ -z "$missing31" ] && pass "all five retired scripts are removed" || fail "retired scripts removed" "still present:$missing31"
+[ "$(cat "$TGT/.agent-context/bin/my-tool.sh" 2>/dev/null)" = "keep" ] \
+    && pass "an unrelated bin script is left alone" || fail "unrelated bin script untouched" "changed or missing"
+[ -f "$TGT/.agent-context/bin/memory-prune.sh" ] \
+    && pass "the still-shared memory-prune.sh is installed" || fail "memory-prune.sh present" "missing"
+[ "$(cat "$OUTSIDE31")" = "outside" ] \
+    && pass "a retired symlink's target is left untouched" || fail "symlink target untouched" "$(cat "$OUTSIDE31" 2>&1)"
+printf '%s' "$OUT" | grep -qF "Removed retired .agent-context/bin/setup-steps.sh" \
+    && pass "removal of the symlink is reported" || fail "symlink removal reported" "$OUT"
+allowed31=$(printf '%s\n' "$CAP" | grep -A1 -x -- "--allowedTools" | tail -n 1)
+for r in discovery-digest.sh check-token-budget.sh setup-steps.sh; do
+    printf '%s' "$allowed31" | grep -qF "$r" \
+        && fail "allowlist drops the entry for $r" "$allowed31" || pass "allowlist drops the entry for $r"
+done
 
 # Downgrade guard: an install newer than the latest release is left alone (release mode only).
 TGT=$(mk_tmp)

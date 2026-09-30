@@ -325,6 +325,21 @@ register_hooks() {
     return 1
 }
 
+# Deletes shared scripts retired from .agent-context/bin/ that an older install left behind. Only a
+# regular file or a symlink at exactly one of these paths is removed — a symlink is unlinked itself,
+# its target is never touched — and nothing else in .agent-context/bin/ is touched.
+remove_retired_shared_files() {
+    local retired=(check-token-budget.sh check-map-budget.sh discovery-digest.sh measure-baseline.sh setup-steps.sh)
+    local name path
+    for name in "${retired[@]}"; do
+        path=".agent-context/bin/$name"
+        if [ -f "$path" ] || [ -L "$path" ]; then
+            rm -f "$path"
+            echo "Removed retired $path"
+        fi
+    done
+}
+
 # Prints every shared file that does not match source $1, every missing critical template, and
 # unregistered hooks — one per line; prints nothing when the install is complete.
 verify_install() {
@@ -438,9 +453,6 @@ main() {
     ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(git ls-files:*),Bash(git rm:*),Bash(git status:*),Bash(git log:*)"
     ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(sha256sum:*),Bash(shasum:*),Bash(echo:*),Bash(printf:*),Bash(cat:*)"
     ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(grep:*),Bash(wc:*),Bash(head:*),Bash(tail:*),Bash(ls:*),Bash(test:*)"
-    ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(bash *.agent-context/bin/discovery-digest.sh*)"
-    ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(bash *.agent-context/bin/check-token-budget.sh*)"
-    ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(bash *.agent-context/bin/setup-steps.sh*)"
     LOG=".agent-context/setup.log"
     AGENT_OUTPUT=".agent-context/setup-output.md"
     VERSION_FILE=".agent-context/.agent-context-version"
@@ -677,6 +689,7 @@ main() {
             printf '%s\n' "$MISSING" | sed 's/^/  /' >&2
             EXIT_CODE=2
         else
+            remove_retired_shared_files
             printf '%s\n' "$TARGET_TAG" > "$VERSION_FILE"
             echo "Installed Agent-Context $TARGET_TAG (all shared files verified)."
         fi
