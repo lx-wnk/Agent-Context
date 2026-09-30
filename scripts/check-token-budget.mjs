@@ -271,7 +271,7 @@ function commentStart(s) {
   return masked.indexOf("<!--");
 }
 
-function jsonEscape(str) {
+export function jsonEscape(str) {
   return str.split("\n").map(jsonEscapeLine).join("\\n");
 }
 function jsonEscapeLine(s) {
