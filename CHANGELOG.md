@@ -4,6 +4,10 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Added
+
+- **Code anchors on memory entries** — an entry about specific code carries `ref:<path>[,<path>]`. Before acting on such an entry, the agent checks `git log` for each path and re-verifies the entry when a file is gone or changed after the entry date (layer 0). The memory review reports drifted, broken and unanchored entries (Step 2b). Dates alone said how old an entry was, not whether the code it describes still matches.
+
 ### Changed
 
 - **Budget and map checks are a skill** — the new shared `.agent-context/skills/budget-check.md` describes how to count the always-on budget and the discovery-map caps from `budget.conf`; Step 5e, `/discover` and the discovery-map skill follow it. The agent recounts when a total lands within two lines of a cap. In a measurement on three fixtures, an instruction-only count matched the script in 14 of 15 runs; the miss was one line at the hard cap.

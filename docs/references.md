@@ -10,7 +10,13 @@
 - [On the Impact of AGENTS.md Files (arxiv 2601.20404)](https://arxiv.org/abs/2601.20404) — Empirical measurement: AGENTS.md presence yields 16.58% median runtime reduction and ~20% output-token reduction when content is lean
 - [SSGM: Structured Memory Governance (arxiv 2603.11768)](https://arxiv.org/abs/2603.11768) — TTL-tiered memory with semantic relevance × time-decay scoring; basis for the TTL metadata system
 - [MemoryGraft: Persistent Memory Poisoning (arxiv 2512.16962)](https://arxiv.org/abs/2512.16962) — Poisoned skill/memory files can corrupt 87% of downstream agent decisions within 4 hours; motivates source attribution and trust scoring
-- [A-MemGuard: Consensus Validation Defense (OpenReview)](https://openreview.net/forum?id=fVxfCEv8xG) — Dual-memory + consensus validation cuts poisoning attack success by 95%+
+- [A-MemGuard: Consensus Validation Defense (OpenReview)](https://openreview.net/forum?id=fVxfCEv8xG) — Dual-memory + consensus validation reports a 95%+ cut in poisoning attack success; bypassed by forged reasoning traces in FARMA (below), so it is not relied on here
+- [FARMA: Forged Reasoning Attacks on Agent Memory (arxiv 2607.05029)](https://arxiv.org/abs/2607.05029) — Forged reasoning traces reach up to 100% attack success and defeat A-MemGuard and keyword filters
+- [Bad Memory: Prompt Injection Risks from Memory (arxiv 2607.14611)](https://arxiv.org/abs/2607.14611) — On Claude Code and Codex, payloads already planted in memory files attack current and future sessions; making the agent write them from untrusted content is hard. Supports reviewing every memory diff over automated screening
+- [VibeMemBench (arxiv 2609.23570)](https://arxiv.org/abs/2609.23570) — 11 of 12 solver/memory-system pairings fail to beat memory-off on real repository tasks, while injecting verified experience raises resolution by 1.1–4.5 pp; evidence for curated over auto-captured memory
+- [EA-Graph: Artifact-Anchored Verification Memory (arxiv 2608.04278)](https://arxiv.org/abs/2608.04278) — Memory anchored to code artifacts beats prose notes under upstream drift (7/7 worlds on Haiku); basis for `ref:` anchors on memory entries
+- [Do Context Files Help Coding Agents? (arxiv 2607.27250)](https://arxiv.org/abs/2607.27250) — Two-agent ablation (Claude Code, Codex): context strategy does not measurably change correctness; reconciles 2602.11988 and 2601.20404 via agent-specific task difficulty
+- [SkillsBench (arxiv 2602.12670)](https://arxiv.org/abs/2602.12670) — Curated, focused skills raise pass rate by 16.6 pp across 87 tasks; focused beats exhaustive
 
 ## Engineering & Best Practices
 
