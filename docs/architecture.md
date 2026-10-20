@@ -106,7 +106,8 @@ your-project/
     │   └── subagent-scope.sh               ← SubagentStop: scope check
     ├── skills/
     │   ├── index.md                       ← Skill registry (on-demand)
-    │   └── discovery-map.md               ← On-demand discovery skill
+    │   ├── discovery-map.md               ← On-demand discovery skill
+    │   └── budget-check.md                ← On-demand budget and map-cap check
     └── memory/
         ├── index.md                       ← Memory file catalog
         ├── lessons.md                     ← Hard-won lessons
