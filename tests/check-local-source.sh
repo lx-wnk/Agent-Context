@@ -588,6 +588,23 @@ for r in discovery-digest.sh check-token-budget.sh setup-steps.sh; do
         && fail "allowlist drops the entry for $r" "$allowed31" || pass "allowlist drops the entry for $r"
 done
 
+# 32. A release that still ships a retired script keeps it: retirement must not delete a file the
+#     installed release itself references (#78 — HEAD's retire list met 0.10.0 content).
+SRC_SHIPS="$FIX/Agent-Context-2.0.0-ships-legacy"
+mkdir -p "$SRC_SHIPS"
+cp -R "$SRC_NL/.prompts" "$SRC_NL/context" "$SRC_NL/templates" "$SRC_NL/CHANGELOG.md" "$SRC_SHIPS/"
+printf '#!/usr/bin/env bash\n' > "$SRC_SHIPS/context/bin/check-map-budget.sh"
+TGT=$(mk_tmp)
+mkdir -p "$TGT/.agent-context/bin"
+for r in $RETIRED_SCRIPTS; do printf 'legacy\n' > "$TGT/.agent-context/bin/$r"; done
+run_install "$TGT" --local-source "$SRC_SHIPS"
+[ -f "$TGT/.agent-context/bin/check-map-budget.sh" ] \
+    && pass "a retired script the installed release still ships is kept" \
+    || fail "shipped script kept" "check-map-budget.sh was removed"
+[ ! -e "$TGT/.agent-context/bin/discovery-digest.sh" ] \
+    && pass "a retired script the release no longer ships is still removed" \
+    || fail "unshipped script removed" "discovery-digest.sh still present"
+
 # Downgrade guard: an install newer than the latest release is left alone (release mode only).
 TGT=$(mk_tmp)
 mkdir -p "$TGT/.agent-context"
