@@ -221,7 +221,7 @@ AC_SH
 
 A `.claude/commands/` file without an `.agent-context/` reference is a user-owned command of the same name: the block leaves it untouched and prints `Skipping …`. List every skipped command in the final summary so the user can rename theirs to receive ours.
 
-> **Important:** If the parallel download block above exits non-zero (any file failed to download), **stop here.** The version file is written only by **Record the Installed Version** at the very end of a successful run, so a failed run leaves the old version (or none) in place and the next `install.sh` run retries.
+> **Important:** If the parallel download block above exits non-zero (any file failed to download), **stop here.** The version file is written only by **Record the Installed Version**, the last install action of a successful run, so a failed run leaves the old version (or none) in place and the next `install.sh` run retries.
 
 ## Step 3: Template Files
 
@@ -692,7 +692,7 @@ Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-conte
   - For every option, give the projected total and its status against the soft and hard caps (PASS / WARN / FAIL). If `budget.conf` has no `SESSION_START_FILES` or `MAX_EFFECTIVE_LINES_HARD`, also recommend adding them (CHANGELOG 0.10.0 upgrade note).
   - Only lines that load (walked imports and `SESSION_START_FILES`) count as over budget; for those, recommend moving optional content behind routing. `budget.conf` and the layer files are project-owned — report and recommend, never edit them here.
 
-## Record the Installed Version (last action)
+## Record the Installed Version (last install action)
 
 > Skipped when the launching instruction contains `INSTALLER MANAGES` (Step 0) — the installer writes the version only after verifying the install.
 
@@ -706,12 +706,13 @@ echo "<tag>" > .agent-context/.agent-context-version
 
 Run after **Record the Installed Version** (UPDATE: after Step 5e; SETUP: after Phase S5) and before `[agent-context] Done.`. Log one line per sub-step. A headless run ends with nothing left open: each item is done, or it is listed under `MANUAL FOLLOW-UP` in the final output with the exact command to run.
 
+If Record's precondition did not hold (update skipped, declined, refused as a downgrade, or a step failed), skip 6b and 6c, log `Step 6: Headless close — skipped (<reason>)`, and still run 6e and 6f.
+
 - **6a: Version file** — with `INSTALLER MANAGES`, do not write it; log `written by the installer after verification`. Otherwise log the tag that `cat .agent-context/.agent-context-version` prints; if it is not `<tag>`, add it to `MANUAL FOLLOW-UP`.
 - **6b: Integrity** — log the count of facts that Step 5c (SETUP: Phase S3.5) left without a home in a knowledge file. List each one under `MANUAL FOLLOW-UP`.
-- **6c: Commit** — never on the default branch. Create `chore/agent-context-<tag>`, stage only the files this run changed (never `setup.log` or `setup-output.md`) and commit with the project's commit convention.
-- **6d: Pull request** — push the branch and open a PR (`gh pr create`). If 6c or 6d is denied or has no network (the `install.sh` tool allowlist permits no `git checkout`, `git commit`, `git push` or `gh`), do not retry: log `manual follow-up` and list the exact commands under `MANUAL FOLLOW-UP`.
-- **6e: Token budget gate** — never fix it headless. List the Step 5e result and its recommendations under `MANUAL FOLLOW-UP`.
-- **6f: Wakeup timers** — cancel every wakeup, cron or scheduled task this run created; log the count cancelled. No timer outlives the run.
+- **6c: Commit and pull request** — do not run git write commands or `gh`: the `install.sh` tool allowlist denies them, and the installer writes `.claude/` and the version file only after this run ends. Log `manual follow-up` and list these commands under `MANUAL FOLLOW-UP`, to run after `install.sh` finishes: `git switch -c chore/agent-context-<tag>`, `git add .agent-context AGENTS.md .claude` (never `setup.log` or `setup-output.md`), `git commit` with the project's commit convention, `git push -u origin chore/agent-context-<tag>`, `gh pr create`.
+- **6e: Token budget gate** — never fix it headless. List the budget result (UPDATE: Step 5e; SETUP: Phase S5 item 5) and its recommendations under `MANUAL FOLLOW-UP`.
+- **6f: Wakeup timers** — cancel every wakeup, cron or scheduled task this run created; log the count cancelled. If no cancel tool is available, log `0 cancelled` and do not retry. No timer outlives the run.
 
 ## UPDATE Mode: Done
 

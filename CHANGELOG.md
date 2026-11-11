@@ -6,7 +6,7 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ### Changed
 
-- **Headless setup runs end with an explicit close** — Step 6 of the setup prompt covers the version file, open integrity facts, a commit on a feature branch, a PR, the token-budget result as a manual follow-up and cancelled wakeup timers. Where the installer's allowlist denies a step, the run lists the exact commands under `MANUAL FOLLOW-UP` instead of retrying. The integrity check (5c) counts only real knowledge files.
+- **Headless setup runs end with an explicit close** — Step 6 of the setup prompt covers the version file, open integrity facts, the token-budget result and cancelled wakeup timers. The installer's allowlist denies git writes and `gh`, so the run does not try to commit; it lists the exact branch, commit, push and PR commands under `MANUAL FOLLOW-UP`, to run after `install.sh` finishes. The integrity check (5c) counts only real knowledge files.
 - **User corrections record their cause** — the self-improvement loop files each lesson under one cause: missing instruction, conflicting instructions, instruction present but not followed, or wrong assumption.
 - **Grade line and runtime-evidence gate** — the layer-2 template asks for `Grade: throwaway / internal / production`, and the base principles state that runtime behaviour and deployment state are not verified from code alone.
 
