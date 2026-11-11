@@ -4,6 +4,10 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Added
+
+- **Code anchors on memory entries** — an entry about specific code carries `ref:<path>[,<path>]`. Before acting on such an entry, the agent checks `git log` for each path and re-verifies the entry when a file is gone or changed after the entry date (layer 0). The memory review reports drifted, broken and unanchored entries (Step 2b). Dates alone said how old an entry was, not whether the code it describes still matches.
+
 ### Changed
 
 - **Headless setup runs end with an explicit close** — Step 6 of the setup prompt covers the version file, open integrity facts, the token-budget result and cancelled wakeup timers. The installer's allowlist denies git writes and `gh`, so the run does not try to commit; it lists the exact branch, commit, push and PR commands under `MANUAL FOLLOW-UP`, to run after `install.sh` finishes. The integrity check (5c) counts only real knowledge files.

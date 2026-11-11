@@ -6,6 +6,7 @@
 
 To enable automatic monthly reviews, run `/schedule` and create a monthly trigger that executes this prompt.
 Recommended schedule: 1st of each month at 9:00 AM. You can also run this prompt manually at any time.
+In Claude Code, `/doctor prompt-audit` complements this review: it checks instruction files (not memory) for stale references and contradictions.
 
 ## Your Task
 
@@ -46,6 +47,16 @@ The default TTL per file is the one `memory-prune.sh` applies — do not assume 
 
 3. Entries without dates: flag as **undated** in summary (suggest adding date + TTL).
 
+## Step 2b: Code Anchor Check
+
+For each entry with a `ref:` tag, run `git log -1 --format=%cs -- <path>` for every comma-separated path:
+
+- Path not in the repo (`git ls-files --error-unmatch <path>` fails) → flag as **broken ref**
+- Last commit date after the entry date → flag as **drifted** — the entry must be re-verified against the code before it is trusted again
+- Neither → the anchor holds; nothing to report
+
+Entries without `ref:` whose text names a file path, class or function in this repo → flag as **unanchored** (suggest adding `ref:`).
+
 ## Step 3: Duplicate Detection
 
 Scan across all memory files for semantically duplicate information:
@@ -84,6 +95,7 @@ Return `ok: true` with a summary (adapt counts to include expanded domain sub-fi
 Memory Review: {total_files} files, {total_entries} entries
 - {fresh} fresh, {stale} stale, {archive} archive candidates
 - {undated} entries without dates
+- {drifted} drifted, {broken} broken refs, {unanchored} unanchored
 - {duplicates} potential duplicates
 - {graduation} graduation candidates
 - {parked} parked cross-repo entries ({moved} moved to their owning repo)
@@ -96,6 +108,9 @@ If any items need attention, list them:
 
 ### Stale
 - `memory/commands.md`: "Docker port 8080 for API" (2025-11-15)
+
+### Drifted
+- `memory/lessons.md`: "[api] Retry only on 503" (2026-03-02) — `src/http/client.ts` changed 2026-05-14
 
 ### Graduation Candidates
 - `memory/lessons.md`: "[testing] Always seed the database before integration tests" — consider promoting to layer2
