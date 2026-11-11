@@ -327,11 +327,14 @@ register_hooks() {
 
 # Deletes shared scripts retired from .agent-context/bin/ that an older install left behind. Only a
 # regular file or a symlink at exactly one of these paths is removed — a symlink is unlinked itself,
-# its target is never touched — and nothing else in .agent-context/bin/ is touched.
+# its target is never touched — and nothing else in .agent-context/bin/ is touched. A script that
+# source $1 still ships is kept: an older release installed by this installer still references it.
 remove_retired_shared_files() {
+    local source_root="$1"
     local retired=(check-token-budget.sh check-map-budget.sh discovery-digest.sh measure-baseline.sh setup-steps.sh)
     local name path
     for name in "${retired[@]}"; do
+        [ -e "$source_root/context/bin/$name" ] && continue
         path=".agent-context/bin/$name"
         if [ -f "$path" ] || [ -L "$path" ]; then
             rm -f "$path"
@@ -690,7 +693,7 @@ main() {
             printf '%s\n' "$MISSING" | sed 's/^/  /' >&2
             EXIT_CODE=2
         else
-            remove_retired_shared_files
+            remove_retired_shared_files "$SOURCE_ROOT"
             printf '%s\n' "$TARGET_TAG" > "$VERSION_FILE"
             echo "Installed Agent-Context $TARGET_TAG (all shared files verified)."
         fi
