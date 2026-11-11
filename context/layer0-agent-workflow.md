@@ -44,7 +44,7 @@
 
 Save immediately when ANY of the following occurs:
 
-- **User correction** → update `memory/lessons.md` with the pattern and what went wrong
+- **User correction** → update `memory/lessons.md` with the pattern, what went wrong and its cause: missing instruction, conflicting instructions, instruction present but not followed, or wrong assumption
 - **User preference** → update `memory/preferences.md`
 - **Self-discovered insight or technical discovery** (unexpected behavior, gotcha, undocumented API quirk, non-obvious format found during debugging or research) → update `memory/lessons.md` or relevant domain file
 - **Architecture or design decision** made or confirmed → update `decisions.json`

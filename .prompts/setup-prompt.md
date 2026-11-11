@@ -648,7 +648,7 @@ Keyword check: search target file for 2–3 key terms from the fact. If found �
 
 For each fact/finding collected in 5a:
 
-1. Search for its 2–3 key terms across all `.agent-context/` files and `knowledge-map.md`
+1. Search for its 2–3 key terms in the knowledge files only: `.agent-context/layer*.md`, `.agent-context/memory/`, `.agent-context/skills/`, `.agent-context/decisions.json` and `.agent-context/knowledge-map.md`. The run artefacts (`setup.log`, `setup-plan.md`, `setup-output.md`, `setup-decisions.json`) do not count — a match there does not give the fact a home
 2. If no match found → list as missing
 3. If any facts are missing: in `INTERACTIVE_MODE=true`, report them to the user, do NOT commit — ask how to resolve; in `INTERACTIVE_MODE=false`, route each one now per **Plan-File Mode** (best-effort, non-destructive) and list any fact that still has no home in the summary
 4. If all facts are accounted for → proceed
@@ -696,17 +696,28 @@ Run `wc -l .agent-context/layer*.md .agent-context/knowledge-map.md .agent-conte
 
 > Skipped when the launching instruction contains `INSTALLER MANAGES` (Step 0) — the installer writes the version only after verifying the install.
 
-Run this as the last action of a successful run — after Step 5e in UPDATE, after Phase S5 in SETUP — and immediately before writing `[agent-context] Done.`. Run it only if Steps 2 and 3 both completed for `<tag>` in this run; if the update was skipped, declined, refused as a downgrade, or any step failed, do not touch the file, so the next `install.sh` run retries:
+Run this as the last install action of a successful run — after Step 5e in UPDATE, after Phase S5 in SETUP — and immediately before **Step 6: Headless Close** (headless) or `[agent-context] Done.` (interactive). Run it only if Steps 2 and 3 both completed for `<tag>` in this run; if the update was skipped, declined, refused as a downgrade, or any step failed, do not touch the file, so the next `install.sh` run retries:
 
 ```bash
 echo "<tag>" > .agent-context/.agent-context-version
 ```
 
+## Step 6: Headless Close (`INTERACTIVE_MODE=false` only)
+
+Run after **Record the Installed Version** (UPDATE: after Step 5e; SETUP: after Phase S5) and before `[agent-context] Done.`. Log one line per sub-step. A headless run ends with nothing left open: each item is done, or it is listed under `MANUAL FOLLOW-UP` in the final output with the exact command to run.
+
+- **6a: Version file** — with `INSTALLER MANAGES`, do not write it; log `written by the installer after verification`. Otherwise log the tag that `cat .agent-context/.agent-context-version` prints; if it is not `<tag>`, add it to `MANUAL FOLLOW-UP`.
+- **6b: Integrity** — log the count of facts that Step 5c (SETUP: Phase S3.5) left without a home in a knowledge file. List each one under `MANUAL FOLLOW-UP`.
+- **6c: Commit** — never on the default branch. Create `chore/agent-context-<tag>`, stage only the files this run changed (never `setup.log` or `setup-output.md`) and commit with the project's commit convention.
+- **6d: Pull request** — push the branch and open a PR (`gh pr create`). If 6c or 6d is denied or has no network (the `install.sh` tool allowlist permits no `git checkout`, `git commit`, `git push` or `gh`), do not retry: log `manual follow-up` and list the exact commands under `MANUAL FOLLOW-UP`.
+- **6e: Token budget gate** — never fix it headless. List the Step 5e result and its recommendations under `MANUAL FOLLOW-UP`.
+- **6f: Wakeup timers** — cancel every wakeup, cron or scheduled task this run created; log the count cancelled. No timer outlives the run.
+
 ## UPDATE Mode: Done
 
-If in UPDATE mode, skip all remaining phases (after **Record the Installed Version**). Return `ok: true` with a brief summary (e.g. "Updated 0.1.1 → 0.1.2" or "Already up to date" or "User declined update"). Always return `ok: true` — even on failure.
+If in UPDATE mode, skip all remaining phases (after **Record the Installed Version** and **Step 6: Headless Close**). Return `ok: true` with a brief summary (e.g. "Updated 0.1.1 → 0.1.2" or "Already up to date" or "User declined update"). Always return `ok: true` — even on failure.
 
-Always output the following at the very end of the UPDATE run. Omit the `UNRESOLVED` block if the list is empty:
+Always output the following at the very end of the UPDATE run. Omit the `UNRESOLVED` or `MANUAL FOLLOW-UP` block if its list is empty:
 
 ```
 Migration complete.
@@ -714,6 +725,9 @@ Migration complete.
 UNRESOLVED (could not be classified — review manually):
   - <file1>
   - <file2>
+
+MANUAL FOLLOW-UP (headless only — Step 6):
+  - <item and exact command>
 
 If anything didn't go as expected, resume this session with:
   claude --resume $CLAUDE_SESSION_ID
@@ -1095,11 +1109,11 @@ If `.gitignore` does not contain that marker, append this block with the Edit to
 ###< agent-context ###
 ```
 
-Then run **Record the Installed Version** as the last action before `[agent-context] Done.`
+Then run **Record the Installed Version** and, headless, **Step 6: Headless Close** before `[agent-context] Done.`
 
 Inform the user to restart their agent session for the new configuration to take effect.
 
-Output the following at the very end. Omit the `UNRESOLVED` block if the list is empty:
+Output the following at the very end. Omit the `UNRESOLVED` or `MANUAL FOLLOW-UP` block if its list is empty:
 
 ```
 Setup complete.
@@ -1107,6 +1121,9 @@ Setup complete.
 UNRESOLVED (could not be classified — review manually):
   - <file1>
   - <file2>
+
+MANUAL FOLLOW-UP (headless only — Step 6):
+  - <item and exact command>
 
 If anything didn't go as expected, resume this session with:
   claude --resume $CLAUDE_SESSION_ID
