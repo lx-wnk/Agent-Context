@@ -12,6 +12,7 @@
 ## Quality Gates
 
 - No silent failures — handle errors explicitly, use early returns
+- Runtime behaviour and deployment state are not verified from code alone — observe them on the target system
 
 ## Security
 
