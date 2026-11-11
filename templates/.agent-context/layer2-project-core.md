@@ -10,6 +10,8 @@
 
 ## Critical Rules
 
+- Grade: throwaway / internal / production <!-- TODO: pick one; effort and rigor follow the grade -->
+
 <!-- TODO: e.g., Cart/R&C work → read memory/patterns.md first -->
 
 ## Testing Strategy
