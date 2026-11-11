@@ -706,13 +706,13 @@ echo "<tag>" > .agent-context/.agent-context-version
 
 Run after **Record the Installed Version** (UPDATE: after Step 5e; SETUP: after Phase S5) and before `[agent-context] Done.`. Log one line per sub-step. A headless run ends with nothing left open: each item is done, or it is listed under `MANUAL FOLLOW-UP` in the final output with the exact command to run.
 
-If Record's precondition did not hold (update skipped, declined, refused as a downgrade, or a step failed), skip 6b and 6c, log `Step 6: Headless close — skipped (<reason>)`, and still run 6e and 6f.
+If Steps 2 and 3 did not both complete for `<tag>` in this run (update skipped, declined, refused as a downgrade, or a step failed), skip 6a, 6b and 6c, log `Step 6: Headless close — skipped (<reason>)`, and still run 6d and 6e. This gate does not depend on who writes the version file.
 
 - **6a: Version file** — with `INSTALLER MANAGES`, do not write it; log `written by the installer after verification`. Otherwise log the tag that `cat .agent-context/.agent-context-version` prints; if it is not `<tag>`, add it to `MANUAL FOLLOW-UP`.
 - **6b: Integrity** — log the count of facts that Step 5c (SETUP: Phase S3.5) left without a home in a knowledge file. List each one under `MANUAL FOLLOW-UP`.
-- **6c: Commit and pull request** — do not run git write commands or `gh`: the `install.sh` tool allowlist denies them, and the installer writes `.claude/` and the version file only after this run ends. Log `manual follow-up` and list these commands under `MANUAL FOLLOW-UP`, to run after `install.sh` finishes: `git switch -c chore/agent-context-<tag>`, `git add .agent-context AGENTS.md .claude` (never `setup.log` or `setup-output.md`), `git commit` with the project's commit convention, `git push -u origin chore/agent-context-<tag>`, `gh pr create`.
-- **6e: Token budget gate** — never fix it headless. List the budget result (UPDATE: Step 5e; SETUP: Phase S5 item 5) and its recommendations under `MANUAL FOLLOW-UP`.
-- **6f: Wakeup timers** — cancel every wakeup, cron or scheduled task this run created; log the count cancelled. If no cancel tool is available, log `0 cancelled` and do not retry. No timer outlives the run.
+- **6c: Commit and pull request** — do not run git write commands or `gh`: the `install.sh` tool allowlist denies them, and the installer writes `.claude/` and the version file only after this run ends. Log `manual follow-up` and list these commands under `MANUAL FOLLOW-UP`, to run after `install.sh` finishes: `git switch -c chore/agent-context-<tag>`, `git add .agent-context AGENTS.md .claude .gitignore ':!.agent-context/setup.log' ':!.agent-context/setup-output.md'` (omit paths that do not exist), `git commit` with the project's commit convention, `git push -u origin chore/agent-context-<tag>`, `gh pr create`.
+- **6d: Token budget gate** — never fix it headless. List the budget result (UPDATE: Step 5e; SETUP: Phase S5 item 5) and its recommendations under `MANUAL FOLLOW-UP`. If the audit did not run, log `no budget result` and list nothing.
+- **6e: Wakeup timers** — cancel every wakeup, cron or scheduled task this run created; log the count cancelled. If no cancel tool is available, log `0 cancelled` and do not retry. No timer outlives the run.
 
 ## UPDATE Mode: Done
 
