@@ -6,6 +6,10 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ### Changed
 
+- **Headless setup runs end with an explicit close** — Step 6 of the setup prompt covers the version file, open integrity facts, a commit on a feature branch, a PR, the token-budget result as a manual follow-up and cancelled wakeup timers. Where the installer's allowlist denies a step, the run lists the exact commands under `MANUAL FOLLOW-UP` instead of retrying. The integrity check (5c) counts only real knowledge files.
+- **User corrections record their cause** — the self-improvement loop files each lesson under one cause: missing instruction, conflicting instructions, instruction present but not followed, or wrong assumption.
+- **Grade line and runtime-evidence gate** — the layer-2 template asks for `Grade: throwaway / internal / production`, and the base principles state that runtime behaviour and deployment state are not verified from code alone.
+
 - **Budget and map checks are a skill** — the new shared `.agent-context/skills/budget-check.md` describes how to count the always-on budget and the discovery-map caps from `budget.conf`; Step 5e, `/discover` and the discovery-map skill follow it. The agent recounts when a total lands within two lines of a cap. In a measurement on three fixtures, an instruction-only count matched the script in 14 of 15 runs; the miss was one line at the hard cap.
 - **Setup steps use file tools** — legacy detection (Step 4.5a) and the `.gitignore` block (4.6c, S5) use Glob/Read/Edit; legacy removal (4.5c) runs `git ls-files`, `git status --porcelain --ignored` and `git rm -r` one candidate at a time, all covered by the installer's allowlist. The discovery inventory in Phase S2/Step 5a is built from `git ls-files` instead of a script.
 - **Repo checks run on Node** — the CI budget gate and the baseline measurement are `scripts/check-token-budget.mjs` and `scripts/measure-baseline.mjs` (no dependencies, `node:test` suites), byte-identical in output to the retired bash versions. They are not installed.
