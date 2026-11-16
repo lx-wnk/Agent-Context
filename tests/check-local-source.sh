@@ -47,7 +47,8 @@ TARBALL_LOG="$(mk_tmp)/tarball-urls"
 # claude stub: records args (NUL-delimited) to $CAPTURE, whether shared files were already installed
 # to $CAPTURE.pre and the source root it was pointed at to $CAPTURE.root. It then acts as a successful
 # agent: fills the critical templates and logs Done. STUB_VERSION writes the version file,
-# STUB_RM deletes a file, STUB_NO_DONE skips the Done line.
+# STUB_RM deletes a file, STUB_NO_DONE skips the Done line, STUB_FOLLOWUP prints a 45-item
+# MANUAL FOLLOW-UP block.
 STUB="$(mk_tmp)/bin"
 mkdir -p "$STUB"
 cat > "$STUB/claude" <<'EOF'
@@ -59,6 +60,10 @@ if [ -n "${CAPTURE:-}" ]; then
     printf '%s' "${AI_DIRS-unset}" > "$CAPTURE.aidirs"
 fi
 echo "AGENT SUMMARY: UNRESOLVED none"
+if [ -n "${STUB_FOLLOWUP:-}" ]; then
+    echo "MANUAL FOLLOW-UP (headless only — Step 6):"
+    for i in $(seq 1 45); do echo "  - follow-up $i"; done
+fi
 mkdir -p .agent-context/skills
 for f in AGENTS.md .agent-context/layer1-bootstrap.md .agent-context/layer2-project-core.md \
     .agent-context/layer3-guidebook.md .agent-context/skills/index.md .agent-context/knowledge-map.md; do
@@ -505,6 +510,13 @@ out27="$( cd "$TGT" && CLAUDE_EXIT=3 PATH="$STUB:$PATH" bash "$INSTALL" --local-
 { grep -q "AGENT SUMMARY" "$TGT/.agent-context/setup-output.md" 2>/dev/null \
     && printf '%s' "$out27" | grep -q "AGENT SUMMARY"; } \
     && pass "setup-output.md is kept and shown after a failed run" || fail "setup-output.md kept" "$out27"
+
+# 27b. A MANUAL FOLLOW-UP block longer than the 40-line tail is printed in full.
+TGT=$(mk_tmp)
+STUB_FOLLOWUP=1 run_install "$TGT" --local-source "$SRC"
+{ [ "$RC" -eq 0 ] && printf '%s\n' "$OUT" | grep -q "^  - follow-up 1$" \
+    && printf '%s\n' "$OUT" | grep -q "^  - follow-up 45$"; } \
+    && pass "a long MANUAL FOLLOW-UP block is printed in full" || fail "follow-up printed in full" "rc=$RC: $OUT"
 
 # 28. A symlinked setup.log is replaced, never written through.
 TGT=$(mk_tmp)
