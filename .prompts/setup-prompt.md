@@ -333,7 +333,7 @@ A `knowledge-map.md` pointer alone is **not enough** — a large design/spec/arc
 | Domain glossary / project-specific terminology                            | `memory/glossary.md`                                                                       |
 | Frequently-needed reference too heavy for a stub (>30 lines distilled)    | `skills/<name>/SKILL.md`                                                                   |
 
-Rules: each fact in exactly ONE place; the stub/lesson **summarizes** and links the spec (it does not copy it). Prefer 1–2 high-value nuggets per doc over exhaustive transcription — capture what a future task would otherwise have to re-derive. This is how "Besonderheiten / complex topics / perspektivisch benötigt" actually reach the agent.
+Rules: each fact in exactly ONE place; the stub/lesson **summarizes** and links the spec (it does not copy it). Prefer 1–2 high-value nuggets per doc over exhaustive transcription — capture what a future task would otherwise have to re-derive. This is how "Besonderheiten / complex topics / perspektivisch benötigt" actually reach the agent. Every entry about specific code also carries `ref:<path>[,<path>]` with the repo-relative files it depends on (layer 0, Memory Decay).
 
 ### Requires Ack/Nack
 
@@ -643,6 +643,8 @@ Route facts to their targets — **additive only, never overwrite existing conte
 | External knowledge pointer                       | `knowledge-map.md`       | Append row if source not already listed                             |
 
 Keyword check: search target file for 2–3 key terms from the fact. If found → skip. If not found → append.
+
+Every appended memory entry about specific code carries `ref:<path>[,<path>]` (layer 0). An entry without it cannot be checked for drift.
 
 ### 5c: Global Integrity Check
 
