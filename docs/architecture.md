@@ -110,6 +110,7 @@ your-project/
     │   └── budget-check.md                ← On-demand budget and map-cap check
     └── memory/
         ├── index.md                       ← Memory file catalog
+        ├── glossary.md                    ← Project terms the code does not explain
         ├── lessons.md                     ← Hard-won lessons
         ├── people.md                      ← Team members & stakeholders
         ├── preferences.md                 ← Agent behavior preferences

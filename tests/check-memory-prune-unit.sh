@@ -59,6 +59,11 @@ EOF
     cat > "$dir/glossary.md" <<'EOF'
 # Glossary
 
+- **Basket** — Customer-facing name for the cart aggregate (2020-01-01) source:user conf:high
+EOF
+    cat > "$dir/notes.md" <<'EOF'
+# Notes
+
 - **[term]** Unclassified file, no shared default (2020-01-01) source:user conf:low
 EOF
 }
@@ -103,19 +108,19 @@ assert_file_contains "undated line is never touched" "$t/memory/lessons.md" "No 
 assert_file_contains "shared default infinite keeps the entry" "$t/memory/people.md" "Backend lead"
 
 # 7. A file with no shared default and no conf entry stays immortal.
-assert_file_contains "unclassified file has no default" "$t/memory/glossary.md" "Unclassified file"
+assert_file_contains "unclassified file has no default" "$t/memory/notes.md" "Unclassified file"
 
 # 8. Conf key overrides the shared table; unlisted files keep the shared default (merge).
 t=$(mk_tmp); seed_defaults "$t/memory"
 cat > "$t/budget.conf" <<'EOF'
 MEMORY_TTL_DEFAULTS="
 lessons.md=infinite
-glossary.md=90d
+notes.md=90d
 "
 EOF
 bash "$PRUNE" --dir "$t/memory" --conf "$t/budget.conf" --apply >/dev/null 2>&1
 assert_file_contains "conf overrides shared default for lessons.md" "$t/memory/lessons.md" "Dated but no ttl"
-assert_file_not_contains "conf adds a default for an unlisted file" "$t/memory/glossary.md" "Unclassified file"
+assert_file_not_contains "conf adds a default for an unlisted file" "$t/memory/notes.md" "Unclassified file"
 assert_file_contains "unlisted file keeps its shared default (merge)" "$t/memory/people.md" "Backend lead"
 # An explicit ttl must beat the file default even when the default is the more permissive one —
 # with lessons.md=infinite, only "explicit wins" can expire this entry.
@@ -289,12 +294,14 @@ printf '%s' "$out" | grep -qF "elsewhere" \
 t=$(mk_tmp); seed_defaults "$t/memory"
 printf 'MEMORY_TTL_DEFAULTS="*=90d"\n' > "$t/star.conf"
 bash "$PRUNE" --dir "$t/memory" --conf "$t/star.conf" --apply >/dev/null 2>&1
-assert_file_not_contains "conf '*' applies to a file in neither table" "$t/memory/glossary.md" "Unclassified file"
+assert_file_not_contains "conf '*' applies to a file in neither table" "$t/memory/notes.md" "Unclassified file"
+# Shared glossary.md=infinite outranks a conf `*`; without it the term would expire here.
+assert_file_contains "shared glossary default beats the conf '*'" "$t/memory/glossary.md" "Customer-facing name"
 
 t=$(mk_tmp); seed_defaults "$t/memory"
-printf 'MEMORY_TTL_DEFAULTS="\n*=90d\nglossary.md=infinite\n"\n' > "$t/star2.conf"
+printf 'MEMORY_TTL_DEFAULTS="\n*=90d\nnotes.md=infinite\n"\n' > "$t/star2.conf"
 bash "$PRUNE" --dir "$t/memory" --conf "$t/star2.conf" --apply >/dev/null 2>&1
-assert_file_contains "exact basename beats the conf '*'" "$t/memory/glossary.md" "Unclassified file"
+assert_file_contains "exact basename beats the conf '*'" "$t/memory/notes.md" "Unclassified file"
 
 # 19. The dry-run preview is the safety net before --apply, so it must show the whole line. A
 # memory line containing a tab was truncated at the first one while the full line still moved.
@@ -490,12 +497,12 @@ assert_file_not_contains "an entry after the leading-zero line is still archived
 # The conf side fed the same octal to the arithmetic because the validator admitted it as
 # well-formed. It is rejected before any file is touched now.
 t=$(mk_tmp); seed_defaults "$t/memory"
-before=$(cat "$t/memory/glossary.md")
-printf 'MEMORY_TTL_DEFAULTS="glossary.md=09d"\n' > "$t/octal.conf"
+before=$(cat "$t/memory/notes.md")
+printf 'MEMORY_TTL_DEFAULTS="notes.md=09d"\n' > "$t/octal.conf"
 bash "$PRUNE" --dir "$t/memory" --conf "$t/octal.conf" --apply >/dev/null 2>&1
 rc=$?
 [ "$rc" -eq 2 ] && pass "conf value '09d' exits 2" || fail "conf value '09d' exits 2" "got exit $rc"
-[ "$(cat "$t/memory/glossary.md")" = "$before" ] \
+[ "$(cat "$t/memory/notes.md")" = "$before" ] \
     && pass "rejected conf value leaves files untouched" \
     || fail "rejected conf value leaves files untouched" "file changed"
 

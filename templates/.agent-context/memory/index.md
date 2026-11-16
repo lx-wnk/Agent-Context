@@ -8,6 +8,7 @@
 | ---------------- | ----------------------------------------- | ------------- |
 | `lessons.md`     | Hard-won lessons and gotchas              | Session start |
 | `todo.md`        | Active task plan (local-only, gitignored) | Session start |
+| `glossary.md`    | Project terms the code does not explain   | On-demand     |
 | `people.md`      | Team and stakeholders                     | On-demand     |
 | `preferences.md` | Agent behavior preferences                | Session start |
 | `user.md`        | User profile                              | On-demand     |
