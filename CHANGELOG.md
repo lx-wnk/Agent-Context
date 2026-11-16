@@ -7,6 +7,7 @@ All notable changes to this project will be documented here. Format loosely foll
 ### Added
 
 - **Code anchors on memory entries** — an entry about specific code carries `ref:<path>[,<path>]`. Before acting on such an entry, the agent checks `git log` for each path and re-verifies the entry when a file is gone or changed after the entry date (layer 0). The memory review reports drifted, broken and unanchored entries (Step 2b). Dates alone said how old an entry was, not whether the code it describes still matches.
+- **Project glossary** — a new on-demand `memory/glossary.md` holds project terms the code does not explain (one line per term, shared TTL default `infinite`). Discovery and distillation route glossary findings there instead of spreading them over domain stubs or the always-on layer 2.
 
 ### Changed
 
