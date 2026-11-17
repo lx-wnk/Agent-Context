@@ -111,7 +111,7 @@ The one-liner runs through `bash -c`, whose first argument becomes `$0`. Put `_`
 | `--ai-dirs <dirs>`, `--ai-dirs=<dirs>`           | Comma-separated extra AI-doc directories to treat as migratable (e.g. `--ai-dirs=".cursor,.ai-custom"`).                                                                          |
 | `-h`, `--help`                                   | Prints the usage. An unknown flag prints it too and exits with code 2.                                                                                                            |
 
-The agent's final report is saved to `.agent-context/setup-output.md` and its last 40 lines are printed; the file is removed after a verified run and kept, with `setup.log`, after a failed or interrupted one (Ctrl-C stops the agent and exits 130).
+The agent's final report is saved to `.agent-context/setup-output.md` and its last 40 lines are printed, plus the whole `MANUAL FOLLOW-UP` block when it starts above them; the file is removed after a verified run and kept, with `setup.log`, after a failed or interrupted one (Ctrl-C stops the agent and exits 130).
 
 See [what gets created](docs/architecture.md#what-gets-created) and [alternative install](docs/architecture.md#alternative-paste-into-a-session).
 

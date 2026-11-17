@@ -670,6 +670,11 @@ main() {
         echo "Setup agent output (last 40 lines):"
         tail -n 40 "$AGENT_OUTPUT"
         echo ""
+        if grep -q 'MANUAL FOLLOW-UP' "$AGENT_OUTPUT" && ! tail -n 40 "$AGENT_OUTPUT" | grep -q 'MANUAL FOLLOW-UP'; then
+            echo "Manual follow-up (full block, cut off above):"
+            sed -n '/MANUAL FOLLOW-UP/,$p' "$AGENT_OUTPUT"
+            echo ""
+        fi
     fi
 
     if [ "$EXIT_CODE" -eq 0 ] && ! grep -q "^\[agent-context\] Done\." "$LOG" 2>/dev/null; then
