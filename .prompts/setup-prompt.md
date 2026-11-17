@@ -330,7 +330,7 @@ A `knowledge-map.md` pointer alone is **not enough** — a large design/spec/arc
 | Architecture decision + rationale (ADRs, "we chose X because Y")          | `decisions.json`                                                                           |
 | Hard invariant / gotcha / "must/never" constraint (determinism, security) | `memory/lessons.md` (`ttl:infinite` for architecture/security)                             |
 | A complex recurring subsystem (combat, economy, generation, auth)         | `memory/<domain>.md` stub: 3–8 lines of the non-obvious model + a pointer to the full spec |
-| Domain glossary / project-specific terminology                            | `memory/<domain>.md` or `layer2-project-core.md`                                           |
+| Domain glossary / project-specific terminology                            | `memory/glossary.md`                                                                       |
 | Frequently-needed reference too heavy for a stub (>30 lines distilled)    | `skills/<name>/SKILL.md`                                                                   |
 
 Rules: each fact in exactly ONE place; the stub/lesson **summarizes** and links the spec (it does not copy it). Prefer 1–2 high-value nuggets per doc over exhaustive transcription — capture what a future task would otherwise have to re-derive. This is how "Besonderheiten / complex topics / perspektivisch benötigt" actually reach the agent.
@@ -785,6 +785,7 @@ AGENTS.md                                PROJECT — customize freely
     discovery-map.md                     🔒 SHARED — on-demand discovery skill (auto-updated)
   memory/                                PROJECT — customize freely
     index.md                             Memory file catalog
+    glossary.md
     lessons.md
     people.md
     preferences.md
@@ -902,7 +903,7 @@ This subagent exists to capture what the others miss: **non-obvious peculiaritie
 - **Domain glossary** — project-specific terms a newcomer/agent wouldn't infer from code.
 - **Frequently-needed references** — the docs that will be opened again and again for a whole class of tasks.
 
-For each finding output: `{ "kind": "invariant|decision|subsystem|glossary|reference", "summary": "<1-2 lines, non-obvious only>", "source": "<doc path>", "target": "memory/lessons.md|decisions.json|memory/<domain>.md|skills/<name>/SKILL.md" }`.
+For each finding output: `{ "kind": "invariant|decision|subsystem|glossary|reference", "summary": "<1-2 lines, non-obvious only>", "source": "<doc path>", "target": "memory/lessons.md|decisions.json|memory/<domain>.md|memory/glossary.md|skills/<name>/SKILL.md" }`.
 
 Apply the **discoverability filter**: skip anything an agent could read straight from the code. Only capture what must be told. These findings feed the **Distillation** step — they are the primary mechanism for getting Besonderheiten and complex topics into task-routed memory.
 
@@ -910,16 +911,17 @@ Apply the **discoverability filter**: skip anything an agent could read straight
 
 Collect all subagent outputs. Document each finding with its target layer:
 
-| Finding type                              | Document in                       |
-| ----------------------------------------- | --------------------------------- |
-| Project name, stack                       | `layer1-bootstrap.md`             |
-| Docker, domains                           | `layer1-bootstrap.md`             |
-| Conventions, CI, testing                  | `layer2-project-core.md`          |
-| Skills, task routing                      | `layer3-guidebook.md`             |
-| Invariant / gotcha (Subagent 7)           | `memory/lessons.md`               |
-| Architecture decision (Subagent 7)        | `decisions.json`                  |
-| Complex subsystem / glossary (Subagent 7) | `memory/<domain>.md` (or skill)   |
-| Existing doc content                      | Input for Phase S3 classification |
+| Finding type                       | Document in                       |
+| ---------------------------------- | --------------------------------- |
+| Project name, stack                | `layer1-bootstrap.md`             |
+| Docker, domains                    | `layer1-bootstrap.md`             |
+| Conventions, CI, testing           | `layer2-project-core.md`          |
+| Skills, task routing               | `layer3-guidebook.md`             |
+| Invariant / gotcha (Subagent 7)    | `memory/lessons.md`               |
+| Architecture decision (Subagent 7) | `decisions.json`                  |
+| Complex subsystem (Subagent 7)     | `memory/<domain>.md` (or skill)   |
+| Glossary term (Subagent 7)         | `memory/glossary.md`              |
+| Existing doc content               | Input for Phase S3 classification |
 
 Only ask the user for values that no subagent could auto-detect. In `INTERACTIVE_MODE=false`, leave such a value as a `TODO` placeholder and list it in the summary instead.
 
@@ -1029,6 +1031,7 @@ For existing documentation found in Phase S2, route surviving content:
 | Domain-specific convention  | `memory/<domain>.md`                   |
 | Heavy reference (>30 lines) | `skills/<reference>.md`                |
 | Gotcha / lesson             | `memory/lessons.md`                    |
+| Project term / jargon       | `memory/glossary.md`                   |
 | User/team info              | `memory/user.md` or `memory/people.md` |
 | Agent behavior preference   | `memory/preferences.md`                |
 | Architecture decision       | `decisions.json`                       |

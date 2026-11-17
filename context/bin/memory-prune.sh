@@ -106,6 +106,7 @@ ARCHIVE_DIR=$(normalize_dir "$ARCHIVE_DIR") || exit 2
 ## tables so the precedence order stays uniform across them.
 SHARED_TTL_DEFAULTS="
 lessons.md=90d
+glossary.md=infinite
 preferences.md=infinite
 people.md=infinite
 user.md=infinite

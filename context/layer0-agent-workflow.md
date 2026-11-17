@@ -20,7 +20,7 @@
 ### Memory Decay
 
 - Dated entries expire when `today > date + ttl`; `ttl:infinite` never expires (architecture/security)
-- Dated entries without a `ttl:` fall back to a per-file default (`lessons.md` 90d; `preferences.md`, `people.md`, `user.md` infinite) — override per project in `.agent-context/budget.conf` via `MEMORY_TTL_DEFAULTS`
+- Dated entries without a `ttl:` fall back to a per-file default (`lessons.md` 90d; `glossary.md`, `preferences.md`, `people.md`, `user.md` infinite) — override per project in `.agent-context/budget.conf` via `MEMORY_TTL_DEFAULTS`
 - Archive expired entries (never delete): `bash .agent-context/bin/memory-prune.sh` (dry-run) then `--apply` → moves them to `memory/archive/<ISO-week>.md`
 
 ## Routing New Knowledge
@@ -28,6 +28,7 @@
 | Type                        | Target                                                                                                                                                                                                                                                          |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Project-wide convention     | `layer2-project-core.md`                                                                                                                                                                                                                                        |
+| Project term / jargon       | `memory/glossary.md` (one line per term; only terms the code does not explain)                                                                                                                                                                                  |
 | Domain-specific fact        | `memory/<domain>.md`                                                                                                                                                                                                                                            |
 | Heavy reference (>30 lines) | `skills/<name>/SKILL.md`                                                                                                                                                                                                                                        |
 | Gotcha / lesson (any repo)  | `memory/lessons.md` in the repo owning the code (tag new entries `ttl:90d source:discovered conf:med`); API contracts in the canonical repo, siblings point via `knowledge-map.md`; owning repo not checked out → `memory-maintenance.md` (Cross-Repo Fallback) |
