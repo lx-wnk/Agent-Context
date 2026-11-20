@@ -13,6 +13,7 @@ suites=(
     tests/check-hooks-unit.sh
     tests/check-install-smoke.sh
     tests/check-local-source.sh
+    tests/check-skills-index.sh
 )
 
 results=()
