@@ -4,6 +4,8 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-20
+
 ### Added
 
 - **Code anchors on memory entries** — an entry about specific code carries `ref:<path>[,<path>]`. Before acting on such an entry, the agent checks `git log` for each path and re-verifies the entry when a file is gone or changed after the entry date (layer 0). The memory review reports drifted, broken and unanchored entries (Step 2b). Dates alone said how old an entry was, not whether the code it describes still matches. Setup and update runs write the anchor on the entries they distill.
@@ -210,7 +212,8 @@ Automatic via the `install.sh` one-liner (UPDATE mode). New shared files (hooks,
 
 Automatic via the `install.sh` one-liner (UPDATE mode). The migration is idempotent: re-running setup on an already-migrated project produces no further changes.
 
-[Unreleased]: https://github.com/lx-wnk/Agent-Context/compare/0.10.0...HEAD
+[Unreleased]: https://github.com/lx-wnk/Agent-Context/compare/0.11.0...HEAD
+[0.11.0]: https://github.com/lx-wnk/Agent-Context/compare/0.10.0...0.11.0
 [0.10.0]: https://github.com/lx-wnk/Agent-Context/compare/0.9.1...0.10.0
 [0.9.1]: https://github.com/lx-wnk/Agent-Context/compare/0.9.0...0.9.1
 [0.9.0]: https://github.com/lx-wnk/Agent-Context/compare/0.8.1...0.9.0
