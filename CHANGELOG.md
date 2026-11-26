@@ -4,6 +4,10 @@ All notable changes to this project will be documented here. Format loosely foll
 
 ## [Unreleased]
 
+### Fixed
+
+- **An update never listed new shared skills** — `skills/index.md` is project-owned, and only a run that removed legacy artefacts rebuilt it (Step 5d). A normal update installed `budget-check.md` but left it out of the index, so agents asked to check the budget did not find the skill. The new Step 5e.0 runs on every update, also when the change gate skips 5a–5d: it adds a row for each unlisted skill, removes rows for deleted skills and leaves the other rows as they are. `tests/check-skills-index.sh` guards it. An install already at 0.11.0 gets the sync with the next release, because `install.sh` exits before the agent when the version matches; until then, add the `budget-check` row from the template `skills/index.md` by hand.
+
 ## [0.11.0] - 2026-11-20
 
 ### Added

@@ -607,7 +607,7 @@ Otherwise compare the knowledge sources with `.agent-context/setup-decisions.jso
 1. For every path recorded there, compute `sha256sum <path>` (`shasum -a 256` on macOS) and compare it with the recorded `sha256`. A missing file counts as changed.
 2. From `git ls-files --cached --others --exclude-standard`, list Markdown and structured-data documentation files outside `.agent-context/` that are not recorded yet and would qualify as a Knowledge Map Source (Global Constraint above), plus every file of other tools' live configuration (File Classification) that is not recorded yet.
 
-If nothing changed and nothing is new → log `[agent-context] Step 5.0: Change gate — no source changed, 5a–5d skipped`, run only 5e, and finish. Otherwise log how many sources changed and run 5a–5d **for the changed and new sources only**; unchanged sources keep their routing. Source-code knowledge is not re-scanned by this gate — a full code re-scan is what `--force` (or the interactive `/discover`) is for.
+If nothing changed and nothing is new → log `[agent-context] Step 5.0: Change gate — no source changed, 5a–5d skipped`, run only 5e.0 and 5e, and finish. Otherwise log how many sources changed and run 5a–5d **for the changed and new sources only**; unchanged sources keep their routing. Source-code knowledge is not re-scanned by this gate — a full code re-scan is what `--force` (or the interactive `/discover`) is for.
 
 ### 5a: Consolidated Fact Inventory
 
@@ -666,7 +666,6 @@ Re-verify every Real-Doc row of `knowledge-map.md` (row-level edits only — nev
 3. Compute fresh SHA256 for each source: `sha256sum <file>`
 4. In `knowledge-map.md`, update the rows whose source is a Real Doc (SHA256, Last Verified), append rows for Real Docs not listed yet, and drop rows whose source path no longer exists. Keep every row that points to `memory/`, `map.json`, `decisions.json`, or `skills/` — those come from discovery or were curated by hand
 5. Ensure entries exist in `setup-decisions.json` for all currently-existing Real Docs; update SHA256 where changed
-6. Scan `.agent-context/skills/` and rebuild `skills/index.md` from what actually exists there
 
 No old paths. No stale hashes. No entries for files that no longer exist.
 
@@ -679,6 +678,16 @@ For each source with `action = "reference"`:
 - Remove entries for sources that no longer exist
 
 Update `.agent-context/setup-decisions.json` with all new decisions.
+
+### 5e.0: Skills Index Sync
+
+Runs on every UPDATE, also when the change gate skipped 5a–5d, and after 5b so skills created in this run are listed too. Step 2 (or the installer) adds shared skills, but `skills/index.md` is project-owned and never overwritten, so a new shared skill stays unlisted and agents never find it.
+
+1. List every skill under `.agent-context/skills/`: `<name>/SKILL.md` and legacy flat `<name>.md` (skip `index.md`). Its key is the frontmatter `name`; without frontmatter, the directory or file name.
+2. For each key without a row in `skills/index.md`, insert one row after the last table row (not after the closing comment): ``| `<key>` | <triggers, comma-separated, quoted phrases kept> | <description, one line> |`` — without frontmatter, the triggers cell is `—` and the description is the first heading.
+3. Remove each row whose key matches no skill file.
+4. Leave every other row unchanged — the project may have edited it.
+5. Log `[agent-context] Step 5e.0: Skills index — <n> added, <m> removed`.
 
 ### 5e: Token Budget Audit
 
